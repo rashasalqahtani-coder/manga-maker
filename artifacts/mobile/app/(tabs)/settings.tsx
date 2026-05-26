@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { useAuth, useUser } from "@clerk/expo";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -76,6 +77,8 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { downloadedChapters, removeDownload } = useDownloads();
+  const { isSignedIn, signOut } = useAuth();
+  const { user } = useUser();
 
   const [dataSaver, setDataSaver] = useState(false);
   const [notifications, setNotifications] = useState(true);
@@ -86,6 +89,14 @@ export default function SettingsScreen() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const topPad = Platform.OS === "web" ? 67 : insets.top + 12;
+
+  const handleSignOut = () => {
+    if (Platform.OS === "web") { signOut(); return; }
+    Alert.alert("تسجيل الخروج", "هل تريد تسجيل الخروج من حسابك؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "خروج", style: "destructive", onPress: () => signOut() },
+    ]);
+  };
 
   const enterSelectMode = (firstId?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -159,6 +170,78 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + (selecting && selected.size > 0 ? 100 : 32) }}
       >
+        {/* ── ACCOUNT SECTION ── */}
+        <SectionHeader title="الحساب" />
+        <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
+          {isSignedIn && user ? (
+            <>
+              {/* User info row */}
+              <View style={styles.userRow}>
+                <View style={[styles.userAvatar, { backgroundColor: colors.primary + "22" }]}>
+                  {user.imageUrl ? (
+                    <Image source={{ uri: user.imageUrl }} style={styles.avatarImg} contentFit="cover" />
+                  ) : (
+                    <Feather name="user" size={22} color={colors.primary} />
+                  )}
+                </View>
+                <View style={styles.userInfo}>
+                  <Text style={[styles.userName, { color: colors.foreground }]} numberOfLines={1}>
+                    {user.fullName || user.username || "مستخدم"}
+                  </Text>
+                  <Text style={[styles.userEmail, { color: colors.mutedForeground }]} numberOfLines={1}>
+                    {user.primaryEmailAddress?.emailAddress ?? ""}
+                  </Text>
+                </View>
+                <View style={[styles.verifiedBadge, { backgroundColor: "#10B98122" }]}>
+                  <Feather name="check-circle" size={14} color="#10B981" />
+                </View>
+              </View>
+              <Divider marginLeft={0} />
+              {/* Sign out */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.row,
+                  { backgroundColor: pressed ? colors.secondary : "transparent" },
+                ]}
+                onPress={handleSignOut}
+              >
+                <View style={[styles.iconBox, { backgroundColor: "#EF444422", borderRadius: 8 }]}>
+                  <Feather name="log-out" size={17} color="#EF4444" />
+                </View>
+                <Text style={[styles.rowLabel, { color: "#EF4444" }]}>تسجيل الخروج</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              {/* Not signed in */}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.authBtn,
+                  { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+                ]}
+                onPress={() => router.push("/(auth)/sign-in")}
+              >
+                <Feather name="log-in" size={17} color="#fff" />
+                <Text style={styles.authBtnText}>تسجيل الدخول</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.authBtnSecondary,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.primary,
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+                onPress={() => router.push("/(auth)/sign-up")}
+              >
+                <Feather name="user-plus" size={17} color={colors.primary} />
+                <Text style={[styles.authBtnSecondaryText, { color: colors.primary }]}>إنشاء حساب جديد</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+
         {/* ── DOWNLOADS SECTION ── */}
         <SectionHeader title="الفصول المحمّلة" />
         <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
@@ -395,6 +478,24 @@ const styles = StyleSheet.create({
   dlPages: { fontSize: 11 },
   dlActions: { alignItems: "center", gap: 10 },
   offlineBadge: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  userRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
+  userAvatar: { width: 46, height: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  avatarImg: { width: "100%", height: "100%" },
+  userInfo: { flex: 1, gap: 2 },
+  userName: { fontSize: 15, fontWeight: "700" },
+  userEmail: { fontSize: 12 },
+  verifiedBadge: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  authBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, margin: 14, paddingVertical: 14, borderRadius: 14,
+  },
+  authBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  authBtnSecondary: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, marginHorizontal: 14, marginBottom: 14, paddingVertical: 13,
+    borderRadius: 14, borderWidth: 1.5,
+  },
+  authBtnSecondaryText: { fontSize: 15, fontWeight: "700" },
   bottomBar: {
     position: "absolute",
     bottom: 0,
