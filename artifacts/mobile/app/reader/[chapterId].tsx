@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { getLocalPages } from "@/lib/download";
 import { getChapterPages, type ChapterPages } from "@/lib/mangadex";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -32,6 +33,7 @@ export default function ReaderScreen() {
   const [pages, setPages] = useState<PageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showControls, setShowControls] = useState(true);
 
@@ -39,16 +41,34 @@ export default function ReaderScreen() {
     if (!chapterId) return;
     setLoading(true);
     setError(false);
-    getChapterPages(chapterId)
-      .then((info: ChapterPages) => {
-        const pageItems = info.data.map((filename, i) => ({
-          uri: `${info.baseUrl}/data/${info.hash}/${filename}`,
-          index: i,
-        }));
-        setPages(pageItems);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+
+    const load = async () => {
+      // Try local pages first
+      const localPages = await getLocalPages(chapterId);
+      if (localPages.length > 0) {
+        setIsOffline(true);
+        setPages(localPages.map((uri, i) => ({ uri, index: i })));
+        setLoading(false);
+        return;
+      }
+
+      // Fall back to network
+      try {
+        const info: ChapterPages = await getChapterPages(chapterId);
+        setPages(
+          info.data.map((filename, i) => ({
+            uri: `${info.baseUrl}/data/${info.hash}/${filename}`,
+            index: i,
+          }))
+        );
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, [chapterId]);
 
   if (loading) {
@@ -110,19 +130,24 @@ export default function ReaderScreen() {
             <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
               <Feather name="chevron-left" size={26} color="#fff" />
             </Pressable>
-            <Text style={styles.pageCount}>
-              {currentPage} / {pages.length}
-            </Text>
+            <View style={styles.centerInfo}>
+              <Text style={styles.pageCount}>
+                {currentPage} / {pages.length}
+              </Text>
+              {isOffline && (
+                <View style={styles.offlinePill}>
+                  <Feather name="wifi-off" size={10} color="#fff" />
+                  <Text style={styles.offlinePillText}>غير متصل</Text>
+                </View>
+              )}
+            </View>
             <View style={{ width: 40 }} />
           </View>
 
           <View
             style={[
               styles.bottomBar,
-              {
-                paddingBottom: insets.bottom + 8,
-                backgroundColor: "rgba(0,0,0,0.7)",
-              },
+              { paddingBottom: insets.bottom + 8, backgroundColor: "rgba(0,0,0,0.7)" },
             ]}
           >
             <Text style={styles.bottomText}>اضغط لإظهار أو إخفاء التحكم</Text>
@@ -139,10 +164,7 @@ function PageImage({ uri }: { uri: string }) {
   useEffect(() => {
     RNImage.getSize(
       uri,
-      (w, h) => {
-        const ratio = h / w;
-        setHeight(SCREEN_WIDTH * ratio);
-      },
+      (w, h) => setHeight(SCREEN_WIDTH * (h / w)),
       () => {}
     );
   }, [uri]);
@@ -157,32 +179,12 @@ function PageImage({ uri }: { uri: string }) {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 14,
-    marginTop: 8,
-  },
-  errorText: {
-    fontSize: 15,
-    textAlign: "center",
-  },
-  retryBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  retryText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
+  root: { flex: 1 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
+  loadingText: { fontSize: 14, marginTop: 8 },
+  errorText: { fontSize: 15, textAlign: "center" },
+  retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+  retryText: { color: "#fff", fontWeight: "600" },
   topBar: {
     position: "absolute",
     top: 0,
@@ -194,17 +196,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingBottom: 12,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
+  backBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  centerInfo: { alignItems: "center", gap: 4 },
+  pageCount: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  offlinePill: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 4,
+    backgroundColor: "rgba(232,64,64,0.7)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
   },
-  pageCount: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+  offlinePillText: { color: "#fff", fontSize: 10, fontWeight: "600" },
   bottomBar: {
     position: "absolute",
     bottom: 0,
@@ -213,8 +217,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 12,
   },
-  bottomText: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 12,
-  },
+  bottomText: { color: "rgba(255,255,255,0.5)", fontSize: 12 },
 });

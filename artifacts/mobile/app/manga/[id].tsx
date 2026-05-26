@@ -228,7 +228,7 @@ export default function MangaDetailScreen() {
           </View>
         ) : (
           chapters.map((ch) => (
-            <ChapterItem key={ch.id} chapter={ch} />
+            <ChapterItem key={ch.id} chapter={ch} manga={manga ?? undefined} />
           ))
         )}
 
