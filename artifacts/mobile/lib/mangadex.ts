@@ -17,7 +17,16 @@ const API_BASE = domain ? `https://${domain}/api` : "/api";
 export interface MangaRelationship {
   id: string;
   type: string;
-  attributes?: Record<string, unknown>;
+  attributes?: {
+    name?: string;
+    fileName?: string;
+    [key: string]: unknown;
+  };
+}
+
+export interface ScanlationGroup {
+  id: string;
+  name: string;
 }
 
 export interface MangaTag {
@@ -180,11 +189,27 @@ export async function getMangaDetails(id: string): Promise<Manga> {
 
 export async function getMangaChapters(id: string): Promise<Chapter[]> {
   const data = await apiFetch(`/manga/${id}/feed`, {
-    limit: "100",
+    limit: "500",
     "order[chapter]": "desc",
     "translatedLanguage[]": ["en"],
+    "includes[]": ["scanlation_group"],
   });
   return data.data as Chapter[];
+}
+
+export function getChapterGroup(chapter: Chapter): ScanlationGroup | null {
+  const rel = chapter.relationships.find((r) => r.type === "scanlation_group");
+  if (!rel) return null;
+  return { id: rel.id, name: rel.attributes?.name || "مجموعة غير معروفة" };
+}
+
+export function extractGroups(chapters: Chapter[]): ScanlationGroup[] {
+  const seen = new Map<string, string>();
+  for (const ch of chapters) {
+    const g = getChapterGroup(ch);
+    if (g && !seen.has(g.id)) seen.set(g.id, g.name);
+  }
+  return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
 }
 
 export interface MangaTagItem {
