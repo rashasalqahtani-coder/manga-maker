@@ -15,11 +15,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { FeaturedBanner } from "@/components/FeaturedBanner";
 import { MangaRow } from "@/components/MangaRow";
 import { useColors } from "@/hooks/useColors";
 import {
   getPopularManga,
   getRecentlyUpdated,
+  getTopRatedManga,
   type Manga,
 } from "@/lib/mangadex";
 
@@ -28,20 +30,30 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  const [topRated, setTopRated] = useState<Manga[]>([]);
   const [popular, setPopular] = useState<Manga[]>([]);
   const [recent, setRecent] = useState<Manga[]>([]);
+  const [loadingTop, setLoadingTop] = useState(true);
   const [loadingPopular, setLoadingPopular] = useState(true);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [errorTop, setErrorTop] = useState(false);
   const [errorPopular, setErrorPopular] = useState(false);
   const [errorRecent, setErrorRecent] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [spinning, setSpinning] = useState(false);
 
   const fetchAll = async () => {
+    setErrorTop(false);
     setErrorPopular(false);
     setErrorRecent(false);
+    setLoadingTop(true);
     setLoadingPopular(true);
     setLoadingRecent(true);
+
+    getTopRatedManga()
+      .then(setTopRated)
+      .catch(() => setErrorTop(true))
+      .finally(() => setLoadingTop(false));
 
     getPopularManga()
       .then(setPopular)
@@ -144,6 +156,12 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <FeaturedBanner
+          manga={topRated}
+          loading={loadingTop}
+          error={errorTop}
+        />
+
         <MangaRow
           title="الأكثر شعبية"
           manga={popular}
@@ -169,7 +187,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   titleRow: {
     flexDirection: "row",

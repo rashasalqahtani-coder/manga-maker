@@ -131,6 +131,16 @@ async function apiFetch(
   return res.json();
 }
 
+export async function getTopRatedManga(): Promise<Manga[]> {
+  const data = await apiFetch("/manga", {
+    limit: "10",
+    "order[rating]": "desc",
+    "includes[]": ["cover_art", "author"],
+    "contentRating[]": ["safe", "suggestive"],
+  });
+  return data.data as Manga[];
+}
+
 export async function getPopularManga(): Promise<Manga[]> {
   const data = await apiFetch("/manga", {
     limit: "20",
