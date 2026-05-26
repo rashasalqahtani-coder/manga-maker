@@ -177,6 +177,31 @@ export async function getMangaChapters(id: string): Promise<Chapter[]> {
   return data.data as Chapter[];
 }
 
+export interface MangaTagItem {
+  id: string;
+  attributes: {
+    name: Record<string, string>;
+    group: string;
+  };
+}
+
+export async function getGenres(): Promise<MangaTagItem[]> {
+  const data = await apiFetch("/manga/tag");
+  const tags = data.data as MangaTagItem[];
+  return tags.filter((t) => t.attributes.group === "genre");
+}
+
+export async function browseMangaByGenre(tagId: string): Promise<Manga[]> {
+  const data = await apiFetch("/manga", {
+    limit: "20",
+    "includedTags[]": [tagId],
+    "order[followedCount]": "desc",
+    "includes[]": ["cover_art", "author"],
+    "contentRating[]": ["safe", "suggestive"],
+  });
+  return data.data as Manga[];
+}
+
 export async function getChapterPages(
   chapterId: string
 ): Promise<ChapterPages> {

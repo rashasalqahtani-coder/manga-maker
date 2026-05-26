@@ -40,6 +40,16 @@ router.get("/manga/:id", async (req, res) => {
   }
 });
 
+router.get("/manga/tag", async (req, res) => {
+  try {
+    const data = await proxyGet("/manga/tag", "");
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "manga tag proxy error");
+    res.status(502).json({ error: "upstream error" });
+  }
+});
+
 router.get("/manga/:id/feed", async (req, res) => {
   try {
     const data = await proxyGet(
