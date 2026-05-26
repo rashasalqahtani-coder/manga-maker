@@ -1,0 +1,190 @@
+import { setBaseUrl } from "@workspace/api-client-react";
+
+// Set base URL for API calls from the Expo client.
+// In web preview this is the shared proxy domain; on native it uses EXPO_PUBLIC_DOMAIN.
+const domain =
+  typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
+    ? process.env["EXPO_PUBLIC_DOMAIN"]
+    : "";
+
+if (domain) {
+  setBaseUrl(`https://${domain}`);
+}
+
+// Route through our own backend proxy at /api to avoid CORS restrictions.
+const API_BASE = domain ? `https://${domain}/api` : "/api";
+
+export interface MangaRelationship {
+  id: string;
+  type: string;
+  attributes?: Record<string, unknown>;
+}
+
+export interface MangaTag {
+  id: string;
+  type: string;
+  attributes: {
+    name: Record<string, string>;
+    group: string;
+  };
+}
+
+export interface Manga {
+  id: string;
+  type: string;
+  attributes: {
+    title: Record<string, string>;
+    description: Record<string, string>;
+    status: string;
+    tags: MangaTag[];
+    contentRating: string;
+    lastVolume: string | null;
+    lastChapter: string | null;
+    year: number | null;
+  };
+  relationships: MangaRelationship[];
+}
+
+export interface Chapter {
+  id: string;
+  type: string;
+  attributes: {
+    title: string | null;
+    volume: string | null;
+    chapter: string | null;
+    translatedLanguage: string;
+    publishAt: string;
+    pages: number;
+  };
+  relationships: MangaRelationship[];
+}
+
+export interface ChapterPages {
+  baseUrl: string;
+  hash: string;
+  data: string[];
+  dataSaver: string[];
+}
+
+export function getCoverUrl(manga: Manga, size: "256" | "512" = "512"): string {
+  const coverRel = manga.relationships.find((r) => r.type === "cover_art");
+  const attrs = coverRel?.attributes as { fileName?: string } | undefined;
+  if (!attrs?.fileName) return "";
+  return `https://uploads.mangadex.org/covers/${manga.id}/${attrs.fileName}.${size}.jpg`;
+}
+
+export function getMangaTitle(manga: Manga): string {
+  return (
+    manga.attributes.title["en"] ||
+    Object.values(manga.attributes.title)[0] ||
+    "Unknown Title"
+  );
+}
+
+export function getMangaDescription(manga: Manga): string {
+  return (
+    manga.attributes.description["en"] ||
+    Object.values(manga.attributes.description)[0] ||
+    "No description available."
+  );
+}
+
+export function getAuthorName(manga: Manga): string {
+  const authorRel = manga.relationships.find((r) => r.type === "author");
+  const attrs = authorRel?.attributes as { name?: string } | undefined;
+  return attrs?.name || "";
+}
+
+export function getMangaTags(manga: Manga): string[] {
+  return manga.attributes.tags
+    .filter((t) => t.attributes.group === "genre")
+    .map(
+      (t) =>
+        t.attributes.name["en"] || Object.values(t.attributes.name)[0] || ""
+    )
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function buildUrl(
+  path: string,
+  params: Record<string, string | string[]>
+): string {
+  const url = new URL(`${API_BASE}${path}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((v) => url.searchParams.append(key, v));
+    } else {
+      url.searchParams.set(key, value);
+    }
+  });
+  return url.toString();
+}
+
+async function apiFetch(
+  path: string,
+  params: Record<string, string | string[]> = {}
+) {
+  const url = buildUrl(path, params);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+export async function getPopularManga(): Promise<Manga[]> {
+  const data = await apiFetch("/manga", {
+    limit: "20",
+    "order[followedCount]": "desc",
+    "includes[]": ["cover_art", "author"],
+    "contentRating[]": ["safe", "suggestive"],
+  });
+  return data.data as Manga[];
+}
+
+export async function getRecentlyUpdated(): Promise<Manga[]> {
+  const data = await apiFetch("/manga", {
+    limit: "20",
+    "order[latestUploadedChapter]": "desc",
+    "includes[]": ["cover_art", "author"],
+    "contentRating[]": ["safe", "suggestive"],
+  });
+  return data.data as Manga[];
+}
+
+export async function searchManga(query: string): Promise<Manga[]> {
+  const data = await apiFetch("/manga", {
+    title: query,
+    limit: "20",
+    "includes[]": ["cover_art", "author"],
+    "contentRating[]": ["safe", "suggestive"],
+  });
+  return data.data as Manga[];
+}
+
+export async function getMangaDetails(id: string): Promise<Manga> {
+  const data = await apiFetch(`/manga/${id}`, {
+    "includes[]": ["cover_art", "author", "artist"],
+  });
+  return data.data as Manga;
+}
+
+export async function getMangaChapters(id: string): Promise<Chapter[]> {
+  const data = await apiFetch(`/manga/${id}/feed`, {
+    limit: "100",
+    "order[chapter]": "desc",
+    "translatedLanguage[]": ["en"],
+  });
+  return data.data as Chapter[];
+}
+
+export async function getChapterPages(
+  chapterId: string
+): Promise<ChapterPages> {
+  const data = await apiFetch(`/at-home/server/${chapterId}`);
+  return {
+    baseUrl: data.baseUrl as string,
+    hash: data.chapter.hash as string,
+    data: data.chapter.data as string[],
+    dataSaver: data.chapter.dataSaver as string[],
+  };
+}
