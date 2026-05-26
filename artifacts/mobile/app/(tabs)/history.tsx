@@ -1,8 +1,10 @@
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -47,7 +49,10 @@ export default function HistoryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     AsyncStorage.getItem(HISTORY_KEY).then((raw) => {
@@ -55,24 +60,130 @@ export default function HistoryScreen() {
     });
   }, []);
 
-  const clearHistory = async () => {
-    await AsyncStorage.removeItem(HISTORY_KEY);
-    setHistory([]);
+  const saveHistory = async (list: HistoryEntry[]) => {
+    setHistory(list);
+    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+  };
+
+  const enterSelectMode = (firstId?: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSelecting(true);
+    setSelected(firstId ? new Set([firstId]) : new Set());
+  };
+
+  const exitSelectMode = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === history.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(history.map((e) => e.chapterId)));
+    }
+  };
+
+  const deleteSelected = () => {
+    const count = selected.size;
+    if (count === 0) return;
+
+    const doDelete = async () => {
+      const updated = history.filter((e) => !selected.has(e.chapterId));
+      await saveHistory(updated);
+      exitSelectMode();
+    };
+
+    if (Platform.OS === "web") {
+      doDelete();
+      return;
+    }
+    Alert.alert(
+      "حذف المحدد",
+      `هل تريد حذف ${count} ${count === 1 ? "عنصر" : "عناصر"} من التاريخ؟`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        { text: "حذف", style: "destructive", onPress: doDelete },
+      ]
+    );
+  };
+
+  const deleteSingle = async (id: string) => {
+    const doDelete = async () => {
+      const updated = history.filter((e) => e.chapterId !== id);
+      await saveHistory(updated);
+    };
+    if (Platform.OS === "web") {
+      doDelete();
+      return;
+    }
+    Alert.alert("حذف", "هل تريد حذف هذا الفصل من التاريخ؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "حذف", style: "destructive", onPress: doDelete },
+    ]);
+  };
+
+  const clearAll = () => {
+    if (Platform.OS === "web") {
+      saveHistory([]);
+      return;
+    }
+    Alert.alert("مسح التاريخ", "هل تريد مسح كامل التاريخ؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "مسح", style: "destructive", onPress: () => saveHistory([]) },
+    ]);
   };
 
   const topPad = Platform.OS === "web" ? 67 : insets.top + 12;
+  const allSelected = history.length > 0 && selected.size === history.length;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {/* ── HEADER ── */}
       <View style={[styles.header, { paddingTop: topPad, borderBottomColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>التاريخ</Text>
-        {history.length > 0 && (
-          <Pressable onPress={clearHistory} hitSlop={8}>
-            <Text style={[styles.clearBtn, { color: colors.primary }]}>مسح الكل</Text>
-          </Pressable>
+        {selecting ? (
+          <>
+            <Pressable onPress={exitSelectMode} hitSlop={8}>
+              <Text style={[styles.headerAction, { color: colors.mutedForeground }]}>إلغاء</Text>
+            </Pressable>
+            <Text style={[styles.headerCount, { color: colors.foreground }]}>
+              {selected.size} محدد
+            </Text>
+            <Pressable onPress={toggleSelectAll} hitSlop={8}>
+              <Text style={[styles.headerAction, { color: colors.primary }]}>
+                {allSelected ? "إلغاء الكل" : "تحديد الكل"}
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.title, { color: colors.foreground }]}>التاريخ</Text>
+            <View style={styles.headerBtns}>
+              {history.length > 0 && (
+                <>
+                  <Pressable onPress={() => enterSelectMode()} hitSlop={8}>
+                    <Text style={[styles.headerAction, { color: colors.primary }]}>تحديد</Text>
+                  </Pressable>
+                  <Pressable onPress={clearAll} hitSlop={8}>
+                    <Text style={[styles.headerAction, { color: "#EF4444" }]}>مسح الكل</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+          </>
         )}
       </View>
 
+      {/* ── EMPTY STATE ── */}
       {history.length === 0 ? (
         <View style={styles.empty}>
           <Feather name="clock" size={52} color={colors.muted} />
@@ -85,27 +196,55 @@ export default function HistoryScreen() {
         <FlatList
           data={history}
           keyExtractor={(item) => item.chapterId}
-          contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + (selecting ? 90 : 20) }}
           ItemSeparatorComponent={() => (
             <View style={[styles.separator, { backgroundColor: colors.border }]} />
           )}
           renderItem={({ item }) => {
             const title = getMangaTitle(item.manga);
             const cover = getCoverUrl(item.manga, "256");
+            const isSelected = selected.has(item.chapterId);
+
             return (
               <Pressable
                 style={({ pressed }) => [
                   styles.item,
-                  { backgroundColor: pressed ? colors.card : "transparent" },
+                  {
+                    backgroundColor: isSelected
+                      ? colors.primary + "18"
+                      : pressed
+                      ? colors.card
+                      : "transparent",
+                  },
                 ]}
-                onPress={() => router.push(`/reader/${item.chapterId}`)}
+                onPress={() => {
+                  if (selecting) {
+                    toggleSelect(item.chapterId);
+                  } else {
+                    router.push(`/reader/${item.chapterId}`);
+                  }
+                }}
+                onLongPress={() => {
+                  if (!selecting) enterSelectMode(item.chapterId);
+                }}
               >
-                <View
-                  style={[
-                    styles.coverWrap,
-                    { backgroundColor: colors.card, borderRadius: 6 },
-                  ]}
-                >
+                {/* Checkbox */}
+                {selecting && (
+                  <View
+                    style={[
+                      styles.checkbox,
+                      {
+                        borderColor: isSelected ? colors.primary : colors.border,
+                        backgroundColor: isSelected ? colors.primary : "transparent",
+                      },
+                    ]}
+                  >
+                    {isSelected && <Feather name="check" size={12} color="#fff" />}
+                  </View>
+                )}
+
+                {/* Cover */}
+                <View style={[styles.coverWrap, { backgroundColor: colors.card, borderRadius: 6 }]}>
                   {cover ? (
                     <Image
                       source={{ uri: cover }}
@@ -114,11 +253,10 @@ export default function HistoryScreen() {
                     />
                   ) : null}
                 </View>
+
+                {/* Info */}
                 <View style={styles.info}>
-                  <Text
-                    style={[styles.mangaTitle, { color: colors.foreground }]}
-                    numberOfLines={1}
-                  >
+                  <Text style={[styles.mangaTitle, { color: colors.foreground }]} numberOfLines={1}>
                     {title}
                   </Text>
                   <Text style={[styles.chapterLabel, { color: colors.mutedForeground }]}>
@@ -128,11 +266,45 @@ export default function HistoryScreen() {
                     {timeAgo(item.readAt)}
                   </Text>
                 </View>
-                <Feather name="play-circle" size={22} color={colors.primary} />
+
+                {/* Right action */}
+                {selecting ? null : (
+                  <Pressable
+                    onPress={() => deleteSingle(item.chapterId)}
+                    hitSlop={8}
+                    style={styles.trashBtn}
+                  >
+                    <Feather name="trash-2" size={17} color={colors.mutedForeground} />
+                  </Pressable>
+                )}
               </Pressable>
             );
           }}
         />
+      )}
+
+      {/* ── BOTTOM DELETE BAR ── */}
+      {selecting && selected.size > 0 && (
+        <View
+          style={[
+            styles.bottomBar,
+            {
+              backgroundColor: colors.card,
+              borderTopColor: colors.border,
+              paddingBottom: insets.bottom + 12,
+            },
+          ]}
+        >
+          <Pressable
+            style={[styles.deleteBtn, { backgroundColor: "#EF4444" }]}
+            onPress={deleteSelected}
+          >
+            <Feather name="trash-2" size={16} color="#fff" />
+            <Text style={styles.deleteBtnText}>
+              حذف {selected.size} {selected.size === 1 ? "عنصر" : "عناصر"}
+            </Text>
+          </Pressable>
+        </View>
       )}
     </View>
   );
@@ -149,7 +321,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   title: { fontSize: 28, fontWeight: "700" },
-  clearBtn: { fontSize: 14, fontWeight: "600" },
+  headerBtns: { flexDirection: "row", gap: 16, alignItems: "center" },
+  headerAction: { fontSize: 14, fontWeight: "600" },
+  headerCount: { fontSize: 16, fontWeight: "600" },
   empty: {
     flex: 1,
     alignItems: "center",
@@ -166,6 +340,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 12,
   },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   coverWrap: { width: 52, height: 74, overflow: "hidden" },
   cover: { width: "100%", height: "100%" },
   info: { flex: 1, gap: 3 },
@@ -173,4 +355,23 @@ const styles = StyleSheet.create({
   chapterLabel: { fontSize: 12, fontWeight: "500" },
   timeLabel: { fontSize: 11 },
   separator: { height: StyleSheet.hairlineWidth, marginHorizontal: 16 },
+  trashBtn: { padding: 4 },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  deleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 14,
+  },
+  deleteBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });
