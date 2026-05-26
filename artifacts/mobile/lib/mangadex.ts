@@ -185,6 +185,23 @@ export interface MangaTagItem {
   };
 }
 
+export async function browsePaginated(
+  type: "popular" | "recent",
+  offset: number,
+  limit: number
+): Promise<Manga[]> {
+  const orderKey =
+    type === "popular" ? "order[followedCount]" : "order[latestUploadedChapter]";
+  const data = await apiFetch("/manga", {
+    limit: String(limit),
+    offset: String(offset),
+    [orderKey]: "desc",
+    "includes[]": ["cover_art", "author"],
+    "contentRating[]": ["safe", "suggestive"],
+  });
+  return data.data as Manga[];
+}
+
 export async function getGenres(): Promise<MangaTagItem[]> {
   const data = await apiFetch("/manga/tag");
   const tags = data.data as MangaTagItem[];

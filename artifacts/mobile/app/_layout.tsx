@@ -26,6 +26,7 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
+      <Stack.Screen name="browse/[type]" options={{ headerShown: false }} />
     </Stack>
   );
 }

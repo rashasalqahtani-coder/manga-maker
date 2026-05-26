@@ -149,12 +149,14 @@ export default function HomeScreen() {
           manga={popular}
           loading={loadingPopular}
           error={errorPopular}
+          onMorePress={() => router.push("/browse/popular")}
         />
         <MangaRow
           title="المحدّثة مؤخراً"
           manga={recent}
           loading={loadingRecent}
           error={errorRecent}
+          onMorePress={() => router.push("/browse/recent")}
         />
       </ScrollView>
     </View>
