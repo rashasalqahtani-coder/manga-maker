@@ -24,6 +24,14 @@ function NativeTabLayout() {
         <Icon sf={{ default: "bookmark", selected: "bookmark.fill" }} />
         <Label>مكتبتي</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="history">
+        <Icon sf={{ default: "clock", selected: "clock.fill" }} />
+        <Label>التاريخ</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
+        <Label>الضبط</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -99,6 +107,30 @@ function ClassicTabLayout() {
               <SymbolView name="bookmark.fill" tintColor={color} size={22} />
             ) : (
               <Feather name="bookmark" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: "التاريخ",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="clock.fill" tintColor={color} size={22} />
+            ) : (
+              <Feather name="clock" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "الضبط",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="gearshape.fill" tintColor={color} size={22} />
+            ) : (
+              <Feather name="settings" size={22} color={color} />
             ),
         }}
       />

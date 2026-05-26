@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Manga",
-    "slug": "mobile",
+    "name": "rory m",
+    "slug": "rorym",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "rorym",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -14,10 +14,12 @@
       "backgroundColor": "#0F0F0F"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.rorym.app"
     },
     "android": {
-      "backgroundColor": "#0F0F0F"
+      "backgroundColor": "#0F0F0F",
+      "package": "com.rorym.app"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
