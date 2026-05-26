@@ -97,9 +97,6 @@ export default function HomeScreen() {
               <Text style={[styles.appName, { color: colors.primary }]}>
                 MANGA
               </Text>
-              <Text style={[styles.appSub, { color: colors.mutedForeground }]}>
-                読む
-              </Text>
             </View>
 
             <View style={styles.headerActions}>
@@ -179,15 +176,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   appName: {
-    fontSize: 34,
-    fontWeight: "800",
-    letterSpacing: 4,
-  },
-  appSub: {
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "700",
     letterSpacing: 2,
-    marginTop: 2,
   },
   headerActions: {
     flexDirection: "row",
