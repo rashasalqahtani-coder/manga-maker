@@ -56,7 +56,7 @@ export default function ReaderScreen() {
       <View style={[styles.center, { backgroundColor: "#000" }]}>
         <ActivityIndicator color={colors.primary} size="large" />
         <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
-          Loading chapter...
+          جارٍ تحميل الفصل...
         </Text>
       </View>
     );
@@ -67,13 +67,13 @@ export default function ReaderScreen() {
       <View style={[styles.center, { backgroundColor: "#000" }]}>
         <Feather name="alert-circle" size={40} color={colors.mutedForeground} />
         <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
-          Failed to load chapter
+          تعذّر تحميل الفصل
         </Text>
         <Pressable
           style={[styles.retryBtn, { backgroundColor: colors.primary }]}
           onPress={() => router.back()}
         >
-          <Text style={styles.retryText}>Go Back</Text>
+          <Text style={styles.retryText}>رجوع</Text>
         </Pressable>
       </View>
     );
@@ -125,7 +125,7 @@ export default function ReaderScreen() {
               },
             ]}
           >
-            <Text style={styles.bottomText}>Tap to toggle controls</Text>
+            <Text style={styles.bottomText}>اضغط لإظهار أو إخفاء التحكم</Text>
           </View>
         </>
       )}

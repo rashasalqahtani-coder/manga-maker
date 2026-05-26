@@ -14,15 +14,15 @@ function NativeTabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Home</Label>
+        <Label>الرئيسية</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="search">
         <Icon sf={{ default: "magnifyingglass", selected: "magnifyingglass" }} />
-        <Label>Search</Label>
+        <Label>بحث</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="library">
         <Icon sf={{ default: "bookmark", selected: "bookmark.fill" }} />
-        <Label>Library</Label>
+        <Label>مكتبتي</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -69,7 +69,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "الرئيسية",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="house.fill" tintColor={color} size={22} />
@@ -81,7 +81,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: "Search",
+          title: "بحث",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="magnifyingglass" tintColor={color} size={22} />
@@ -93,7 +93,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="library"
         options={{
-          title: "Library",
+          title: "مكتبتي",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="bookmark.fill" tintColor={color} size={22} />

@@ -95,7 +95,7 @@ export default function HomeScreen() {
           <View style={styles.titleRow}>
             <View>
               <Text style={[styles.appName, { color: colors.primary }]}>
-                MANGA
+                مانجا
               </Text>
             </View>
 
@@ -117,7 +117,7 @@ export default function HomeScreen() {
               >
                 <Feather name="search" size={16} color={colors.primary} />
                 <Text style={[styles.searchBtnText, { color: colors.foreground }]}>
-                  Search manga...
+                  ابحث عن مانجا...
                 </Text>
               </Pressable>
 
@@ -145,13 +145,13 @@ export default function HomeScreen() {
         </View>
 
         <MangaRow
-          title="Popular"
+          title="الأكثر شعبية"
           manga={popular}
           loading={loadingPopular}
           error={errorPopular}
         />
         <MangaRow
-          title="Recently Updated"
+          title="المحدّثة مؤخراً"
           manga={recent}
           loading={loadingRecent}
           error={errorRecent}

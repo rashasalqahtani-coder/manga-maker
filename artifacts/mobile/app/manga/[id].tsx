@@ -74,7 +74,7 @@ export default function MangaDetailScreen() {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
-          Failed to load manga
+          تعذّر تحميل المانجا
         </Text>
         <Pressable
           style={[styles.retryBtn, { backgroundColor: colors.primary }]}
@@ -83,7 +83,7 @@ export default function MangaDetailScreen() {
             setError(false);
           }}
         >
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={styles.retryText}>إعادة المحاولة</Text>
         </Pressable>
       </View>
     );
@@ -166,7 +166,7 @@ export default function MangaDetailScreen() {
               onPress={() => chapters[chapters.length - 1] && router.push(`/reader/${chapters[chapters.length - 1].id}`)}
             >
               <Feather name="book-open" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Start Reading</Text>
+              <Text style={styles.primaryBtnText}>ابدأ القراءة</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [
@@ -205,7 +205,7 @@ export default function MangaDetailScreen() {
           {description ? (
             <View style={styles.descSection}>
               <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
-                Synopsis
+                القصة
               </Text>
               <Text style={[styles.desc, { color: colors.mutedForeground }]}>
                 {description}
@@ -215,7 +215,7 @@ export default function MangaDetailScreen() {
 
           <View style={styles.chaptersSection}>
             <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
-              Chapters ({chapters.length})
+              الفصول ({chapters.length})
             </Text>
           </View>
         </View>
@@ -223,7 +223,7 @@ export default function MangaDetailScreen() {
         {chapters.length === 0 ? (
           <View style={styles.noChapters}>
             <Text style={[styles.noChaptersText, { color: colors.mutedForeground }]}>
-              No English chapters available
+              لا تتوفر فصول بالإنجليزية
             </Text>
           </View>
         ) : (

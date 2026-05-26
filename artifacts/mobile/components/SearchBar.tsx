@@ -21,7 +21,7 @@ export function SearchBar({
   value,
   onChangeText,
   onClear,
-  placeholder = "Search manga...",
+  placeholder = "ابحث عن مانجا...",
 }: SearchBarProps) {
   const colors = useColors();
 

@@ -23,9 +23,9 @@ export default function LibraryScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: topPad }]}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Library</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>مكتبتي</Text>
         <Text style={[styles.count, { color: colors.mutedForeground }]}>
-          {library.length} {library.length === 1 ? "manga" : "manga"}
+          {library.length} {library.length === 1 ? "مانجا" : "مانجا"}
         </Text>
       </View>
 
@@ -33,10 +33,10 @@ export default function LibraryScreen() {
         <View style={styles.empty}>
           <Feather name="bookmark" size={52} color={colors.muted} />
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
-            No saved manga
+            لا توجد مانجا محفوظة
           </Text>
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            Bookmark your favorite manga to find them here quickly.
+            احفظ مانجاك المفضلة لتجدها هنا بسرعة.
           </Text>
         </View>
       ) : (

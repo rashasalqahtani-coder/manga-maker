@@ -16,13 +16,13 @@ export function ChapterItem({ chapter, isRead }: ChapterItemProps) {
   const router = useRouter();
 
   const chapterNum = chapter.attributes.chapter
-    ? `Ch. ${chapter.attributes.chapter}`
-    : "Oneshot";
+    ? `فصل ${chapter.attributes.chapter}`
+    : "قصة مستقلة";
   const vol = chapter.attributes.volume
-    ? `Vol. ${chapter.attributes.volume} · `
+    ? `مجلد ${chapter.attributes.volume} · `
     : "";
   const title = chapter.attributes.title ? ` — ${chapter.attributes.title}` : "";
-  const pages = chapter.attributes.pages;
+  const pagesCount = chapter.attributes.pages;
   const date = new Date(chapter.attributes.publishAt).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -52,7 +52,7 @@ export function ChapterItem({ chapter, isRead }: ChapterItemProps) {
           {title}
         </Text>
         <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-          {date} · {pages} pages
+          {date} · {pagesCount} صفحة
         </Text>
       </View>
       <Feather name="chevron-right" size={18} color={colors.mutedForeground} />

@@ -33,7 +33,7 @@ export function MangaRow({ title, manga, loading, error }: MangaRowProps) {
       ) : error ? (
         <View style={styles.loaderContainer}>
           <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
-            Failed to load
+            تعذّر التحميل
           </Text>
         </View>
       ) : (

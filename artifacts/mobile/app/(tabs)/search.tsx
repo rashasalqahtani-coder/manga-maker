@@ -102,7 +102,7 @@ export default function SearchScreen() {
           { paddingTop: topPad, borderBottomColor: colors.border },
         ]}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>Search</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>البحث</Text>
 
         <View style={styles.searchRow}>
           <View style={{ flex: 1 }}>
@@ -205,13 +205,13 @@ export default function SearchScreen() {
         <View style={styles.center}>
           <Feather name="search" size={40} color={colors.muted} />
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            Search by title or pick a genre
+            ابحث بالعنوان أو اختر فئة
           </Text>
         </View>
       ) : results.length === 0 ? (
         <View style={styles.center}>
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-            No results found
+            لا توجد نتائج
           </Text>
         </View>
       ) : (
