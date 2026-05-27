@@ -14,6 +14,7 @@ import {
   Text,
   View,
 } from "react-native";
+
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
@@ -169,8 +170,17 @@ export default function StarzMangaDetailScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 if (chapters.length > 0) {
-                  // Open last (oldest) chapter to start from beginning
-                  Linking.openURL(chapters[chapters.length - 1].url);
+                  const first = chapters[chapters.length - 1];
+                  router.push({
+                    pathname: "/starz/reader" as any,
+                    params: {
+                      url: encodeURIComponent(first.url),
+                      title: encodeURIComponent(title),
+                      chapterNum: encodeURIComponent(first.number),
+                      slug: encodeURIComponent(slug),
+                      latestChapter: encodeURIComponent(chapters[0]?.number ?? ""),
+                    },
+                  });
                 } else {
                   Linking.openURL(mangaUrl);
                 }
@@ -200,19 +210,6 @@ export default function StarzMangaDetailScreen() {
             </Pressable>
           </View>
 
-          {/* ── Notice ── */}
-          <View
-            style={[
-              styles.notice,
-              { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border },
-            ]}
-          >
-            <Feather name="info" size={13} color={colors.mutedForeground} />
-            <Text style={[styles.noticeText, { color: colors.mutedForeground }]}>
-              تُفتح الفصول في متصفحك — المحتوى مستضاف على مانجا ستارز
-            </Text>
-          </View>
-
           {/* ── CHAPTERS HEADER ── */}
           <View style={styles.chaptersHeader}>
             <Text style={[styles.sectionLabel, { color: colors.foreground }]}>
@@ -220,12 +217,6 @@ export default function StarzMangaDetailScreen() {
               {chapters.length > 0 ? ` (${chapters.length})` : ""}
               {chaptersLoading ? " ..." : ""}
             </Text>
-            <View style={[styles.externalNote, { backgroundColor: colors.primary + "18" }]}>
-              <Feather name="external-link" size={11} color={colors.primary} />
-              <Text style={[styles.externalNoteText, { color: colors.primary }]}>
-                في المتصفح
-              </Text>
-            </View>
           </View>
         </View>
 
@@ -260,7 +251,13 @@ export default function StarzMangaDetailScreen() {
           </View>
         ) : (
           displayChapters.map((ch) => (
-            <StarzChapterItem key={ch.number} chapter={ch} slug={slug} />
+            <StarzChapterItem
+              key={ch.number}
+              chapter={ch}
+              slug={slug}
+              mangaTitle={title}
+              latestChapterNum={chapters[0]?.number ?? ""}
+            />
           ))
         )}
 
@@ -303,14 +300,34 @@ export default function StarzMangaDetailScreen() {
   );
 }
 
-function StarzChapterItem({ chapter, slug }: { chapter: StarzChapter; slug: string }) {
+function StarzChapterItem({
+  chapter,
+  slug,
+  mangaTitle,
+  latestChapterNum,
+}: {
+  chapter: StarzChapter;
+  slug: string;
+  mangaTitle: string;
+  latestChapterNum: string;
+}) {
   "use no memo";
   const colors = useColors();
+  const router = useRouter();
 
   const handlePress = () => {
     Haptics.selectionAsync();
     const url = chapter.url || buildChapterUrl(slug, chapter.number);
-    Linking.openURL(url);
+    router.push({
+      pathname: "/starz/reader" as any,
+      params: {
+        url: encodeURIComponent(url),
+        title: encodeURIComponent(mangaTitle),
+        chapterNum: encodeURIComponent(chapter.number),
+        slug: encodeURIComponent(slug),
+        latestChapter: encodeURIComponent(latestChapterNum),
+      },
+    });
   };
 
   return (
@@ -328,16 +345,6 @@ function StarzChapterItem({ chapter, slug }: { chapter: StarzChapter; slug: stri
         <Text style={[chStyles.chapterNum, { color: colors.foreground }]}>
           فصل {chapter.number}
         </Text>
-      </View>
-
-      <View
-        style={[
-          chStyles.externalBadge,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
-      >
-        <Feather name="external-link" size={10} color={colors.mutedForeground} />
-        <Text style={[chStyles.externalText, { color: colors.mutedForeground }]}>متصفح</Text>
       </View>
 
       <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
