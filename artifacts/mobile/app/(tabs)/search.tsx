@@ -199,8 +199,75 @@ export default function SearchScreen() {
   const topPad       = Platform.OS === "web" ? 67 : insets.top + 12;
   const hasAnyResult = results.length > 0 || teamResults.length > 0;
 
-  /* ── Team section (strip + chapter drawer) ── */
-  const teamSection = teamResults.length > 0 ? (
+  /* ── Group team results by teamId ── */
+  const teamGroups = teamResults.reduce<
+    Map<string, { teamId: string; teamName: string; teamEmoji: string; manga: TeamMangaResult[] }>
+  >((acc, item) => {
+    if (!acc.has(item.teamId)) {
+      acc.set(item.teamId, { teamId: item.teamId, teamName: item.teamName, teamEmoji: item.teamEmoji, manga: [] });
+    }
+    acc.get(item.teamId)!.manga.push(item);
+    return acc;
+  }, new Map());
+
+  /* ── Chapter drawer shared component ── */
+  const chapterDrawer = activeManga ? (
+    <View
+      style={[
+        styles.chapterDrawer,
+        { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border },
+      ]}
+    >
+      <View style={[styles.drawerHeader, { borderBottomColor: colors.border }]}>
+        {activeManga.coverUrl ? (
+          <Image source={{ uri: activeManga.coverUrl }} style={styles.drawerCover} contentFit="cover" />
+        ) : (
+          <View style={[styles.drawerCoverPlaceholder, { backgroundColor: colors.secondary }]}>
+            <Feather name="book" size={14} color={colors.mutedForeground} />
+          </View>
+        )}
+        <View style={styles.drawerTitleBlock}>
+          <Text style={[styles.drawerTitle, { color: colors.foreground }]} numberOfLines={1}>
+            {activeManga.title}
+          </Text>
+          <Text style={[styles.drawerTeam, { color: colors.primary }]} numberOfLines={1}>
+            {activeManga.teamEmoji} {activeManga.teamName}
+          </Text>
+        </View>
+        <Pressable
+          style={[styles.viewMangaBtn, { backgroundColor: colors.primary + "18", borderRadius: colors.radius }]}
+          onPress={() => router.push(`/teams/${activeManga.teamId}/manga/${activeManga.mangaId}` as any)}
+        >
+          <Feather name="book-open" size={13} color={colors.primary} />
+          <Text style={[styles.viewMangaBtnText, { color: colors.primary }]}>صفحة المانجا</Text>
+        </Pressable>
+      </View>
+
+      {activeManga.chapters.length === 0 ? (
+        <View style={styles.noChapters}>
+          <Text style={[styles.noChaptersText, { color: colors.mutedForeground }]}>لا توجد فصول مضافة بعد</Text>
+        </View>
+      ) : (
+        <View>
+          {activeManga.chapters.map((ch, idx) => (
+            <View key={ch.id} style={idx === activeManga.chapters.length - 1 ? { borderBottomWidth: 0 } : undefined}>
+              <ChapterRow
+                chapter={ch}
+                onRead={
+                  isMangaDexId(ch.id)
+                    ? () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/reader/${ch.id}` as any); }
+                    : null
+                }
+              />
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  ) : null;
+
+  /* ── Team section: one group per team ── */
+  const teamSection = teamGroups.size > 0 ? (
     <View style={styles.teamSection}>
       <View style={styles.teamSectionHeader}>
         <Feather name="users" size={13} color={colors.primary} />
@@ -210,98 +277,48 @@ export default function SearchScreen() {
         </Text>
       </View>
 
-      {/* Horizontal card strip */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.teamRow}
-      >
-        {teamResults.map((item) => (
-          <TeamMangaCard
-            key={`${item.teamId}-${item.mangaId}`}
-            item={item}
-            selected={activeManga?.mangaId === item.mangaId && activeManga?.teamId === item.teamId}
-            onPress={() => {
-              Haptics.selectionAsync();
-              setActiveManga((prev) =>
-                prev?.mangaId === item.mangaId && prev?.teamId === item.teamId ? null : item
-              );
-            }}
-          />
-        ))}
-      </ScrollView>
+      {Array.from(teamGroups.values()).map((group) => (
+        <View key={group.teamId} style={styles.teamGroup}>
+          {/* Team name header */}
+          <Pressable
+            style={styles.teamGroupHeader}
+            onPress={() => { Haptics.selectionAsync(); router.push(`/teams/${group.teamId}` as any); }}
+          >
+            <Text style={[styles.teamGroupEmoji]}>{group.teamEmoji}</Text>
+            <Text style={[styles.teamGroupName, { color: colors.foreground }]} numberOfLines={1}>
+              {group.teamName}
+            </Text>
+            <Text style={[styles.teamGroupCount, { color: colors.mutedForeground }]}>
+              {group.manga.length} {group.manga.length === 1 ? "مانجا" : "مانجا"}
+            </Text>
+            <Feather name="chevron-left" size={14} color={colors.mutedForeground} />
+          </Pressable>
 
-      {/* Chapter drawer — appears when a card is selected */}
-      {activeManga && (
-        <View
-          style={[
-            styles.chapterDrawer,
-            { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border },
-          ]}
-        >
-          {/* Drawer header */}
-          <View style={[styles.drawerHeader, { borderBottomColor: colors.border }]}>
-            {activeManga.coverUrl ? (
-              <Image
-                source={{ uri: activeManga.coverUrl }}
-                style={styles.drawerCover}
-                contentFit="cover"
+          {/* Horizontal manga strip for this team */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.teamRow}
+          >
+            {group.manga.map((item) => (
+              <TeamMangaCard
+                key={`${item.teamId}-${item.mangaId}`}
+                item={item}
+                selected={activeManga?.mangaId === item.mangaId && activeManga?.teamId === item.teamId}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setActiveManga((prev) =>
+                    prev?.mangaId === item.mangaId && prev?.teamId === item.teamId ? null : item
+                  );
+                }}
               />
-            ) : (
-              <View style={[styles.drawerCoverPlaceholder, { backgroundColor: colors.secondary }]}>
-                <Feather name="book" size={14} color={colors.mutedForeground} />
-              </View>
-            )}
-            <View style={styles.drawerTitleBlock}>
-              <Text style={[styles.drawerTitle, { color: colors.foreground }]} numberOfLines={1}>
-                {activeManga.title}
-              </Text>
-              <Text style={[styles.drawerTeam, { color: colors.primary }]} numberOfLines={1}>
-                {activeManga.teamEmoji} {activeManga.teamName}
-              </Text>
-            </View>
-            <Pressable
-              style={[styles.viewMangaBtn, { backgroundColor: colors.primary + "18", borderRadius: colors.radius }]}
-              onPress={() =>
-                router.push(`/teams/${activeManga.teamId}/manga/${activeManga.mangaId}` as any)
-              }
-            >
-              <Feather name="book-open" size={13} color={colors.primary} />
-              <Text style={[styles.viewMangaBtnText, { color: colors.primary }]}>صفحة المانجا</Text>
-            </Pressable>
-          </View>
+            ))}
+          </ScrollView>
 
-          {/* Chapter list */}
-          {activeManga.chapters.length === 0 ? (
-            <View style={styles.noChapters}>
-              <Text style={[styles.noChaptersText, { color: colors.mutedForeground }]}>
-                لا توجد فصول مضافة بعد
-              </Text>
-            </View>
-          ) : (
-            <View>
-              {activeManga.chapters.map((ch, idx) => (
-                <View
-                  key={ch.id}
-                  style={idx === activeManga.chapters.length - 1 ? { borderBottomWidth: 0 } : undefined}
-                >
-                  <ChapterRow
-                    chapter={ch}
-                    onRead={
-                      isMangaDexId(ch.id)
-                        ? () => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            router.push(`/reader/${ch.id}` as any);
-                          }
-                        : null
-                    }
-                  />
-                </View>
-              ))}
-            </View>
-          )}
+          {/* Chapter drawer — shown only for active manga in this team */}
+          {activeManga?.teamId === group.teamId && chapterDrawer}
         </View>
-      )}
+      ))}
     </View>
   ) : null;
 
@@ -493,7 +510,20 @@ const styles = StyleSheet.create({
   teamSectionHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
   teamSectionTitle: { flex: 1, fontSize: 14, fontWeight: "700" },
   teamSectionCount: { fontSize: 12 },
-  teamRow:          { gap: 10, paddingRight: 4 },
+  teamRow:          { gap: 10, paddingRight: 4, paddingBottom: 2 },
+
+  /* Team group (one per team) */
+  teamGroup: { marginBottom: 14 },
+  teamGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+    paddingVertical: 2,
+  },
+  teamGroupEmoji: { fontSize: 16 },
+  teamGroupName:  { flex: 1, fontSize: 13, fontWeight: "700" },
+  teamGroupCount: { fontSize: 11 },
 
   /* Team card */
   teamCard:              { width: 128, overflow: "hidden" },
