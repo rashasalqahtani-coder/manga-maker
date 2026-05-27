@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { addToHistory } from "@/app/(tabs)/history";
+import { CommentsSheet } from "@/components/CommentsSheet";
 import { useColors } from "@/hooks/useColors";
 import { getLocalPages } from "@/lib/download";
 import { getChapterPages, type ChapterPages } from "@/lib/mangadex";
@@ -49,6 +50,7 @@ export default function ReaderScreen() {
   const [isOffline, setIsOffline] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showControls, setShowControls] = useState(true);
+  const [showComments, setShowComments] = useState(false);
 
   useEffect(() => {
     if (!chapterId) return;
@@ -236,7 +238,13 @@ export default function ReaderScreen() {
                 </View>
               )}
             </View>
-            <View style={{ width: 40 }} />
+            <Pressable
+              onPress={() => { setShowComments(true); }}
+              hitSlop={10}
+              style={styles.commentBtn}
+            >
+              <Feather name="message-circle" size={22} color="#fff" />
+            </Pressable>
           </View>
 
           <View
@@ -249,6 +257,14 @@ export default function ReaderScreen() {
           </View>
         </>
       )}
+
+      <CommentsSheet
+        visible={showComments}
+        onClose={() => setShowComments(false)}
+        entityType="chapter"
+        entityId={chapterId ?? ""}
+        title={`تعليقات الفصل ${chapterNum ?? ""}`}
+      />
     </View>
   );
 }
@@ -322,4 +338,5 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   bottomText: { color: "rgba(255,255,255,0.5)", fontSize: 12 },
+  commentBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
 });

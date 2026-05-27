@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CommentsSheet } from "@/components/CommentsSheet";
 import { useColors } from "@/hooks/useColors";
 import { getPublicTeam, type PublicTeam, type PublicTeamManga } from "@/lib/teams";
 
@@ -30,6 +31,7 @@ export default function TeamDetailScreen() {
   const [team, setTeam] = useState<PublicTeam | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -126,6 +128,18 @@ export default function TeamDetailScreen() {
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>فصل</Text>
             </View>
           </View>
+
+          {/* Comments button */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.commentsBtn,
+              { backgroundColor: colors.primary + "18", borderRadius: colors.radius, opacity: pressed ? 0.75 : 1 },
+            ]}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowComments(true); }}
+          >
+            <Feather name="message-circle" size={16} color={colors.primary} />
+            <Text style={[styles.commentsBtnText, { color: colors.primary }]}>التعليقات</Text>
+          </Pressable>
         </View>
 
         {/* Manga list header */}
@@ -151,6 +165,14 @@ export default function TeamDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      <CommentsSheet
+        visible={showComments}
+        onClose={() => setShowComments(false)}
+        entityType="team"
+        entityId={id ?? ""}
+        title={`تعليقات ${team.name}`}
+      />
     </View>
   );
 }
@@ -273,6 +295,15 @@ const styles = StyleSheet.create({
   },
   readBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 
+  commentsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    marginTop: 4,
+  },
+  commentsBtnText: { fontSize: 14, fontWeight: "600" },
   emptyManga: { alignItems: "center", gap: 10, marginTop: 32, paddingHorizontal: 32 },
   emptyText: { fontSize: 14, textAlign: "center" },
 });
