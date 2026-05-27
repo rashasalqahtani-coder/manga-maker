@@ -16,6 +16,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  ACCENT_PRESETS,
+  BG_PRESETS,
+  RADIUS_PRESETS,
+  useTheme,
+} from "@/context/ThemeContext";
+import { useReaderSettings } from "@/context/ReaderSettingsContext";
+import { useTeam } from "@/context/TeamContext";
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -79,10 +87,19 @@ export default function SettingsScreen() {
   const { downloadedChapters, removeDownload } = useDownloads();
   const { isSignedIn, signOut } = useAuth();
   const { user } = useUser();
+  const { accentId, bgId, radiusId, setAccent, setBg, setRadius } = useTheme();
+
+  const { team } = useTeam();
+  const {
+    direction, mode, highQuality, keepScreenOn,
+    setDirection, setMode, setHighQuality, setKeepScreenOn,
+  } = useReaderSettings();
 
   const [dataSaver, setDataSaver] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [autoNext, setAutoNext] = useState(true);
+  const [appLock, setAppLock] = useState(false);
+  const [privateMode, setPrivateMode] = useState(false);
 
   // Selection mode state for downloads
   const [selecting, setSelecting] = useState(false);
@@ -377,22 +394,298 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* ── READING ── */}
-        <SectionHeader title="القراءة" />
+        {/* ── APPEARANCE ── */}
+        <SectionHeader title="المظهر" />
         <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
+
+          {/* Accent color row */}
+          <View style={styles.themeBlock}>
+            <Text style={[styles.themeLabel, { color: colors.mutedForeground }]}>لون التمييز</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.swatchRow}>
+              {ACCENT_PRESETS.map((p) => {
+                const active = p.id === accentId;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => { Haptics.selectionAsync(); setAccent(p.id); }}
+                    style={styles.swatchWrap}
+                  >
+                    <View
+                      style={[
+                        styles.swatch,
+                        { backgroundColor: p.color },
+                        active && styles.swatchActive,
+                      ]}
+                    >
+                      {active && <Feather name="check" size={14} color="#fff" />}
+                    </View>
+                    <Text style={[styles.swatchName, { color: active ? p.color : colors.mutedForeground }]}>
+                      {p.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          {/* Background preset row */}
+          <View style={styles.themeBlock}>
+            <Text style={[styles.themeLabel, { color: colors.mutedForeground }]}>الخلفية</Text>
+            <View style={styles.bgRow}>
+              {BG_PRESETS.map((p) => {
+                const active = p.id === bgId;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => { Haptics.selectionAsync(); setBg(p.id); }}
+                    style={[
+                      styles.bgChip,
+                      {
+                        backgroundColor: p.card,
+                        borderColor: active ? colors.primary : colors.border,
+                        borderWidth: active ? 2 : StyleSheet.hairlineWidth,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.bgDot, { backgroundColor: p.background }]} />
+                    <Text
+                      style={[
+                        styles.bgChipLabel,
+                        { color: active ? colors.primary : colors.foreground },
+                      ]}
+                    >
+                      {p.label}
+                    </Text>
+                    {active && (
+                      <View style={[styles.bgCheckBadge, { backgroundColor: colors.primary }]}>
+                        <Feather name="check" size={10} color="#fff" />
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          {/* Border radius row */}
+          <View style={styles.themeBlock}>
+            <Text style={[styles.themeLabel, { color: colors.mutedForeground }]}>الزوايا</Text>
+            <View style={styles.radiusRow}>
+              {RADIUS_PRESETS.map((p) => {
+                const active = p.id === radiusId;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => { Haptics.selectionAsync(); setRadius(p.id); }}
+                    style={[
+                      styles.radiusChip,
+                      {
+                        backgroundColor: active ? colors.primary : colors.secondary,
+                        borderRadius: p.value,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.radiusLabel,
+                        { color: active ? "#fff" : colors.mutedForeground },
+                      ]}
+                    >
+                      {p.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        {/* ── TRANSLATION TEAM ── */}
+        <SectionHeader title="فريق الترجمة" />
+        <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
+          {team ? (
+            <>
+              <Pressable
+                style={styles.teamPreviewRow}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                onPress={() => router.push("/team/" as any)}
+              >
+                <View style={[styles.teamEmojiBox, { backgroundColor: colors.primary + "20" }]}>
+                  <Text style={styles.teamEmojiBoxText}>{team.emoji}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.teamPreviewName, { color: colors.foreground }]}>{team.name}</Text>
+                  <Text style={[styles.teamPreviewSub, { color: colors.mutedForeground }]}>
+                    {team.manga.length} مانجا · {team.members.length} أعضاء
+                  </Text>
+                </View>
+                <Feather name="chevron-left" size={16} color={colors.mutedForeground} />
+              </Pressable>
+            </>
+          ) : (
+            <SettingRow
+              icon="users"
+              label="إنشاء فريق ترجمة"
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              onPress={() => router.push("/team/create" as any)}
+              tint={colors.primary}
+            />
+          )}
+        </View>
+
+        {/* ── READER VIEW ── */}
+        <SectionHeader title="رؤية القارئ" />
+        <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
+          {/* Reading direction */}
+          <View style={styles.themeBlock}>
+            <Text style={[styles.themeLabel, { color: colors.mutedForeground }]}>اتجاه القراءة</Text>
+            <View style={styles.radiusRow}>
+              {([
+                { id: "rtl", label: "← يمين لشمال" },
+                { id: "ltr", label: "يسار لـيمين →" },
+                { id: "vertical", label: "↓ رأسي" },
+              ] as { id: "rtl" | "ltr" | "vertical"; label: string }[]).map((opt) => (
+                <Pressable
+                  key={opt.id}
+                  style={[
+                    styles.radiusChip,
+                    {
+                      backgroundColor: direction === opt.id ? colors.primary : colors.secondary,
+                      borderRadius: colors.radius,
+                      flex: opt.id === "vertical" ? 0.8 : 1.1,
+                    },
+                  ]}
+                  onPress={() => { Haptics.selectionAsync(); setDirection(opt.id); }}
+                >
+                  <Text style={[styles.radiusLabel, { color: direction === opt.id ? "#fff" : colors.mutedForeground, fontSize: 11 }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <Divider marginLeft={0} />
+          {/* Reading mode */}
+          <View style={styles.themeBlock}>
+            <Text style={[styles.themeLabel, { color: colors.mutedForeground }]}>وضع العرض</Text>
+            <View style={styles.radiusRow}>
+              {([
+                { id: "pages", label: "صفحة بصفحة", icon: "book" },
+                { id: "scroll", label: "تمرير متواصل", icon: "align-justify" },
+              ] as { id: "pages" | "scroll"; label: string; icon: string }[]).map((opt) => (
+                <Pressable
+                  key={opt.id}
+                  style={[
+                    styles.radiusChip,
+                    { backgroundColor: mode === opt.id ? colors.primary : colors.secondary, borderRadius: colors.radius },
+                  ]}
+                  onPress={() => { Haptics.selectionAsync(); setMode(opt.id); }}
+                >
+                  <Feather name={opt.icon as any} size={13} color={mode === opt.id ? "#fff" : colors.mutedForeground} />
+                  <Text style={[styles.radiusLabel, { color: mode === opt.id ? "#fff" : colors.mutedForeground, fontSize: 11 }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <Divider marginLeft={0} />
           <SettingRow icon="database" label="توفير البيانات" toggle toggleValue={dataSaver} onToggle={setDataSaver} tint="#F59E0B" />
+          <Divider />
+          <SettingRow icon="zap" label="جودة عالية للصور" toggle toggleValue={highQuality} onToggle={setHighQuality} tint="#8B5CF6" />
+          <Divider />
+          <SettingRow icon="sun" label="إبقاء الشاشة مضاءة" toggle toggleValue={keepScreenOn} onToggle={setKeepScreenOn} tint="#F59E0B" />
           <Divider />
           <SettingRow icon="skip-forward" label="الانتقال التلقائي للفصل التالي" toggle toggleValue={autoNext} onToggle={setAutoNext} tint="#10B981" />
         </View>
 
+        {/* ── SECURITY ── */}
+        <SectionHeader title="الأمان" />
+        <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
+          <SettingRow
+            icon="lock"
+            label="قفل التطبيق"
+            toggle
+            toggleValue={appLock}
+            onToggle={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setAppLock(v); }}
+            tint="#EF4444"
+          />
+          <Divider />
+          <SettingRow
+            icon="eye-off"
+            label="وضع الخصوصية"
+            toggle
+            toggleValue={privateMode}
+            onToggle={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPrivateMode(v); }}
+            tint="#6366F1"
+          />
+          {privateMode && (
+            <>
+              <Divider />
+              <View style={[styles.privacyBanner, { backgroundColor: "#6366F120" }]}>
+                <Feather name="shield" size={14} color="#6366F1" />
+                <Text style={[styles.privacyBannerText, { color: "#6366F1" }]}>
+                  لن يظهر سجل القراءة في الشاشة الرئيسية
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* ── NOTIFICATIONS ── */}
         <SectionHeader title="الإشعارات" />
         <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
           <SettingRow icon="bell" label="إشعارات الفصول الجديدة" toggle toggleValue={notifications} onToggle={setNotifications} tint="#6366F1" />
         </View>
 
-        <SectionHeader title="عن التطبيق" />
+        {/* ── ABOUT / SUPPORT ── */}
+        <SectionHeader title="المزيد" />
         <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
-          <SettingRow icon="info" label="الإصدار" value="1.0.0" tint={colors.mutedForeground} />
+          <SettingRow
+            icon="share-2"
+            label="مشاركة التطبيق"
+            tint="#10B981"
+            onPress={async () => {
+              Haptics.selectionAsync();
+              const { Share } = await import("react-native");
+              Share.share({
+                message: "جرّب تطبيق مانجا! أفضل تطبيق عربي لقراءة المانجا 📚",
+                title: "مانجا - تطبيق القراءة",
+              }).catch(() => {});
+            }}
+          />
+          <Divider />
+          <SettingRow
+            icon="help-circle"
+            label="مساعدة ودعم"
+            tint="#3B82F6"
+            onPress={() => {
+              Haptics.selectionAsync();
+              Alert.alert(
+                "مساعدة ودعم",
+                "• مصدر المحتوى: MangaDex API\n• أرسل ملاحظاتك عبر متجر التطبيقات\n• للإبلاغ عن مشكلة: تحقق من اتصالك بالإنترنت أولاً",
+                [{ text: "حسناً" }]
+              );
+            }}
+          />
+          <Divider />
+          <SettingRow
+            icon="info"
+            label="حول التطبيق"
+            tint={colors.mutedForeground}
+            onPress={() => {
+              Haptics.selectionAsync();
+              Alert.alert(
+                "حول التطبيق",
+                "مانجا - قارئ المانجا العربي\n\nالإصدار: 1.0.0\nالمصدر: MangaDex\n\nتطبيق مجاني لقراءة المانجا باللغة العربية",
+                [{ text: "إغلاق" }]
+              );
+            }}
+          />
           <Divider />
           <SettingRow icon="globe" label="المصدر" value="MangaDex" tint="#06B6D4" />
         </View>
@@ -496,6 +789,57 @@ const styles = StyleSheet.create({
     borderRadius: 14, borderWidth: 1.5,
   },
   authBtnSecondaryText: { fontSize: 15, fontWeight: "700" },
+
+  // ── Theme picker styles ──
+  themeBlock: { padding: 14, gap: 12 },
+  themeLabel: { fontSize: 12, fontWeight: "600", textAlign: "right" },
+  swatchRow: { flexDirection: "row", gap: 16, paddingVertical: 4 },
+  swatchWrap: { alignItems: "center", gap: 6 },
+  swatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  swatchActive: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
+    transform: [{ scale: 1.15 }],
+  },
+  swatchName: { fontSize: 10, fontWeight: "600" },
+  bgRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  bgChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    minWidth: "45%",
+    flex: 1,
+    position: "relative",
+  },
+  bgDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 1, borderColor: "#ffffff20" },
+  bgChipLabel: { fontSize: 13, fontWeight: "600", flex: 1 },
+  bgCheckBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radiusRow: { flexDirection: "row", gap: 10 },
+  radiusChip: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radiusLabel: { fontSize: 13, fontWeight: "600" },
   bottomBar: {
     position: "absolute",
     bottom: 0,
@@ -514,4 +858,15 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   deleteBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+
+  // ── Team preview ──
+  teamPreviewRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
+  teamEmojiBox: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  teamEmojiBoxText: { fontSize: 22 },
+  teamPreviewName: { fontSize: 15, fontWeight: "700" },
+  teamPreviewSub: { fontSize: 12, marginTop: 2 },
+
+  // ── Privacy banner ──
+  privacyBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  privacyBannerText: { fontSize: 12, fontWeight: "500", flex: 1 },
 });

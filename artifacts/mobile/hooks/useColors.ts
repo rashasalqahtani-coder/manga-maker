@@ -1,24 +1,44 @@
 import { useColorScheme } from "react-native";
 
-import colors from "@/constants/colors";
+import staticColors from "@/constants/colors";
+import { useTheme } from "@/context/ThemeContext";
 
 /**
- * Returns the design tokens for the current color scheme.
- *
- * The returned object contains all color tokens for the active palette
- * plus scheme-independent values like `radius`.
- *
- * Falls back to the light palette when no dark key is defined in
- * constants/colors.ts (the scaffold ships light-only by default).
- * When a sibling web artifact's dark tokens are synced into a `dark`
- * key, this hook will automatically switch palettes based on the
- * device's appearance setting.
+ * Returns the full design-token palette.
+ * Merges the static color structure with the user's chosen theme (accent, bg, radius).
  */
 export function useColors() {
-  const scheme = useColorScheme();
-  const palette =
-    scheme === "dark" && "dark" in colors
-      ? (colors as Record<string, typeof colors.light>).dark
-      : colors.light;
-  return { ...palette, radius: colors.radius };
+  useColorScheme(); // subscribe to system scheme changes (keeps hook count stable)
+  const { accent, bg, radiusPreset } = useTheme();
+
+  return {
+    // Accent / primary
+    tint:              accent.color,
+    primary:           accent.color,
+    primaryForeground: "#FFFFFF",
+    accent:            accent.color,
+    accentForeground:  "#FFFFFF",
+
+    // Background family (from chosen bg preset)
+    background:           bg.background,
+    card:                 bg.card,
+    cardForeground:       "#FFFFFF",
+    secondary:            bg.secondary,
+    secondaryForeground:  "#EBEBF5",
+    muted:                bg.secondary,
+    border:               bg.border,
+    input:                bg.border,
+
+    // Text
+    text:             "#FFFFFF",
+    foreground:       "#FFFFFF",
+    mutedForeground:  "#8E8E93",
+
+    // Destructive
+    destructive:            staticColors.dark.destructive,
+    destructiveForeground:  "#FFFFFF",
+
+    // Border radius
+    radius: radiusPreset.value,
+  };
 }

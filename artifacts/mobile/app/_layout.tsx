@@ -18,6 +18,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DownloadProvider } from "@/context/DownloadContext";
 import { LibraryProvider } from "@/context/LibraryContext";
+import { ReaderSettingsProvider } from "@/context/ReaderSettingsContext";
+import { TeamProvider } from "@/context/TeamContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,6 +37,8 @@ function RootLayoutNav() {
       <Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
       <Stack.Screen name="browse/[type]" options={{ headerShown: false }} />
+      <Stack.Screen name="team/index" options={{ headerShown: false }} />
+      <Stack.Screen name="team/create" options={{ headerShown: false, presentation: "modal" }} />
     </Stack>
   );
 }
@@ -62,19 +67,25 @@ export default function RootLayout() {
     >
       <ClerkLoaded>
         <SafeAreaProvider>
-          <ErrorBoundary>
-            <QueryClientProvider client={queryClient}>
-              <LibraryProvider>
-                <DownloadProvider>
-                  <GestureHandlerRootView>
-                    <KeyboardProvider>
-                      <RootLayoutNav />
-                    </KeyboardProvider>
-                  </GestureHandlerRootView>
-                </DownloadProvider>
-              </LibraryProvider>
-            </QueryClientProvider>
-          </ErrorBoundary>
+          <ThemeProvider>
+            <ErrorBoundary>
+              <QueryClientProvider client={queryClient}>
+                <LibraryProvider>
+                  <TeamProvider>
+                  <ReaderSettingsProvider>
+                  <DownloadProvider>
+                    <GestureHandlerRootView>
+                      <KeyboardProvider>
+                        <RootLayoutNav />
+                      </KeyboardProvider>
+                    </GestureHandlerRootView>
+                  </DownloadProvider>
+                  </ReaderSettingsProvider>
+                  </TeamProvider>
+                </LibraryProvider>
+              </QueryClientProvider>
+            </ErrorBoundary>
+          </ThemeProvider>
         </SafeAreaProvider>
       </ClerkLoaded>
     </ClerkProvider>
