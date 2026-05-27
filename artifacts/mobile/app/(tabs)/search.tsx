@@ -37,9 +37,10 @@ function useDebounce<T>(value: T, delay: number): T {
 const MANGADEX_ID_RE = /^[0-9a-f-]{36}$/;
 function isMangaDexId(id: string) { return MANGADEX_ID_RE.test(id); }
 
-type SourceKey = "linkmanga" | "kenmanga" | "asq";
+type SourceKey = "rorym" | "linkmanga" | "kenmanga" | "asq";
 
 interface AllResults {
+  rorym: UnifiedManga[];
   linkmanga: UnifiedManga[];
   kenmanga: UnifiedManga[];
   asq: UnifiedManga[];
@@ -47,6 +48,7 @@ interface AllResults {
 }
 
 const SOURCE_META: Record<SourceKey, { nameAr: string; flag: string; color: string }> = {
+  rorym:     { nameAr: "روري م", flag: "📖", color: "#e11d48" },
   linkmanga: { nameAr: "لينك مانجا", flag: "🔗", color: "#3b82f6" },
   kenmanga:  { nameAr: "أريا مانجا", flag: "🌙", color: "#8b5cf6" },
   asq:       { nameAr: "مانجا العاشق", flag: "📚", color: "#10b981" },
@@ -180,7 +182,7 @@ export default function SearchScreen() {
   const router = useRouter();
 
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<AllResults>({ linkmanga: [], kenmanga: [], asq: [], teams: [] });
+  const [results, setResults] = useState<AllResults>({ rorym: [], linkmanga: [], kenmanga: [], asq: [], teams: [] });
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [searched, setSearched] = useState(false);
   const [activeManga, setActiveManga] = useState<TeamMangaResult | null>(null);
@@ -190,7 +192,7 @@ export default function SearchScreen() {
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) {
-      setResults({ linkmanga: [], kenmanga: [], asq: [], teams: [] });
+      setResults({ rorym: [], linkmanga: [], kenmanga: [], asq: [], teams: [] });
       setLoadingMap({});
       setActiveManga(null);
       setSearched(false);
@@ -200,14 +202,18 @@ export default function SearchScreen() {
     const id = ++searchIdRef.current;
     setSearched(true);
     setActiveManga(null);
-    setLoadingMap({ linkmanga: true, kenmanga: true, asq: true, teams: true });
-    setResults({ linkmanga: [], kenmanga: [], asq: [], teams: [] });
+    setLoadingMap({ rorym: true, linkmanga: true, kenmanga: true, asq: true, teams: true });
+    setResults({ rorym: [], linkmanga: [], kenmanga: [], asq: [], teams: [] });
 
     const updateOne = <K extends keyof AllResults>(key: K, value: AllResults[K]) => {
       if (searchIdRef.current !== id) return;
       setResults((prev) => ({ ...prev, [key]: value }));
       setLoadingMap((prev) => ({ ...prev, [key]: false }));
     };
+
+    searchMangas("rorym", q.trim())
+      .then((r) => updateOne("rorym", r))
+      .catch(() => updateOne("rorym", []));
 
     searchMangas("linkmanga", q.trim())
       .then((r) => updateOne("linkmanga", r))
@@ -234,7 +240,7 @@ export default function SearchScreen() {
   const isAnyLoading = Object.values(loadingMap).some(Boolean);
 
   const totalCount =
-    results.linkmanga.length + results.kenmanga.length + results.asq.length + results.teams.length;
+    results.rorym.length + results.linkmanga.length + results.kenmanga.length + results.asq.length + results.teams.length;
 
   function navigateUnified(manga: UnifiedManga, srcId: string) {
     "use no memo";
@@ -366,6 +372,25 @@ export default function SearchScreen() {
     <View style={styles.allSourcesWrapper}>
       {teamSection}
 
+      {/* rorym section */}
+      {(results.rorym.length > 0 || loadingMap["rorym"]) && (
+        <View style={styles.sourceSection}>
+          <View style={styles.sourceSectionTop}>
+            <SourceHeader srcKey="rorym" count={results.rorym.length} />
+            {loadingMap["rorym"] && <ActivityIndicator size={12} color={SOURCE_META.rorym.color} />}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRow}>
+            {results.rorym.map((item) => (
+              <UnifiedMiniCard
+                key={item.id}
+                manga={item}
+                onPress={() => navigateUnified(item, "rorym")}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* asq section */}
       {(results.asq.length > 0 || loadingMap["asq"]) && (
         <View style={styles.sourceSection}>
@@ -432,7 +457,7 @@ export default function SearchScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>البحث</Text>
         <SearchBar value={query} onChangeText={setQuery} onClear={() => setQuery("")} />
         <View style={styles.sourceChips}>
-          {(["asq", "linkmanga", "kenmanga"] as SourceKey[]).map((k) => (
+          {(["rorym", "asq", "linkmanga", "kenmanga"] as SourceKey[]).map((k) => (
             <View
               key={k}
               style={[
@@ -454,7 +479,7 @@ export default function SearchScreen() {
           <Feather name="search" size={44} color={colors.muted} />
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>ابحث في كل المصادر</Text>
           <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
-            مانجا العاشق · لينك مانجا · أريا مانجا · فرق الترجمة
+            روري م · مانجا العاشق · لينك مانجا · أريا مانجا · فرق الترجمة
           </Text>
         </View>
       ) : isAnyLoading && totalCount === 0 ? (

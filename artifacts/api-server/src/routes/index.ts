@@ -9,6 +9,7 @@ import mangastarzRouter from "./mangastarz";
 import linkmangaRouter from "./linkmanga";
 import kenmangaRouter from "./kenmanga";
 import asqRouter from "./asq";
+import rorymRouter from "./rorym";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(mangastarzRouter);
 router.use(linkmangaRouter);
 router.use(kenmangaRouter);
 router.use(asqRouter);
+router.use(rorymRouter);
 
 export default router;

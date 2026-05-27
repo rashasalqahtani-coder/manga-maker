@@ -642,6 +642,10 @@ export default function TeamScreen() {
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>فريق الترجمة</Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+          {/* Upload to Rory M */}
+          <Pressable onPress={() => router.push("/rorym/upload" as any)} hitSlop={8}>
+            <Feather name="upload-cloud" size={20} color="#e11d48" />
+          </Pressable>
           {/* Discover teams */}
           <Pressable onPress={() => router.push("/teams" as any)} hitSlop={8}>
             <Feather name="compass" size={20} color={colors.mutedForeground} />

@@ -26,7 +26,7 @@ const API_BASE =
     ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
     : "/api";
 
-type SrcParam = "linkmanga" | "kenmanga" | "asq";
+type SrcParam = "linkmanga" | "kenmanga" | "asq" | "rorym";
 
 // JS injected into hidden WebView to extract chapter image URLs
 const EXTRACT_IMAGES_JS = `
@@ -82,6 +82,7 @@ function getChapterFetchApi(src: SrcParam, slug: string, latestChapter?: string)
     return latestChapter ? `${idPath}?latest=${encodeURIComponent(latestChapter)}` : idPath;
   }
   if (src === "kenmanga") return `${API_BASE}/kenmanga/manga/${encodeURIComponent(slug)}/chapters`;
+  if (src === "rorym") return `${API_BASE}/rorym/manga/${encodeURIComponent(slug)}/chapters`;
   const idPath = `${API_BASE}/asq/manga/${encodeURIComponent(slug)}/chapters`;
   return latestChapter ? `${idPath}?latest=${encodeURIComponent(latestChapter)}` : idPath;
 }
@@ -89,18 +90,21 @@ function getChapterFetchApi(src: SrcParam, slug: string, latestChapter?: string)
 function buildMangaUrl(src: SrcParam, slug: string): string {
   if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/`;
   if (src === "kenmanga") return `https://ar.kenmanga.com/manga/${slug}/`;
+  if (src === "rorym") return "";
   return `https://3asq.org/manga/${slug}/`;
 }
 
 function buildChapterUrl(src: SrcParam, slug: string, chapterNum: string): string {
   if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/${chapterNum}/`;
   if (src === "kenmanga") return `https://ar.kenmanga.com/${slug}-الفصل-${chapterNum}/`;
+  if (src === "rorym") return "";
   return `https://3asq.org/manga/${slug}/${chapterNum}/`;
 }
 
 function getSourceLabel(src: SrcParam): string {
   if (src === "linkmanga") return "لينك مانجا";
   if (src === "kenmanga") return "أريا مانجا";
+  if (src === "rorym") return "روري م";
   return "مانجا العاشق";
 }
 
@@ -313,18 +317,29 @@ export default function StarzMangaDetailScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 if (chapters.length > 0) {
                   const first = chapters[chapters.length - 1];
-                  router.push({
-                    pathname: "/starz/reader" as any,
-                    params: {
-                      url: encodeURIComponent(first.url || buildChapterUrl(src, slug, first.number)),
-                      title: encodeURIComponent(title),
-                      chapterNum: encodeURIComponent(first.number),
-                      slug: encodeURIComponent(slug),
-                      latestChapter: encodeURIComponent(chapters[0]?.number ?? ""),
-                      src,
-                    },
-                  });
-                } else {
+                  if (src === "rorym") {
+                    router.push({
+                      pathname: "/rorym/reader" as any,
+                      params: {
+                        slug: encodeURIComponent(slug),
+                        chapterNum: encodeURIComponent(first.number),
+                        title: encodeURIComponent(title),
+                      },
+                    });
+                  } else {
+                    router.push({
+                      pathname: "/starz/reader" as any,
+                      params: {
+                        url: encodeURIComponent(first.url || buildChapterUrl(src, slug, first.number)),
+                        title: encodeURIComponent(title),
+                        chapterNum: encodeURIComponent(first.number),
+                        slug: encodeURIComponent(slug),
+                        latestChapter: encodeURIComponent(chapters[0]?.number ?? ""),
+                        src,
+                      },
+                    });
+                  }
+                } else if (mangaUrl) {
                   Linking.openURL(mangaUrl);
                 }
               }}
@@ -333,24 +348,26 @@ export default function StarzMangaDetailScreen() {
               <Text style={styles.primaryBtnText}>ابدأ القراءة</Text>
             </Pressable>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.iconBtn,
-                {
-                  backgroundColor: colors.card,
-                  opacity: pressed ? 0.8 : 1,
-                  borderRadius: colors.radius,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                },
-              ]}
-              onPress={() => {
-                Haptics.selectionAsync();
-                Linking.openURL(mangaUrl);
-              }}
-            >
-              <Feather name="external-link" size={20} color={colors.foreground} />
-            </Pressable>
+            {src !== "rorym" && (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.iconBtn,
+                  {
+                    backgroundColor: colors.card,
+                    opacity: pressed ? 0.8 : 1,
+                    borderRadius: colors.radius,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  },
+                ]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  Linking.openURL(mangaUrl);
+                }}
+              >
+                <Feather name="external-link" size={20} color={colors.foreground} />
+              </Pressable>
+            )}
           </View>
 
           {/* ── CHAPTERS HEADER ── */}
@@ -501,6 +518,17 @@ function StarzChapterItem({
 
   const handlePress = () => {
     Haptics.selectionAsync();
+    if (src === "rorym") {
+      router.push({
+        pathname: "/rorym/reader" as any,
+        params: {
+          slug: encodeURIComponent(slug),
+          chapterNum: encodeURIComponent(chapter.number),
+          title: encodeURIComponent(mangaTitle),
+        },
+      });
+      return;
+    }
     const url = chapter.url || buildChapterUrl(src, slug, chapter.number);
     router.push({
       pathname: "/starz/reader" as any,
@@ -517,6 +545,7 @@ function StarzChapterItem({
 
   const handleDownload = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (src === "rorym") return;
     const url = chapter.url || buildChapterUrl(src, slug, chapter.number);
     onDownloadRequest(chapter, url, chapterId);
   };

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Platform } from "react-native";
 
-export type SourceId = "linkmanga" | "kenmanga" | "asq";
+export type SourceId = "linkmanga" | "kenmanga" | "asq" | "rorym";
 
 export interface SourceInfo {
   id: SourceId;
@@ -16,6 +16,16 @@ export interface SourceInfo {
 }
 
 export const SOURCES: SourceInfo[] = [
+  {
+    id: "rorym",
+    nameAr: "روري م",
+    nameEn: "Rory M",
+    url: "/api/rorym",
+    description: "مكتبة فرق الترجمة المحلية",
+    haSearch: true,
+    hasChapterList: true,
+    flag: "📖",
+  },
   {
     id: "linkmanga",
     nameAr: "لينك مانجا",

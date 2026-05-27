@@ -40,6 +40,7 @@ export async function fetchHomeMangas(sourceId: SourceId): Promise<UnifiedManga[
     linkmanga: "/linkmanga/home",
     kenmanga: "/kenmanga/home",
     asq: "/asq/home",
+    rorym: "/rorym/home",
   };
   const res = await fetch(`${API_BASE}${endpointMap[sourceId]}`);
   if (!res.ok) throw new Error(`home fetch failed: ${res.status}`);
@@ -56,6 +57,7 @@ export async function searchMangas(
     linkmanga: "/linkmanga/search",
     kenmanga: "/kenmanga/search",
     asq: "/asq/search",
+    rorym: "/rorym/search",
   };
   const endpoint = endpointMap[sourceId];
   if (!endpoint) return [];
@@ -81,6 +83,8 @@ export function getChaptersUrl(sourceId: SourceId, id: string, latestNum?: strin
       return latestNum
         ? `${base}/asq/manga/${encodeURIComponent(id)}/chapters?latest=${latestNum}`
         : `${base}/asq/manga/${encodeURIComponent(id)}/chapters`;
+    case "rorym":
+      return `${base}/rorym/manga/${encodeURIComponent(id)}/chapters`;
     default:
       return "";
   }

@@ -57,7 +57,7 @@
 
 ## Product
 
-- Browse and search Arabic-translated manga from 4 sources: manga-starz.net, link-manga.net, ar.kenmanga.com (AREA Manga), olympustaff.com
+- Browse and search Arabic-translated manga from 4 sources: **روري م** (local), link-manga.net, ar.kenmanga.com (AREA Manga), 3asq.org
 - Home screen: source picker banner (tap to change), featured carousel, trending row, recently updated row
 - Library management with local bookmarks
 - Chapter reader with RTL/LTR/vertical reading modes
