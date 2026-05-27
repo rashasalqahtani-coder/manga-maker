@@ -61,6 +61,23 @@ function parseSeriesPage(html: string): OlympusManga[] {
   }));
 }
 
+function parseChapterList(html: string, slug: string): { number: string; title: string; url: string }[] {
+  const chapRe = /href="(https:\/\/olympustaff\.com\/series\/[^"\/]+\/(\d+))"/g;
+  const seen = new Set<string>();
+  const chapters: { number: string; title: string; url: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = chapRe.exec(html)) !== null) {
+    const url = m[1]!;
+    const num = m[2]!;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    chapters.push({ number: num, title: `الفصل ${num}`, url });
+  }
+  // sort desc
+  chapters.sort((a, b) => parseFloat(b.number) - parseFloat(a.number));
+  return chapters;
+}
+
 let olympusHomeCache: { manga: ReturnType<typeof parseSeriesPage>; ts: number } | null = null;
 const OLYMPUS_HOME_TTL = 2 * 60 * 1000;
 
@@ -77,6 +94,19 @@ router.get("/olympus/home", async (req, res) => {
     res.json({ manga, source: "olympus", sourceUrl: BASE });
   } catch (err) {
     req.log.error({ err }, "olympus home error");
+    res.status(502).json({ error: "upstream error" });
+  }
+});
+
+/** GET /api/olympus/manga/:slug/chapters */
+router.get("/olympus/manga/:slug/chapters", async (req, res) => {
+  const { slug } = req.params;
+  try {
+    const html = await fetchHtml(`${BASE}/series/${encodeURIComponent(slug)}`);
+    const chapters = parseChapterList(html, slug);
+    res.json({ chapters, source: "olympus" });
+  } catch (err) {
+    req.log.error({ err }, "olympus chapters error");
     res.status(502).json({ error: "upstream error" });
   }
 });

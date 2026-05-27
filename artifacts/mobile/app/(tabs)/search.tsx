@@ -203,10 +203,6 @@ export default function SearchScreen() {
     const titleE = encodeURIComponent(manga.title);
     const coverE = encodeURIComponent(manga.coverUrl);
     const latestE = encodeURIComponent(manga.latestChapterNum ?? "");
-    if (manga.sourceId === "olympus") {
-      router.push({ pathname: "/starz/reader" as any, params: { url: encodeURIComponent(manga.url), title: titleE, chapterNum: "", slug: manga.slug, latestChapter: "" } });
-      return;
-    }
     router.push({ pathname: "/starz/[slug]" as any, params: { slug: manga.slug, title: titleE, coverUrl: coverE, latestChapter: latestE, src: manga.sourceId } });
   }
 

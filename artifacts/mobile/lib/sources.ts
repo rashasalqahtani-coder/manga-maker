@@ -96,6 +96,8 @@ export function getChaptersUrl(sourceId: SourceId, id: string, latestNum?: strin
         : `${base}/linkmanga/manga/${encodeURIComponent(id)}/chapters`;
     case "kenmanga":
       return `${base}/kenmanga/manga/${encodeURIComponent(id)}/chapters`;
+    case "olympus":
+      return `${base}/olympus/manga/${encodeURIComponent(id)}/chapters`;
     default:
       return "";
   }

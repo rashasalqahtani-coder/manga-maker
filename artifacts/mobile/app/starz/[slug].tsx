@@ -31,31 +31,37 @@ const API_BASE =
     ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
     : "/api";
 
-type SrcParam = "starz" | "linkmanga" | "kenmanga";
+type SrcParam = "starz" | "linkmanga" | "kenmanga" | "olympus";
 
 function getChapterFetchApi(src: SrcParam, slug: string, latestChapter?: string): string {
-  const prefix = src === "linkmanga" ? "linkmanga" : src === "kenmanga" ? "kenmanga" : "starz";
-  const idPath = `${API_BASE}/${prefix}/manga/${encodeURIComponent(slug)}/chapters`;
-  if (latestChapter && src !== "kenmanga") return `${idPath}?latest=${encodeURIComponent(latestChapter)}`;
-  return idPath;
+  if (src === "linkmanga") {
+    const idPath = `${API_BASE}/linkmanga/manga/${encodeURIComponent(slug)}/chapters`;
+    return latestChapter ? `${idPath}?latest=${encodeURIComponent(latestChapter)}` : idPath;
+  }
+  if (src === "kenmanga") return `${API_BASE}/kenmanga/manga/${encodeURIComponent(slug)}/chapters`;
+  if (src === "olympus") return `${API_BASE}/olympus/manga/${encodeURIComponent(slug)}/chapters`;
+  const idPath = `${API_BASE}/starz/manga/${encodeURIComponent(slug)}/chapters`;
+  return latestChapter ? `${idPath}?latest=${encodeURIComponent(latestChapter)}` : idPath;
 }
 
 function buildMangaUrl(src: SrcParam, slug: string): string {
   if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/`;
   if (src === "kenmanga") return `https://ar.kenmanga.com/manga/${slug}/`;
+  if (src === "olympus") return `https://olympustaff.com/series/${slug}`;
   return buildStarzMangaUrl(slug);
 }
 
 function buildChapterUrl(src: SrcParam, slug: string, chapterNum: string): string {
   if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/${chapterNum}/`;
-  // kenmanga: chapter URL is returned directly from API, not reconstructed
   if (src === "kenmanga") return `https://ar.kenmanga.com/${slug}-الفصل-${chapterNum}/`;
+  if (src === "olympus") return `https://olympustaff.com/series/${slug}/${chapterNum}`;
   return buildStarzChapterUrl(slug, chapterNum);
 }
 
 function getSourceLabel(src: SrcParam): string {
   if (src === "linkmanga") return "لينك مانجا";
   if (src === "kenmanga") return "أريا مانجا";
+  if (src === "olympus") return "أوليمبوس";
   return "مانجا ستارز";
 }
 

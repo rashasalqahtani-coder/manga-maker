@@ -33,20 +33,6 @@ function navigateToManga(
   const ratingE = encodeURIComponent(manga.rating ?? "");
   const latestE = encodeURIComponent(manga.latestChapterNum ?? "");
 
-  if (manga.sourceId === "olympus") {
-    router.push({
-      pathname: "/starz/reader" as any,
-      params: {
-        url: encodeURIComponent(manga.url),
-        title: titleE,
-        chapterNum: "",
-        slug: manga.slug,
-        latestChapter: "",
-      },
-    });
-    return;
-  }
-
   router.push({
     pathname: "/starz/[slug]" as any,
     params: {
