@@ -84,6 +84,7 @@ export function getCoverUrl(manga: Manga, size: "256" | "512" = "512"): string {
 
 export function getMangaTitle(manga: Manga): string {
   return (
+    manga.attributes.title["ar"] ||
     manga.attributes.title["en"] ||
     Object.values(manga.attributes.title)[0] ||
     "Unknown Title"
@@ -92,9 +93,10 @@ export function getMangaTitle(manga: Manga): string {
 
 export function getMangaDescription(manga: Manga): string {
   return (
+    manga.attributes.description["ar"] ||
     manga.attributes.description["en"] ||
     Object.values(manga.attributes.description)[0] ||
-    "No description available."
+    "لا يوجد وصف."
   );
 }
 
@@ -109,7 +111,9 @@ export function getMangaTags(manga: Manga): string[] {
     .filter((t) => t.attributes.group === "genre")
     .map(
       (t) =>
-        t.attributes.name["en"] || Object.values(t.attributes.name)[0] || ""
+        t.attributes.name["ar"] ||
+        t.attributes.name["en"] ||
+        Object.values(t.attributes.name)[0]
     )
     .filter(Boolean)
     .slice(0, 6);
@@ -140,12 +144,17 @@ async function apiFetch(
   return res.json();
 }
 
+// ── Arabic-first base params ──────────────────────────────────────────────────
+const AR_INCLUDES = ["cover_art", "author"];
+const CONTENT_RATING = ["safe", "suggestive"];
+
 export async function getTopRatedManga(): Promise<Manga[]> {
   const data = await apiFetch("/manga", {
-    limit: "10",
+    limit: "20",
     "order[rating]": "desc",
-    "includes[]": ["cover_art", "author"],
-    "contentRating[]": ["safe", "suggestive"],
+    "availableTranslatedLanguage[]": ["ar"],
+    "includes[]": AR_INCLUDES,
+    "contentRating[]": CONTENT_RATING,
   });
   return data.data as Manga[];
 }
@@ -154,8 +163,9 @@ export async function getPopularManga(): Promise<Manga[]> {
   const data = await apiFetch("/manga", {
     limit: "20",
     "order[followedCount]": "desc",
-    "includes[]": ["cover_art", "author"],
-    "contentRating[]": ["safe", "suggestive"],
+    "availableTranslatedLanguage[]": ["ar"],
+    "includes[]": AR_INCLUDES,
+    "contentRating[]": CONTENT_RATING,
   });
   return data.data as Manga[];
 }
@@ -164,8 +174,9 @@ export async function getRecentlyUpdated(): Promise<Manga[]> {
   const data = await apiFetch("/manga", {
     limit: "20",
     "order[latestUploadedChapter]": "desc",
-    "includes[]": ["cover_art", "author"],
-    "contentRating[]": ["safe", "suggestive"],
+    "availableTranslatedLanguage[]": ["ar"],
+    "includes[]": AR_INCLUDES,
+    "contentRating[]": CONTENT_RATING,
   });
   return data.data as Manga[];
 }
@@ -174,8 +185,9 @@ export async function searchManga(query: string): Promise<Manga[]> {
   const data = await apiFetch("/manga", {
     title: query,
     limit: "20",
-    "includes[]": ["cover_art", "author"],
-    "contentRating[]": ["safe", "suggestive"],
+    "availableTranslatedLanguage[]": ["ar"],
+    "includes[]": AR_INCLUDES,
+    "contentRating[]": CONTENT_RATING,
   });
   return data.data as Manga[];
 }
@@ -191,9 +203,19 @@ export async function getMangaChapters(id: string): Promise<Chapter[]> {
   const data = await apiFetch(`/manga/${id}/feed`, {
     limit: "500",
     "order[chapter]": "desc",
-    "translatedLanguage[]": ["en"],
+    "translatedLanguage[]": ["ar"],
     "includes[]": ["scanlation_group"],
   });
+  // Fall back to English if no Arabic chapters
+  if (!data.data || (data.data as Chapter[]).length === 0) {
+    const fallback = await apiFetch(`/manga/${id}/feed`, {
+      limit: "500",
+      "order[chapter]": "desc",
+      "translatedLanguage[]": ["en"],
+      "includes[]": ["scanlation_group"],
+    });
+    return fallback.data as Chapter[];
+  }
   return data.data as Chapter[];
 }
 
@@ -231,8 +253,9 @@ export async function browsePaginated(
     limit: String(limit),
     offset: String(offset),
     [orderKey]: "desc",
-    "includes[]": ["cover_art", "author"],
-    "contentRating[]": ["safe", "suggestive"],
+    "availableTranslatedLanguage[]": ["ar"],
+    "includes[]": AR_INCLUDES,
+    "contentRating[]": CONTENT_RATING,
   });
   return data.data as Manga[];
 }
@@ -248,8 +271,47 @@ export async function browseMangaByGenre(tagId: string): Promise<Manga[]> {
     limit: "20",
     "includedTags[]": [tagId],
     "order[followedCount]": "desc",
-    "includes[]": ["cover_art", "author"],
-    "contentRating[]": ["safe", "suggestive"],
+    "availableTranslatedLanguage[]": ["ar"],
+    "includes[]": AR_INCLUDES,
+    "contentRating[]": CONTENT_RATING,
+  });
+  return data.data as Manga[];
+}
+
+/** Korean manhwa with Arabic translations */
+export async function getArabicManhwa(): Promise<Manga[]> {
+  const data = await apiFetch("/manga", {
+    limit: "20",
+    "originalLanguage[]": ["ko"],
+    "order[followedCount]": "desc",
+    "availableTranslatedLanguage[]": ["ar"],
+    "includes[]": AR_INCLUDES,
+    "contentRating[]": CONTENT_RATING,
+  });
+  return data.data as Manga[];
+}
+
+/** Chinese manhua with Arabic translations */
+export async function getArabicManhua(): Promise<Manga[]> {
+  const data = await apiFetch("/manga", {
+    limit: "20",
+    "originalLanguage[]": ["zh", "zh-hk"],
+    "order[followedCount]": "desc",
+    "availableTranslatedLanguage[]": ["ar"],
+    "includes[]": AR_INCLUDES,
+    "contentRating[]": CONTENT_RATING,
+  });
+  return data.data as Manga[];
+}
+
+/** Newly added Arabic manga (any origin) */
+export async function getNewArabic(): Promise<Manga[]> {
+  const data = await apiFetch("/manga", {
+    limit: "20",
+    "order[createdAt]": "desc",
+    "availableTranslatedLanguage[]": ["ar"],
+    "includes[]": AR_INCLUDES,
+    "contentRating[]": CONTENT_RATING,
   });
   return data.data as Manga[];
 }

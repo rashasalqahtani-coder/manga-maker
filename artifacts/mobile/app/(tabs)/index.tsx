@@ -1,3 +1,4 @@
+"use no memo";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
@@ -19,6 +20,9 @@ import { FeaturedBanner } from "@/components/FeaturedBanner";
 import { MangaRow } from "@/components/MangaRow";
 import { useColors } from "@/hooks/useColors";
 import {
+  getArabicManhua,
+  getArabicManhwa,
+  getNewArabic,
   getPopularManga,
   getRecentlyUpdated,
   getTopRatedManga,
@@ -26,62 +30,82 @@ import {
 } from "@/lib/mangadex";
 
 export default function HomeScreen() {
+  "use no memo";
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const [topRated, setTopRated] = useState<Manga[]>([]);
-  const [popular, setPopular] = useState<Manga[]>([]);
-  const [recent, setRecent] = useState<Manga[]>([]);
-  const [loadingTop, setLoadingTop] = useState(true);
-  const [loadingPopular, setLoadingPopular] = useState(true);
-  const [loadingRecent, setLoadingRecent] = useState(true);
-  const [errorTop, setErrorTop] = useState(false);
-  const [errorPopular, setErrorPopular] = useState(false);
-  const [errorRecent, setErrorRecent] = useState(false);
+  const [topRated,    setTopRated]    = useState<Manga[]>([]);
+  const [popular,     setPopular]     = useState<Manga[]>([]);
+  const [recent,      setRecent]      = useState<Manga[]>([]);
+  const [manhwa,      setManhwa]      = useState<Manga[]>([]);
+  const [manhua,      setManhua]      = useState<Manga[]>([]);
+  const [newArabic,   setNewArabic]   = useState<Manga[]>([]);
+
+  const [topLoading,       setTopLoading]       = useState(true);
+  const [popularLoading,   setPopularLoading]   = useState(true);
+  const [recentLoading,    setRecentLoading]    = useState(true);
+  const [manhwaLoading,    setManhwaLoading]    = useState(true);
+  const [manhuaLoading,    setManhuaLoading]    = useState(true);
+  const [newArabicLoading, setNewArabicLoading] = useState(true);
+
   const [refreshing, setRefreshing] = useState(false);
-  const [spinning, setSpinning] = useState(false);
+  const [spinning,   setSpinning]   = useState(false);
 
-  const fetchAll = async () => {
-    setErrorTop(false);
-    setErrorPopular(false);
-    setErrorRecent(false);
-    setLoadingTop(true);
-    setLoadingPopular(true);
-    setLoadingRecent(true);
-
+  function loadData() {
+    setTopLoading(true);
     getTopRatedManga()
-      .then(setTopRated)
-      .catch(() => setErrorTop(true))
-      .finally(() => setLoadingTop(false));
+      .then((d) => setTopRated(d))
+      .catch(() => setTopRated([]))
+      .finally(() => setTopLoading(false));
 
+    setPopularLoading(true);
     getPopularManga()
-      .then(setPopular)
-      .catch(() => setErrorPopular(true))
-      .finally(() => setLoadingPopular(false));
+      .then((d) => setPopular(d))
+      .catch(() => setPopular([]))
+      .finally(() => setPopularLoading(false));
 
+    setRecentLoading(true);
     getRecentlyUpdated()
-      .then(setRecent)
-      .catch(() => setErrorRecent(true))
-      .finally(() => setLoadingRecent(false));
-  };
+      .then((d) => setRecent(d))
+      .catch(() => setRecent([]))
+      .finally(() => setRecentLoading(false));
+
+    setManhwaLoading(true);
+    getArabicManhwa()
+      .then((d) => setManhwa(d))
+      .catch(() => setManhwa([]))
+      .finally(() => setManhwaLoading(false));
+
+    setManhuaLoading(true);
+    getArabicManhua()
+      .then((d) => setManhua(d))
+      .catch(() => setManhua([]))
+      .finally(() => setManhuaLoading(false));
+
+    setNewArabicLoading(true);
+    getNewArabic()
+      .then((d) => setNewArabic(d))
+      .catch(() => setNewArabic([]))
+      .finally(() => setNewArabicLoading(false));
+  }
 
   useEffect(() => {
-    fetchAll();
+    loadData();
   }, []);
 
-  const onRefresh = async () => {
+  async function onRefresh() {
     setRefreshing(true);
-    await fetchAll();
+    loadData();
     setRefreshing(false);
-  };
+  }
 
-  const handleRefreshBtn = async () => {
+  function handleRefreshBtn() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSpinning(true);
-    await fetchAll();
-    setSpinning(false);
-  };
+    loadData();
+    setTimeout(() => setSpinning(false), 1000);
+  }
 
   const topPad = Platform.OS === "web" ? 67 : insets.top + 12;
 
@@ -90,27 +114,16 @@ export default function HomeScreen() {
       <StatusBar barStyle="light-content" />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingTop: topPad,
-          paddingBottom: insets.bottom + 20,
-        }}
+        contentContainerStyle={{ paddingTop: topPad, paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
+        {/* ── Header ── */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <View>
-              <Text style={[styles.appName, { color: colors.primary }]}>
-                مانجا
-              </Text>
-            </View>
-
+            <Text style={[styles.appName, { color: colors.primary }]}>مانجا</Text>
             <View style={styles.headerActions}>
               <Pressable
                 style={({ pressed }) => [
@@ -156,25 +169,63 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <FeaturedBanner
-          manga={topRated}
-          loading={loadingTop}
-          error={errorTop}
-        />
+        {/* ── Source badge ── */}
+        <View
+          style={[
+            styles.sourceBanner,
+            {
+              backgroundColor: colors.card,
+              borderRadius: colors.radius,
+              marginHorizontal: 16,
+              marginBottom: 4,
+            },
+          ]}
+        >
+          <Feather name="globe" size={13} color={colors.primary} />
+          <Text style={[styles.sourceBannerText, { color: colors.mutedForeground }]}>
+            {"مصدر المحتوى العربي: "}
+            <Text style={{ color: colors.foreground, fontWeight: "700" }}>MangaDex</Text>
+          </Text>
+          <View style={[styles.arBadge, { backgroundColor: colors.primary + "22" }]}>
+            <Text style={[styles.arBadgeText, { color: colors.primary }]}>عربي</Text>
+          </View>
+        </View>
 
+        {/* ── Featured banner ── */}
+        <FeaturedBanner manga={topRated} loading={topLoading} error={false} />
+
+        {/* ── Sections ── */}
         <MangaRow
           title="الأكثر شعبية"
           manga={popular}
-          loading={loadingPopular}
-          error={errorPopular}
-          onMorePress={() => router.push("/browse/popular")}
+          loading={popularLoading}
+          error={false}
+          onMorePress={() => router.push("/browse/popular" as any)}
         />
         <MangaRow
-          title="المحدّثة مؤخراً"
+          title="محدّثة مؤخراً"
           manga={recent}
-          loading={loadingRecent}
-          error={errorRecent}
-          onMorePress={() => router.push("/browse/recent")}
+          loading={recentLoading}
+          error={false}
+          onMorePress={() => router.push("/browse/recent" as any)}
+        />
+        <MangaRow
+          title="مانهوا كورية 🇰🇷"
+          manga={manhwa}
+          loading={manhwaLoading}
+          error={false}
+        />
+        <MangaRow
+          title="مانهوا صينية 🇨🇳"
+          manga={manhua}
+          loading={manhuaLoading}
+          error={false}
+        />
+        <MangaRow
+          title="أحدث الإضافات عربياً"
+          manga={newArabic}
+          loading={newArabicLoading}
+          error={false}
         />
       </ScrollView>
     </View>
@@ -182,24 +233,15 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
+  root: { flex: 1 },
+  header: { paddingHorizontal: 16, marginBottom: 12 },
   titleRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  appName: {
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 2,
-  },
+  appName: { fontSize: 22, fontWeight: "800", letterSpacing: 1 },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -217,11 +259,7 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: 200,
   },
-  searchBtnText: {
-    fontSize: 13,
-    fontWeight: "400",
-    opacity: 0.5,
-  },
+  searchBtnText: { fontSize: 13, opacity: 0.5 },
   refreshBtn: {
     width: 38,
     height: 38,
@@ -229,4 +267,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
   },
+  sourceBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 4,
+  },
+  sourceBannerText: { fontSize: 12, flex: 1 },
+  arBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  arBadgeText: { fontSize: 10, fontWeight: "700" },
 });

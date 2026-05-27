@@ -47,6 +47,7 @@
 ## Product
 
 - Browse and search Arabic-translated manga via MangaDex API
+- Home screen sections: أفضل تقييماً (featured banner), الأكثر شعبية, محدّثة مؤخراً, مانهوا كورية 🇰🇷, مانهوا صينية 🇨🇳, أحدث الإضافات عربياً
 - Library management with local bookmarks
 - Chapter reader with RTL/LTR/vertical reading modes
 - Download chapters for offline reading
@@ -66,6 +67,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 - **expo-router typed routes**: New route files require `as any` cast until Metro re-generates route types.
 - **lib/download.ts**: Pre-existing TS error on `documentDirectory` (unrelated to main features, does not affect runtime).
 - **Do not run `pnpm dev` at workspace root** — use `restart_workflow` instead.
+- **ComicK.io blocked**: ComicK's API redirects to comick.dev which is protected by Cloudflare and returns 403 for all server-side requests. `lib/comick.ts` is kept as a no-op stub so imports don't break. Do not attempt to re-integrate ComicK via server proxy.
+- **Home screen "use no memo"**: `app/(tabs)/index.tsx` needs `"use no memo"` at both file and function level due to React Compiler memoizing async state updates incorrectly.
 
 ## Pointers
 
