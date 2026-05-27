@@ -91,6 +91,7 @@ export default function TeamMangaScreen() {
   }
 
   const readableChapters = manga.chapters.filter((ch) => isMangaDexId(ch.id)).length;
+  const firstReadableChapter = manga.chapters.find((ch) => isMangaDexId(ch.id)) ?? null;
 
   const renderChapter = ({ item, index }: { item: PublicTeamChapter; index: number }) => {
     const canRead = isMangaDexId(item.id);
@@ -225,22 +226,48 @@ export default function TeamMangaScreen() {
                 </View>
               </View>
 
-              {/* MangaDex full page button */}
-              {isMangaDex && (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.mdxFullBtn,
-                    { backgroundColor: colors.primary, borderRadius: colors.radius, opacity: pressed ? 0.8 : 1 },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    router.push(`/manga/${mangaId}` as any);
-                  }}
-                >
-                  <Feather name="external-link" size={15} color="#fff" />
-                  <Text style={styles.mdxFullBtnText}>عرض الكل على MangaDex</Text>
-                </Pressable>
-              )}
+              {/* Action buttons */}
+              <View style={styles.actionRow}>
+                {firstReadableChapter ? (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.startBtn,
+                      { backgroundColor: colors.primary, borderRadius: colors.radius, opacity: pressed ? 0.82 : 1, flex: isMangaDex ? 1 : undefined },
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      router.push(`/reader/${firstReadableChapter.id}` as any);
+                    }}
+                  >
+                    <Feather name="play" size={16} color="#fff" />
+                    <Text style={styles.startBtnText}>ابدأ القراءة</Text>
+                  </Pressable>
+                ) : null}
+
+                {isMangaDex && (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.mdxFullBtn,
+                      {
+                        backgroundColor: firstReadableChapter ? colors.card : colors.primary,
+                        borderColor: colors.border,
+                        borderRadius: colors.radius,
+                        opacity: pressed ? 0.8 : 1,
+                        flex: firstReadableChapter ? undefined : 1,
+                      },
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push(`/manga/${mangaId}` as any);
+                    }}
+                  >
+                    <Feather name="external-link" size={14} color={firstReadableChapter ? colors.foreground : "#fff"} />
+                    <Text style={[styles.mdxFullBtnText, { color: firstReadableChapter ? colors.foreground : "#fff" }]}>
+                      MangaDex
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
 
             {/* Chapters header */}
@@ -303,14 +330,26 @@ const styles = StyleSheet.create({
   statItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   statText: { fontSize: 12, fontWeight: "600" },
 
+  actionRow: { flexDirection: "row", gap: 10 },
+  startBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+  },
+  startBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   mdxFullBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 7,
-    paddingVertical: 11,
+    gap: 6,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  mdxFullBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  mdxFullBtnText: { fontSize: 13, fontWeight: "600" },
 
   /* Chapters list */
   chaptersHeader: {
