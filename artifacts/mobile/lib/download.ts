@@ -155,6 +155,31 @@ export async function downloadPublishedTeamChapter(
   await saveDownloadsMeta(filtered);
 }
 
+/**
+ * Delete all locally-downloaded chapters that belong to a translation team.
+ * Iterates every manga → every chapter and removes files + metadata entries.
+ */
+export async function deleteTeamData(team: {
+  manga: Array<{ chapters: Array<{ id: string }> }>;
+}): Promise<void> {
+  const allChapterIds = team.manga.flatMap((m) => m.chapters.map((c) => c.id));
+  if (allChapterIds.length === 0) return;
+
+  // Delete files in parallel
+  if (isNative) {
+    await Promise.all(
+      allChapterIds.map((id) =>
+        FileSystem.deleteAsync(`${DOWNLOADS_DIR}${id}/`, { idempotent: true }).catch(() => {})
+      )
+    );
+  }
+
+  // Strip from metadata
+  const list = await getDownloadsMeta();
+  const idSet = new Set(allChapterIds);
+  await saveDownloadsMeta(list.filter((m) => !idSet.has(m.chapterId)));
+}
+
 export async function deleteChapter(chapterId: string): Promise<void> {
   if (isNative) {
     const dir = `${DOWNLOADS_DIR}${chapterId}/`;

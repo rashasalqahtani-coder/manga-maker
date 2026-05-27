@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTeam, type TeamManga } from "@/context/TeamContext";
 import { useLibrary } from "@/context/LibraryContext";
 import { useColors } from "@/hooks/useColors";
-import { downloadTeamChapter, isChapterDownloaded } from "@/lib/download";
+import { downloadTeamChapter, isChapterDownloaded, deleteTeamData } from "@/lib/download";
 import { searchManga, getCoverUrl, getMangaTitle } from "@/lib/mangadex";
 import { publishTeam, unpublishTeam, uploadTeamImage } from "@/lib/teams";
 
@@ -539,12 +539,29 @@ export default function TeamScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
+  const performDeleteTeam = async () => {
+    if (!team) return;
+    // 1. إلغاء النشر من الخادم إذا كان الفريق منشوراً
+    if (isPublished) {
+      try { await unpublishTeam(team.name + "_" + team.createdAt); } catch { /* لا نوقف الحذف */ }
+    }
+    // 2. حذف الفصول المحمّلة محلياً لكل مانجا في الفريق
+    try { await deleteTeamData(team); } catch { /* لا نوقف الحذف */ }
+    // 3. حذف بيانات الفريق من AsyncStorage
+    deleteTeam();
+    router.back();
+  };
+
   const handleDeleteTeam = () => {
-    if (Platform.OS === "web") { deleteTeam(); router.back(); return; }
-    Alert.alert("حذف الفريق", "هل أنت متأكد من حذف الفريق؟ لا يمكن التراجع.", [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: () => { deleteTeam(); router.back(); } },
-    ]);
+    if (Platform.OS === "web") { void performDeleteTeam(); return; }
+    Alert.alert(
+      "حذف الفريق",
+      "سيتم حذف الفريق وجميع الفصول المحمّلة ومسح النشر. لا يمكن التراجع.",
+      [
+        { text: "إلغاء", style: "cancel" },
+        { text: "حذف", style: "destructive", onPress: () => { void performDeleteTeam(); } },
+      ]
+    );
   };
 
   const handlePublishToggle = async () => {
