@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { addToHistory } from "@/app/(tabs)/history";
 import { useColors } from "@/hooks/useColors";
 import { getLocalPages } from "@/lib/download";
 import { getChapterPages, type ChapterPages } from "@/lib/mangadex";
@@ -28,10 +29,15 @@ interface PageItem {
 
 export default function ReaderScreen() {
   "use no memo";
-  const { chapterId, externalUrl } = useLocalSearchParams<{
-    chapterId: string;
-    externalUrl?: string;
-  }>();
+  const { chapterId, externalUrl, mangaId, mangaTitle, coverUrl, chapterNum } =
+    useLocalSearchParams<{
+      chapterId: string;
+      externalUrl?: string;
+      mangaId?: string;
+      mangaTitle?: string;
+      coverUrl?: string;
+      chapterNum?: string;
+    }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -58,6 +64,16 @@ export default function ReaderScreen() {
           setIsOffline(true);
           setPages(localPages.map((uri, i) => ({ uri, index: i })));
           setLoading(false);
+          if (mangaId && mangaTitle) {
+            addToHistory({
+              mangaId,
+              mangaTitle,
+              coverUrl: coverUrl || null,
+              chapterId,
+              chapterNum: chapterNum || null,
+              readAt: Date.now(),
+            });
+          }
           return;
         }
       } catch {
@@ -78,6 +94,16 @@ export default function ReaderScreen() {
             index: i,
           }))
         );
+        if (mangaId && mangaTitle) {
+          addToHistory({
+            mangaId,
+            mangaTitle,
+            coverUrl: coverUrl || null,
+            chapterId,
+            chapterNum: chapterNum || null,
+            readAt: Date.now(),
+          });
+        }
       } catch {
         setError(true);
       } finally {

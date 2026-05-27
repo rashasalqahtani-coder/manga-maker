@@ -1,3 +1,4 @@
+"use no memo";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
@@ -15,13 +16,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import { getCoverUrl, getMangaTitle, type Manga } from "@/lib/mangadex";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const HISTORY_KEY = "@manga_history";
 
 export interface HistoryEntry {
-  manga: Manga;
+  mangaId: string;
+  mangaTitle: string;
+  coverUrl: string | null;
   chapterId: string;
   chapterNum: string | null;
   readAt: number;
@@ -37,6 +39,17 @@ export async function addToHistory(entry: HistoryEntry) {
   } catch {}
 }
 
+export async function getLastReadChapter(mangaId: string): Promise<HistoryEntry | null> {
+  try {
+    const raw = await AsyncStorage.getItem(HISTORY_KEY);
+    if (!raw) return null;
+    const list: HistoryEntry[] = JSON.parse(raw);
+    return list.find((e) => e.mangaId === mangaId) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function timeAgo(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000);
   if (diff < 60) return "الآن";
@@ -46,6 +59,7 @@ function timeAgo(ts: number): string {
 }
 
 export default function HistoryScreen() {
+  "use no memo";
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -201,8 +215,6 @@ export default function HistoryScreen() {
             <View style={[styles.separator, { backgroundColor: colors.border }]} />
           )}
           renderItem={({ item }) => {
-            const title = getMangaTitle(item.manga);
-            const cover = getCoverUrl(item.manga, "256");
             const isSelected = selected.has(item.chapterId);
 
             return (
@@ -221,7 +233,16 @@ export default function HistoryScreen() {
                   if (selecting) {
                     toggleSelect(item.chapterId);
                   } else {
-                    router.push(`/reader/${item.chapterId}`);
+                    router.push({
+                      pathname: "/reader/[chapterId]" as any,
+                      params: {
+                        chapterId: item.chapterId,
+                        mangaId: item.mangaId,
+                        mangaTitle: item.mangaTitle,
+                        coverUrl: item.coverUrl ?? "",
+                        chapterNum: item.chapterNum ?? "",
+                      },
+                    });
                   }
                 }}
                 onLongPress={() => {
@@ -245,9 +266,9 @@ export default function HistoryScreen() {
 
                 {/* Cover */}
                 <View style={[styles.coverWrap, { backgroundColor: colors.card, borderRadius: 6 }]}>
-                  {cover ? (
+                  {item.coverUrl ? (
                     <Image
-                      source={{ uri: cover }}
+                      source={{ uri: item.coverUrl }}
                       style={[styles.cover, { borderRadius: 6 }]}
                       contentFit="cover"
                     />
@@ -257,7 +278,7 @@ export default function HistoryScreen() {
                 {/* Info */}
                 <View style={styles.info}>
                   <Text style={[styles.mangaTitle, { color: colors.foreground }]} numberOfLines={1}>
-                    {title}
+                    {item.mangaTitle}
                   </Text>
                   <Text style={[styles.chapterLabel, { color: colors.mutedForeground }]}>
                     {item.chapterNum ? `فصل ${item.chapterNum}` : "فصل"}

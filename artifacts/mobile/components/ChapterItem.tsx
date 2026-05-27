@@ -13,7 +13,7 @@ import {
 
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
-import type { Chapter, Manga } from "@/lib/mangadex";
+import { getCoverUrl, getMangaTitle, type Chapter, type Manga } from "@/lib/mangadex";
 
 interface ChapterItemProps {
   chapter: Chapter;
@@ -63,7 +63,16 @@ export function ChapterItem({ chapter, manga, isRead }: ChapterItemProps) {
     if (isExternal && chapter.attributes.externalUrl) {
       Linking.openURL(chapter.attributes.externalUrl);
     } else {
-      router.push(`/reader/${chapter.id}` as any);
+      router.push({
+        pathname: "/reader/[chapterId]" as any,
+        params: {
+          chapterId: chapter.id,
+          mangaId: manga?.id ?? "",
+          mangaTitle: manga ? getMangaTitle(manga) : "",
+          coverUrl: manga ? (getCoverUrl(manga, "256") ?? "") : "",
+          chapterNum: chapter.attributes.chapter ?? "",
+        },
+      });
     }
   };
 

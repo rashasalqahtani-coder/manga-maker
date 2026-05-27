@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChapterItem } from "@/components/ChapterItem";
+import { getLastReadChapter, type HistoryEntry } from "@/app/(tabs)/history";
 import { useLibrary } from "@/context/LibraryContext";
 import { useColors } from "@/hooks/useColors";
 import {
@@ -48,6 +49,7 @@ export default function MangaDetailScreen() {
   const [error, setError] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [lastRead, setLastRead] = useState<HistoryEntry | null>(null);
 
   const inLib = manga ? isInLibrary(manga.id) : false;
 
@@ -56,6 +58,7 @@ export default function MangaDetailScreen() {
     setLoading(true);
     setError(false);
     setSelectedGroupId(null);
+    setLastRead(null);
     Promise.all([getMangaDetails(id), getMangaChapters(id)])
       .then(([m, ch]) => {
         setManga(m);
@@ -63,6 +66,7 @@ export default function MangaDetailScreen() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
+    getLastReadChapter(id).then(setLastRead);
   }, [id]);
 
   const groups = useMemo(() => extractGroups(chapters), [chapters]);
@@ -165,18 +169,48 @@ export default function MangaDetailScreen() {
                 { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1, flex: 1, borderRadius: colors.radius },
               ]}
               onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                if (lastRead) {
+                  router.push({
+                    pathname: "/reader/[chapterId]" as any,
+                    params: {
+                      chapterId: lastRead.chapterId,
+                      mangaId: id,
+                      mangaTitle: title,
+                      coverUrl: coverUrl ?? "",
+                      chapterNum: lastRead.chapterNum ?? "",
+                    },
+                  });
+                  return;
+                }
                 const first = filteredChapters[filteredChapters.length - 1];
                 if (!first) return;
                 const isExternal = first.attributes.pages === 0 && !!first.attributes.externalUrl;
                 if (isExternal && first.attributes.externalUrl) {
                   Linking.openURL(first.attributes.externalUrl);
                 } else {
-                  router.push(`/reader/${first.id}` as any);
+                  router.push({
+                    pathname: "/reader/[chapterId]" as any,
+                    params: {
+                      chapterId: first.id,
+                      mangaId: id,
+                      mangaTitle: title,
+                      coverUrl: coverUrl ?? "",
+                      chapterNum: first.attributes.chapter ?? "",
+                    },
+                  });
                 }
               }}
             >
-              <Feather name="book-open" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>ابدأ القراءة</Text>
+              <Feather name={lastRead ? "play" : "book-open"} size={18} color="#fff" />
+              <View>
+                <Text style={styles.primaryBtnText}>
+                  {lastRead ? "استكمل القراءة" : "ابدأ القراءة"}
+                </Text>
+                {lastRead?.chapterNum ? (
+                  <Text style={styles.primaryBtnSub}>فصل {lastRead.chapterNum}</Text>
+                ) : null}
+              </View>
             </Pressable>
             <Pressable
               style={({ pressed }) => [
@@ -420,6 +454,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  primaryBtnSub: { color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: "500", marginTop: 1 },
   iconBtn: { width: 48, alignItems: "center", justifyContent: "center" },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   tag: { paddingHorizontal: 10, paddingVertical: 4 },

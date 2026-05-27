@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { getLastReadChapter, type HistoryEntry } from "@/app/(tabs)/history";
 import { useColors } from "@/hooks/useColors";
 import { getPublicTeam, type PublicTeam, type PublicTeamChapter, type PublicTeamManga } from "@/lib/teams";
 
@@ -32,6 +33,7 @@ export default function TeamMangaScreen() {
   const [team, setTeam] = useState<PublicTeam | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [lastRead, setLastRead] = useState<HistoryEntry | null>(null);
 
   const load = useCallback(async () => {
     if (!teamId) return;
@@ -48,6 +50,12 @@ export default function TeamMangaScreen() {
   }, [teamId]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!mangaId) return;
+    setLastRead(null);
+    getLastReadChapter(mangaId).then(setLastRead);
+  }, [mangaId]);
 
   const manga: PublicTeamManga | null = team?.manga.find((m) => m.id === mangaId) ?? null;
   const isMangaDex = isMangaDexId(mangaId ?? "");
@@ -112,7 +120,16 @@ export default function TeamMangaScreen() {
           canRead
             ? () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(`/reader/${item.id}` as any);
+                router.push({
+                  pathname: "/reader/[chapterId]" as any,
+                  params: {
+                    chapterId: item.id,
+                    mangaId: mangaId ?? "",
+                    mangaTitle: manga.title,
+                    coverUrl: manga.coverUrl ?? "",
+                    chapterNum: item.number,
+                  },
+                });
               }
             : undefined
         }
@@ -228,7 +245,7 @@ export default function TeamMangaScreen() {
 
               {/* Action buttons */}
               <View style={styles.actionRow}>
-                {firstReadableChapter ? (
+                {(lastRead ?? firstReadableChapter) ? (
                   <Pressable
                     style={({ pressed }) => [
                       styles.startBtn,
@@ -236,11 +253,29 @@ export default function TeamMangaScreen() {
                     ]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      router.push(`/reader/${firstReadableChapter.id}` as any);
+                      const destId = lastRead ? lastRead.chapterId : firstReadableChapter!.id;
+                      const destNum = lastRead ? lastRead.chapterNum : firstReadableChapter!.number;
+                      router.push({
+                        pathname: "/reader/[chapterId]" as any,
+                        params: {
+                          chapterId: destId,
+                          mangaId: mangaId ?? "",
+                          mangaTitle: manga.title,
+                          coverUrl: manga.coverUrl ?? "",
+                          chapterNum: destNum ?? "",
+                        },
+                      });
                     }}
                   >
                     <Feather name="play" size={16} color="#fff" />
-                    <Text style={styles.startBtnText}>ابدأ القراءة</Text>
+                    <View>
+                      <Text style={styles.startBtnText}>
+                        {lastRead ? "استكمل القراءة" : "ابدأ القراءة"}
+                      </Text>
+                      {lastRead?.chapterNum ? (
+                        <Text style={styles.startBtnSub}>فصل {lastRead.chapterNum}</Text>
+                      ) : null}
+                    </View>
                   </Pressable>
                 ) : null}
 
@@ -340,6 +375,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   startBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
+  startBtnSub: { color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: "500", marginTop: 1 },
   mdxFullBtn: {
     flexDirection: "row",
     alignItems: "center",
