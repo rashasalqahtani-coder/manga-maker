@@ -19,18 +19,14 @@ import { WebView } from "react-native-webview";
 
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
-import {
-  buildChapterUrl as buildStarzChapterUrl,
-  buildMangaUrl as buildStarzMangaUrl,
-  type StarzChapter,
-} from "@/lib/mangastarz";
+import { type StarzChapter } from "@/lib/mangastarz";
 
 const API_BASE =
   typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
     ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
     : "/api";
 
-type SrcParam = "starz" | "linkmanga" | "kenmanga" | "olympus";
+type SrcParam = "linkmanga" | "kenmanga" | "asq";
 
 // JS injected into hidden WebView to extract chapter image URLs
 const EXTRACT_IMAGES_JS = `
@@ -86,30 +82,26 @@ function getChapterFetchApi(src: SrcParam, slug: string, latestChapter?: string)
     return latestChapter ? `${idPath}?latest=${encodeURIComponent(latestChapter)}` : idPath;
   }
   if (src === "kenmanga") return `${API_BASE}/kenmanga/manga/${encodeURIComponent(slug)}/chapters`;
-  if (src === "olympus") return `${API_BASE}/olympus/manga/${encodeURIComponent(slug)}/chapters`;
-  const idPath = `${API_BASE}/starz/manga/${encodeURIComponent(slug)}/chapters`;
+  const idPath = `${API_BASE}/asq/manga/${encodeURIComponent(slug)}/chapters`;
   return latestChapter ? `${idPath}?latest=${encodeURIComponent(latestChapter)}` : idPath;
 }
 
 function buildMangaUrl(src: SrcParam, slug: string): string {
   if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/`;
   if (src === "kenmanga") return `https://ar.kenmanga.com/manga/${slug}/`;
-  if (src === "olympus") return `https://olympustaff.com/series/${slug}`;
-  return buildStarzMangaUrl(slug);
+  return `https://3asq.org/manga/${slug}/`;
 }
 
 function buildChapterUrl(src: SrcParam, slug: string, chapterNum: string): string {
   if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/${chapterNum}/`;
   if (src === "kenmanga") return `https://ar.kenmanga.com/${slug}-الفصل-${chapterNum}/`;
-  if (src === "olympus") return `https://olympustaff.com/series/${slug}/${chapterNum}`;
-  return buildStarzChapterUrl(slug, chapterNum);
+  return `https://3asq.org/manga/${slug}/${chapterNum}/`;
 }
 
 function getSourceLabel(src: SrcParam): string {
   if (src === "linkmanga") return "لينك مانجا";
   if (src === "kenmanga") return "أريا مانجا";
-  if (src === "olympus") return "أوليمبوس";
-  return "مانجا ستارز";
+  return "مانجا العاشق";
 }
 
 interface ScrapeJob {
@@ -130,7 +122,7 @@ export default function StarzMangaDetailScreen() {
     src?: string;
   }>();
   const slug = params.slug ?? "";
-  const src: SrcParam = (params.src as SrcParam) ?? "starz";
+  const src: SrcParam = (params.src as SrcParam) ?? "linkmanga";
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();

@@ -35,31 +35,16 @@ function mapStarzItem(item: Record<string, unknown>, sourceId: SourceId): Unifie
   };
 }
 
-function mapOlympusItem(item: Record<string, unknown>): UnifiedManga {
-  const slug = String(item["slug"] ?? item["id"] ?? "");
-  return {
-    id: slug,
-    slug,
-    title: String(item["title"] ?? ""),
-    coverUrl: String(item["coverUrl"] ?? ""),
-    url: String(item["url"] ?? ""),
-    sourceId: "olympus",
-  };
-}
-
 export async function fetchHomeMangas(sourceId: SourceId): Promise<UnifiedManga[]> {
   const endpointMap: Record<SourceId, string> = {
-    starz: "/starz/home",
     linkmanga: "/linkmanga/home",
     kenmanga: "/kenmanga/home",
-    olympus: "/olympus/home",
+    asq: "/asq/home",
   };
   const res = await fetch(`${API_BASE}${endpointMap[sourceId]}`);
   if (!res.ok) throw new Error(`home fetch failed: ${res.status}`);
   const data = (await res.json()) as { manga: Record<string, unknown>[] };
   const items = data.manga ?? [];
-
-  if (sourceId === "olympus") return items.map(mapOlympusItem);
   return items.map((item) => mapStarzItem(item, sourceId));
 }
 
@@ -68,9 +53,9 @@ export async function searchMangas(
   query: string
 ): Promise<UnifiedManga[]> {
   const endpointMap: Partial<Record<SourceId, string>> = {
-    starz: "/starz/search",
     linkmanga: "/linkmanga/search",
     kenmanga: "/kenmanga/search",
+    asq: "/asq/search",
   };
   const endpoint = endpointMap[sourceId];
   if (!endpoint) return [];
@@ -86,18 +71,16 @@ export async function searchMangas(
 export function getChaptersUrl(sourceId: SourceId, id: string, latestNum?: string): string {
   const base = `${API_BASE}`;
   switch (sourceId) {
-    case "starz":
-      return latestNum
-        ? `${base}/starz/manga/${encodeURIComponent(id)}/chapters?latest=${latestNum}`
-        : `${base}/starz/manga/${encodeURIComponent(id)}/chapters`;
     case "linkmanga":
       return latestNum
         ? `${base}/linkmanga/manga/${encodeURIComponent(id)}/chapters?latest=${latestNum}`
         : `${base}/linkmanga/manga/${encodeURIComponent(id)}/chapters`;
     case "kenmanga":
       return `${base}/kenmanga/manga/${encodeURIComponent(id)}/chapters`;
-    case "olympus":
-      return `${base}/olympus/manga/${encodeURIComponent(id)}/chapters`;
+    case "asq":
+      return latestNum
+        ? `${base}/asq/manga/${encodeURIComponent(id)}/chapters?latest=${latestNum}`
+        : `${base}/asq/manga/${encodeURIComponent(id)}/chapters`;
     default:
       return "";
   }

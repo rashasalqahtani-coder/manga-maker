@@ -17,9 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SearchBar } from "@/components/SearchBar";
-import { StarzMangaCard } from "@/components/StarzMangaCard";
 import { useColors } from "@/hooks/useColors";
-import { searchStarzManga, type StarzManga } from "@/lib/mangastarz";
 import { searchMangas, type UnifiedManga } from "@/lib/sources";
 import {
   searchTeamManga,
@@ -39,19 +37,19 @@ function useDebounce<T>(value: T, delay: number): T {
 const MANGADEX_ID_RE = /^[0-9a-f-]{36}$/;
 function isMangaDexId(id: string) { return MANGADEX_ID_RE.test(id); }
 
-type SourceKey = "starz" | "linkmanga" | "kenmanga";
+type SourceKey = "linkmanga" | "kenmanga" | "asq";
 
 interface AllResults {
-  starz: StarzManga[];
   linkmanga: UnifiedManga[];
   kenmanga: UnifiedManga[];
+  asq: UnifiedManga[];
   teams: TeamMangaResult[];
 }
 
 const SOURCE_META: Record<SourceKey, { nameAr: string; flag: string; color: string }> = {
-  starz:     { nameAr: "مانجا ستارز", flag: "⭐", color: "#f59e0b" },
   linkmanga: { nameAr: "لينك مانجا", flag: "🔗", color: "#3b82f6" },
   kenmanga:  { nameAr: "أريا مانجا", flag: "🌙", color: "#8b5cf6" },
+  asq:       { nameAr: "مانجا العاشق", flag: "📚", color: "#10b981" },
 };
 
 /* ─── Team manga card ─── */
@@ -182,7 +180,7 @@ export default function SearchScreen() {
   const router = useRouter();
 
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<AllResults>({ starz: [], linkmanga: [], kenmanga: [], teams: [] });
+  const [results, setResults] = useState<AllResults>({ linkmanga: [], kenmanga: [], asq: [], teams: [] });
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [searched, setSearched] = useState(false);
   const [activeManga, setActiveManga] = useState<TeamMangaResult | null>(null);
@@ -192,7 +190,7 @@ export default function SearchScreen() {
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) {
-      setResults({ starz: [], linkmanga: [], kenmanga: [], teams: [] });
+      setResults({ linkmanga: [], kenmanga: [], asq: [], teams: [] });
       setLoadingMap({});
       setActiveManga(null);
       setSearched(false);
@@ -202,18 +200,14 @@ export default function SearchScreen() {
     const id = ++searchIdRef.current;
     setSearched(true);
     setActiveManga(null);
-    setLoadingMap({ starz: true, linkmanga: true, kenmanga: true, teams: true });
-    setResults({ starz: [], linkmanga: [], kenmanga: [], teams: [] });
+    setLoadingMap({ linkmanga: true, kenmanga: true, asq: true, teams: true });
+    setResults({ linkmanga: [], kenmanga: [], asq: [], teams: [] });
 
     const updateOne = <K extends keyof AllResults>(key: K, value: AllResults[K]) => {
       if (searchIdRef.current !== id) return;
       setResults((prev) => ({ ...prev, [key]: value }));
       setLoadingMap((prev) => ({ ...prev, [key]: false }));
     };
-
-    searchStarzManga(q.trim())
-      .then((r) => updateOne("starz", r))
-      .catch(() => updateOne("starz", []));
 
     searchMangas("linkmanga", q.trim())
       .then((r) => updateOne("linkmanga", r))
@@ -222,6 +216,10 @@ export default function SearchScreen() {
     searchMangas("kenmanga", q.trim())
       .then((r) => updateOne("kenmanga", r))
       .catch(() => updateOne("kenmanga", []));
+
+    searchMangas("asq", q.trim())
+      .then((r) => updateOne("asq", r))
+      .catch(() => updateOne("asq", []));
 
     searchTeamManga(q.trim())
       .then((r) => updateOne("teams", r))
@@ -236,7 +234,7 @@ export default function SearchScreen() {
   const isAnyLoading = Object.values(loadingMap).some(Boolean);
 
   const totalCount =
-    results.starz.length + results.linkmanga.length + results.kenmanga.length + results.teams.length;
+    results.linkmanga.length + results.kenmanga.length + results.asq.length + results.teams.length;
 
   function navigateUnified(manga: UnifiedManga, srcId: string) {
     "use no memo";
@@ -368,16 +366,20 @@ export default function SearchScreen() {
     <View style={styles.allSourcesWrapper}>
       {teamSection}
 
-      {/* starz section */}
-      {(results.starz.length > 0 || loadingMap["starz"]) && (
+      {/* asq section */}
+      {(results.asq.length > 0 || loadingMap["asq"]) && (
         <View style={styles.sourceSection}>
           <View style={styles.sourceSectionTop}>
-            <SourceHeader srcKey="starz" count={results.starz.length} />
-            {loadingMap["starz"] && <ActivityIndicator size={12} color={SOURCE_META.starz.color} />}
+            <SourceHeader srcKey="asq" count={results.asq.length} />
+            {loadingMap["asq"] && <ActivityIndicator size={12} color={SOURCE_META.asq.color} />}
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRow}>
-            {results.starz.map((item) => (
-              <StarzMangaCard key={item.id} manga={item} width={106} height={152} />
+            {results.asq.map((item) => (
+              <UnifiedMiniCard
+                key={item.id}
+                manga={item}
+                onPress={() => navigateUnified(item, "asq")}
+              />
             ))}
           </ScrollView>
         </View>
@@ -430,7 +432,7 @@ export default function SearchScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>البحث</Text>
         <SearchBar value={query} onChangeText={setQuery} onClear={() => setQuery("")} />
         <View style={styles.sourceChips}>
-          {(["starz", "linkmanga", "kenmanga"] as SourceKey[]).map((k) => (
+          {(["asq", "linkmanga", "kenmanga"] as SourceKey[]).map((k) => (
             <View
               key={k}
               style={[
@@ -452,7 +454,7 @@ export default function SearchScreen() {
           <Feather name="search" size={44} color={colors.muted} />
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>ابحث في كل المصادر</Text>
           <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
-            مانجا ستارز · لينك مانجا · أريا مانجا · فرق الترجمة
+            مانجا العاشق · لينك مانجا · أريا مانجا · فرق الترجمة
           </Text>
         </View>
       ) : isAnyLoading && totalCount === 0 ? (

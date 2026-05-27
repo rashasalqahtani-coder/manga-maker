@@ -8,7 +8,7 @@ import teamImagesRouter from "./teamImages";
 import mangastarzRouter from "./mangastarz";
 import linkmangaRouter from "./linkmanga";
 import kenmangaRouter from "./kenmanga";
-import olympusRouter from "./olympus";
+import asqRouter from "./asq";
 
 const router: IRouter = Router();
 
@@ -21,6 +21,6 @@ router.use(teamImagesRouter);
 router.use(mangastarzRouter);
 router.use(linkmangaRouter);
 router.use(kenmangaRouter);
-router.use(olympusRouter);
+router.use(asqRouter);
 
 export default router;
