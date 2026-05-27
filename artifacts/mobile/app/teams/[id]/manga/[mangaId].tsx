@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getLastReadChapter, type HistoryEntry } from "@/app/(tabs)/history";
 import { useTeam } from "@/context/TeamContext";
+import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import { downloadPublishedTeamChapter, isChapterDownloaded } from "@/lib/download";
 import { getPublicTeam, type PublicTeam, type PublicTeamChapter, type PublicTeamManga } from "@/lib/teams";
@@ -34,6 +35,7 @@ export default function TeamMangaScreen() {
   const router = useRouter();
 
   const { team: localTeam } = useTeam();
+  const { refreshMeta } = useDownloads();
   const [team, setTeam] = useState<PublicTeam | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -176,6 +178,7 @@ export default function TeamMangaScreen() {
         manga.coverUrl ?? "",
         () => {}
       );
+      await refreshMeta();
       setDownloadedIds((prev) => new Set([...prev, ch.id]));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("تم التنزيل", `فصل ${ch.number} جاهز للقراءة بدون إنترنت.`);

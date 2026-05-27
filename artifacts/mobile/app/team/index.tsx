@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTeam, type TeamManga } from "@/context/TeamContext";
 import { useLibrary } from "@/context/LibraryContext";
+import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import { downloadTeamChapter, isChapterDownloaded, deleteTeamData } from "@/lib/download";
 import { searchManga, getCoverUrl, getMangaTitle } from "@/lib/mangadex";
@@ -34,6 +35,7 @@ function MangaCard({ manga }: { manga: TeamManga }) {
   const router = useRouter();
   const { removeManga, addChapter, removeChapter } = useTeam();
   const { isInLocalLibrary, addToLocalLibrary, removeFromLocalLibrary } = useLibrary();
+  const { refreshMeta } = useDownloads();
 
   const [expanded, setExpanded] = useState(false);
   const [showChapterForm, setShowChapterForm] = useState(false);
@@ -68,6 +70,7 @@ function MangaCard({ manga }: { manga: TeamManga }) {
         manga,
         () => {}
       );
+      await refreshMeta();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("تم التنزيل", `فصل ${ch.number} جاهز للقراءة بدون إنترنت.`);
     } catch (e) {
