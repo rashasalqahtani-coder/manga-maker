@@ -23,6 +23,7 @@ import { useLibrary } from "@/context/LibraryContext";
 import { useColors } from "@/hooks/useColors";
 import { downloadTeamChapter, isChapterDownloaded } from "@/lib/download";
 import { searchManga, getCoverUrl, getMangaTitle } from "@/lib/mangadex";
+import { publishTeam, unpublishTeam } from "@/lib/teams";
 
 type Tab = "manga" | "members";
 type AddMode = "search" | "manual";
@@ -420,6 +421,10 @@ export default function TeamScreen() {
   // Manga filter
   const [mangaFilter, setMangaFilter] = useState("");
 
+  // Publish
+  const [publishing, setPublishing] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
+
   // Members
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberName, setMemberName] = useState("");
@@ -443,7 +448,9 @@ export default function TeamScreen() {
             <Feather name="arrow-right" size={22} color={colors.foreground} />
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>فريق الترجمة</Text>
-          <View style={{ width: 22 }} />
+          <Pressable onPress={() => router.push("/teams" as any)} hitSlop={8}>
+            <Feather name="compass" size={20} color={colors.mutedForeground} />
+          </Pressable>
         </View>
         <View style={styles.emptyCenter}>
           <View style={[styles.emptyIconBox, { backgroundColor: colors.primary + "20" }]}>
@@ -459,6 +466,15 @@ export default function TeamScreen() {
           >
             <Feather name="plus" size={18} color="#fff" />
             <Text style={styles.createBtnText}>إنشاء فريق</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.discoverBtn, { borderColor: colors.border }]}
+            onPress={() => router.push("/teams" as any)}
+          >
+            <Feather name="compass" size={16} color={colors.mutedForeground} />
+            <Text style={[styles.discoverBtnText, { color: colors.mutedForeground }]}>
+              استكشف فرق الترجمة
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -531,6 +547,46 @@ export default function TeamScreen() {
     ]);
   };
 
+  const handlePublishToggle = async () => {
+    if (!team) return;
+    setPublishing(true);
+    try {
+      if (isPublished) {
+        await unpublishTeam(team.name + "_" + team.createdAt);
+        setIsPublished(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("تم إلغاء النشر", "لم يعد فريقك مرئياً للآخرين.");
+      } else {
+        const publicManga = team.manga.map((m) => ({
+          id: m.id,
+          title: m.title,
+          coverUrl: m.coverUrl,
+          description: m.description,
+          chapters: (m.chapters ?? []).map((ch) => ({
+            id: ch.id,
+            number: ch.number,
+            title: ch.title,
+            imageCount: ch.imageUris?.length ?? 0,
+          })),
+        }));
+        await publishTeam({
+          id: team.name + "_" + team.createdAt,
+          name: team.name,
+          description: team.description ?? "",
+          emoji: team.emoji,
+          manga: publicManga,
+        });
+        setIsPublished(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("تم النشر! 🎉", "فريقك الآن مرئي لجميع المستخدمين.");
+      }
+    } catch {
+      Alert.alert("خطأ", "تعذّر الاتصال بالخادم. تحقق من اتصالك وأعد المحاولة.");
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.background }]}
@@ -542,9 +598,23 @@ export default function TeamScreen() {
           <Feather name="arrow-right" size={22} color={colors.foreground} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>فريق الترجمة</Text>
-        <Pressable onPress={() => router.push("/team/create")} hitSlop={8}>
-          <Feather name="edit-2" size={20} color={colors.primary} />
-        </Pressable>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+          {/* Discover teams */}
+          <Pressable onPress={() => router.push("/teams" as any)} hitSlop={8}>
+            <Feather name="compass" size={20} color={colors.mutedForeground} />
+          </Pressable>
+          {/* Publish toggle */}
+          <Pressable onPress={handlePublishToggle} hitSlop={8} disabled={publishing}>
+            {publishing
+              ? <ActivityIndicator size={18} color={colors.primary} />
+              : <Feather name="globe" size={20} color={isPublished ? colors.primary : colors.mutedForeground} />
+            }
+          </Pressable>
+          {/* Edit */}
+          <Pressable onPress={() => router.push("/team/create")} hitSlop={8}>
+            <Feather name="edit-2" size={20} color={colors.primary} />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -1025,4 +1095,15 @@ const styles = StyleSheet.create({
   memberInfoBlock: { flex: 1 },
   memberName: { fontSize: 14, fontWeight: "600" },
   memberRole: { fontSize: 12, marginTop: 2 },
+  discoverBtn: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  discoverBtnText: { fontSize: 14 },
 });
