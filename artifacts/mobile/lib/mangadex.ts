@@ -147,6 +147,11 @@ async function apiFetch(
 // ── Arabic-first base params ──────────────────────────────────────────────────
 const AR_INCLUDES = ["cover_art", "author"];
 const CONTENT_RATING = ["safe", "suggestive"];
+// Excluded tags: Boys' Love, Girls' Love
+const EXCLUDED_TAGS = [
+  "5920b825-4181-4a17-beeb-9918b0ff7a30",
+  "a3c67850-4684-404e-9b7f-c69850ee5da6",
+];
 
 export async function getTopRatedManga(): Promise<Manga[]> {
   const data = await apiFetch("/manga", {
@@ -155,6 +160,7 @@ export async function getTopRatedManga(): Promise<Manga[]> {
     "availableTranslatedLanguage[]": ["ar"],
     "includes[]": AR_INCLUDES,
     "contentRating[]": CONTENT_RATING,
+    "excludedTags[]": EXCLUDED_TAGS,
   });
   return data.data as Manga[];
 }
@@ -166,6 +172,7 @@ export async function getPopularManga(): Promise<Manga[]> {
     "availableTranslatedLanguage[]": ["ar"],
     "includes[]": AR_INCLUDES,
     "contentRating[]": CONTENT_RATING,
+    "excludedTags[]": EXCLUDED_TAGS,
   });
   return data.data as Manga[];
 }
@@ -177,6 +184,7 @@ export async function getRecentlyUpdated(): Promise<Manga[]> {
     "availableTranslatedLanguage[]": ["ar"],
     "includes[]": AR_INCLUDES,
     "contentRating[]": CONTENT_RATING,
+    "excludedTags[]": EXCLUDED_TAGS,
   });
   return data.data as Manga[];
 }
@@ -188,6 +196,7 @@ export async function searchManga(query: string): Promise<Manga[]> {
     "availableTranslatedLanguage[]": ["ar"],
     "includes[]": AR_INCLUDES,
     "contentRating[]": CONTENT_RATING,
+    "excludedTags[]": EXCLUDED_TAGS,
   });
   return data.data as Manga[];
 }
@@ -256,6 +265,7 @@ export async function browsePaginated(
     "availableTranslatedLanguage[]": ["ar"],
     "includes[]": AR_INCLUDES,
     "contentRating[]": CONTENT_RATING,
+    "excludedTags[]": EXCLUDED_TAGS,
   });
   return data.data as Manga[];
 }
@@ -263,7 +273,9 @@ export async function browsePaginated(
 export async function getGenres(): Promise<MangaTagItem[]> {
   const data = await apiFetch("/manga/tag");
   const tags = data.data as MangaTagItem[];
-  return tags.filter((t) => t.attributes.group === "genre");
+  return tags.filter(
+    (t) => t.attributes.group === "genre" && !EXCLUDED_TAGS.includes(t.id)
+  );
 }
 
 export async function browseMangaByGenre(tagId: string): Promise<Manga[]> {
@@ -274,6 +286,7 @@ export async function browseMangaByGenre(tagId: string): Promise<Manga[]> {
     "availableTranslatedLanguage[]": ["ar"],
     "includes[]": AR_INCLUDES,
     "contentRating[]": CONTENT_RATING,
+    "excludedTags[]": EXCLUDED_TAGS,
   });
   return data.data as Manga[];
 }
@@ -287,6 +300,7 @@ export async function getArabicManhwa(): Promise<Manga[]> {
     "availableTranslatedLanguage[]": ["ar"],
     "includes[]": AR_INCLUDES,
     "contentRating[]": CONTENT_RATING,
+    "excludedTags[]": EXCLUDED_TAGS,
   });
   return data.data as Manga[];
 }
@@ -300,6 +314,7 @@ export async function getArabicManhua(): Promise<Manga[]> {
     "availableTranslatedLanguage[]": ["ar"],
     "includes[]": AR_INCLUDES,
     "contentRating[]": CONTENT_RATING,
+    "excludedTags[]": EXCLUDED_TAGS,
   });
   return data.data as Manga[];
 }
@@ -312,6 +327,7 @@ export async function getNewArabic(): Promise<Manga[]> {
     "availableTranslatedLanguage[]": ["ar"],
     "includes[]": AR_INCLUDES,
     "contentRating[]": CONTENT_RATING,
+    "excludedTags[]": EXCLUDED_TAGS,
   });
   return data.data as Manga[];
 }
