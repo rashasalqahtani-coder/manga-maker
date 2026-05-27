@@ -405,6 +405,7 @@ export default function TeamScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { team, deleteTeam, addMember, removeMember, addManga } = useTeam();
+  const { removeFromLocalLibrary } = useLibrary();
 
   const [tab, setTab] = useState<Tab>("manga");
 
@@ -550,7 +551,11 @@ export default function TeamScreen() {
     }
     // 2. حذف الفصول المحمّلة محلياً لكل مانجا في الفريق
     try { await deleteTeamData(team); } catch { /* لا نوقف الحذف */ }
-    // 3. حذف بيانات الفريق من AsyncStorage
+    // 3. إزالة كل مانجا الفريق من المكتبة المحلية
+    for (const m of team.manga) {
+      removeFromLocalLibrary(m.id);
+    }
+    // 4. حذف بيانات الفريق من AsyncStorage
     deleteTeam();
     router.back();
   };
