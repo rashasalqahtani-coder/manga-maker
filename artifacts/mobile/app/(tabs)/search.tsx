@@ -7,7 +7,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -19,7 +18,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SearchBar } from "@/components/SearchBar";
 import { StarzMangaCard } from "@/components/StarzMangaCard";
-import { useSource } from "@/context/SourceContext";
 import { useColors } from "@/hooks/useColors";
 import { searchStarzManga, type StarzManga } from "@/lib/mangastarz";
 import { searchMangas, type UnifiedManga } from "@/lib/sources";
@@ -40,6 +38,21 @@ function useDebounce<T>(value: T, delay: number): T {
 
 const MANGADEX_ID_RE = /^[0-9a-f-]{36}$/;
 function isMangaDexId(id: string) { return MANGADEX_ID_RE.test(id); }
+
+type SourceKey = "starz" | "linkmanga" | "kenmanga";
+
+interface AllResults {
+  starz: StarzManga[];
+  linkmanga: UnifiedManga[];
+  kenmanga: UnifiedManga[];
+  teams: TeamMangaResult[];
+}
+
+const SOURCE_META: Record<SourceKey, { nameAr: string; flag: string; color: string }> = {
+  starz:     { nameAr: "مانجا ستارز", flag: "⭐", color: "#f59e0b" },
+  linkmanga: { nameAr: "لينك مانجا", flag: "🔗", color: "#3b82f6" },
+  kenmanga:  { nameAr: "أريا مانجا", flag: "🌙", color: "#8b5cf6" },
+};
 
 /* ─── Team manga card ─── */
 function TeamMangaCard({
@@ -95,13 +108,7 @@ function TeamMangaCard({
 }
 
 /* ─── Chapter row ─── */
-function ChapterRow({
-  chapter,
-  onRead,
-}: {
-  chapter: PublicTeamChapter;
-  onRead: (() => void) | null;
-}) {
+function ChapterRow({ chapter, onRead }: { chapter: PublicTeamChapter; onRead: (() => void) | null }) {
   "use no memo";
   const colors = useColors();
   return (
@@ -133,81 +140,120 @@ function ChapterRow({
   );
 }
 
+/* ─── Source section header ─── */
+function SourceHeader({ srcKey, count }: { srcKey: SourceKey; count: number }) {
+  "use no memo";
+  const colors = useColors();
+  const meta = SOURCE_META[srcKey];
+  return (
+    <View style={[styles.sourceSectionHeader, { borderLeftColor: meta.color }]}>
+      <Text style={styles.sourceSectionFlag}>{meta.flag}</Text>
+      <Text style={[styles.sourceSectionName, { color: colors.foreground }]}>{meta.nameAr}</Text>
+      <View style={[styles.sourceSectionBadge, { backgroundColor: meta.color + "22" }]}>
+        <Text style={[styles.sourceSectionCount, { color: meta.color }]}>{count}</Text>
+      </View>
+    </View>
+  );
+}
+
+/* ─── Unified manga mini card (horizontal) ─── */
+function UnifiedMiniCard({ manga, onPress }: { manga: UnifiedManga; onPress: () => void }) {
+  "use no memo";
+  const colors = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.miniCard,
+        { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius, opacity: pressed ? 0.75 : 1 },
+      ]}
+    >
+      <Image source={{ uri: manga.coverUrl }} style={[styles.miniCardCover, { borderRadius: colors.radius - 2 }]} contentFit="cover" />
+      <Text style={[styles.miniCardTitle, { color: colors.foreground }]} numberOfLines={2}>{manga.title}</Text>
+    </Pressable>
+  );
+}
+
 /* ─── Main Screen ─── */
 export default function SearchScreen() {
   "use no memo";
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { source, sourceInfo } = useSource();
 
   const [query, setQuery] = useState("");
-  const [starzResults, setStarzResults] = useState<StarzManga[]>([]);
-  const [unifiedResults, setUnifiedResults] = useState<UnifiedManga[]>([]);
-  const [teamResults, setTeamResults] = useState<TeamMangaResult[]>([]);
-  const [activeManga, setActiveManga] = useState<TeamMangaResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<AllResults>({ starz: [], linkmanga: [], kenmanga: [], teams: [] });
+  const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [searched, setSearched] = useState(false);
+  const [activeManga, setActiveManga] = useState<TeamMangaResult | null>(null);
 
-  const currentSource = useRef(source);
-  currentSource.current = source;
-
-  const debouncedQuery = useDebounce(query, 600);
+  const searchIdRef = useRef(0);
+  const debouncedQuery = useDebounce(query, 550);
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) {
-      setStarzResults([]); setUnifiedResults([]); setTeamResults([]);
-      setActiveManga(null); setSearched(false); return;
+      setResults({ starz: [], linkmanga: [], kenmanga: [], teams: [] });
+      setLoadingMap({});
+      setActiveManga(null);
+      setSearched(false);
+      return;
     }
-    setLoading(true); setSearched(true); setActiveManga(null);
-    const src = currentSource.current;
-    try {
-      if (src === "starz") {
-        const [starzSettled, teamSettled] = await Promise.allSettled([
-          searchStarzManga(q.trim()),
-          searchTeamManga(q.trim()),
-        ]);
-        setStarzResults(starzSettled.status === "fulfilled" ? starzSettled.value : []);
-        setUnifiedResults([]);
-        setTeamResults(teamSettled.status === "fulfilled" ? teamSettled.value : []);
-      } else if (sourceInfo.haSearch) {
-        const [unifiedSettled, teamSettled] = await Promise.allSettled([
-          searchMangas(src, q.trim()),
-          searchTeamManga(q.trim()),
-        ]);
-        setUnifiedResults(unifiedSettled.status === "fulfilled" ? unifiedSettled.value : []);
-        setStarzResults([]);
-        setTeamResults(teamSettled.status === "fulfilled" ? teamSettled.value : []);
-      } else {
-        const teamSettled = await Promise.allSettled([searchTeamManga(q.trim())]);
-        setUnifiedResults([]);
-        setStarzResults([]);
-        setTeamResults(teamSettled[0].status === "fulfilled" ? teamSettled[0].value : []);
-      }
-    } catch {
-      setStarzResults([]); setUnifiedResults([]); setTeamResults([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [sourceInfo.haSearch]);
+
+    const id = ++searchIdRef.current;
+    setSearched(true);
+    setActiveManga(null);
+    setLoadingMap({ starz: true, linkmanga: true, kenmanga: true, teams: true });
+    setResults({ starz: [], linkmanga: [], kenmanga: [], teams: [] });
+
+    const updateOne = <K extends keyof AllResults>(key: K, value: AllResults[K]) => {
+      if (searchIdRef.current !== id) return;
+      setResults((prev) => ({ ...prev, [key]: value }));
+      setLoadingMap((prev) => ({ ...prev, [key]: false }));
+    };
+
+    searchStarzManga(q.trim())
+      .then((r) => updateOne("starz", r))
+      .catch(() => updateOne("starz", []));
+
+    searchMangas("linkmanga", q.trim())
+      .then((r) => updateOne("linkmanga", r))
+      .catch(() => updateOne("linkmanga", []));
+
+    searchMangas("kenmanga", q.trim())
+      .then((r) => updateOne("kenmanga", r))
+      .catch(() => updateOne("kenmanga", []));
+
+    searchTeamManga(q.trim())
+      .then((r) => updateOne("teams", r))
+      .catch(() => updateOne("teams", []));
+  }, []);
 
   useEffect(() => {
     doSearch(debouncedQuery);
   }, [debouncedQuery, doSearch]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top + 12;
-  const hasAnyResult = starzResults.length > 0 || unifiedResults.length > 0 || teamResults.length > 0;
+  const isAnyLoading = Object.values(loadingMap).some(Boolean);
 
-  function navigateUnified(manga: UnifiedManga) {
+  const totalCount =
+    results.starz.length + results.linkmanga.length + results.kenmanga.length + results.teams.length;
+
+  function navigateUnified(manga: UnifiedManga, srcId: string) {
     "use no memo";
-    const titleE = encodeURIComponent(manga.title);
-    const coverE = encodeURIComponent(manga.coverUrl);
-    const latestE = encodeURIComponent(manga.latestChapterNum ?? "");
-    router.push({ pathname: "/starz/[slug]" as any, params: { slug: manga.slug, title: titleE, coverUrl: coverE, latestChapter: latestE, src: manga.sourceId } });
+    router.push({
+      pathname: "/starz/[slug]" as any,
+      params: {
+        slug: manga.slug,
+        title: encodeURIComponent(manga.title),
+        coverUrl: encodeURIComponent(manga.coverUrl),
+        latestChapter: encodeURIComponent(manga.latestChapterNum ?? ""),
+        src: srcId,
+      },
+    });
   }
 
-  /* ── Group team results ── */
-  const teamGroups = teamResults.reduce<
+  /* ── Team groups ── */
+  const teamGroups = results.teams.reduce<
     Map<string, { teamId: string; teamName: string; teamEmoji: string; manga: TeamMangaResult[] }>
   >((acc, item) => {
     if (!acc.has(item.teamId)) {
@@ -249,7 +295,6 @@ export default function SearchScreen() {
           <Text style={[styles.viewMangaBtnText, { color: colors.primary }]}>صفحة المانجا</Text>
         </Pressable>
       </View>
-
       {activeManga.chapters.length === 0 ? (
         <View style={styles.noChapters}>
           <Text style={[styles.noChaptersText, { color: colors.mutedForeground }]}>لا توجد فصول مضافة بعد</Text>
@@ -279,9 +324,9 @@ export default function SearchScreen() {
       <View style={styles.teamSectionHeader}>
         <Feather name="users" size={13} color={colors.primary} />
         <Text style={[styles.teamSectionTitle, { color: colors.foreground }]}>ترجمات الفرق</Text>
-        <Text style={[styles.teamSectionCount, { color: colors.mutedForeground }]}>{teamResults.length}</Text>
+        <Text style={[styles.teamSectionCount2, { color: colors.mutedForeground }]}>{results.teams.length}</Text>
+        {loadingMap["teams"] && <ActivityIndicator size={10} color={colors.primary} />}
       </View>
-
       {Array.from(teamGroups.values()).map((group) => (
         <View key={group.teamId} style={styles.teamGroup}>
           <Pressable
@@ -297,7 +342,6 @@ export default function SearchScreen() {
             </Text>
             <Feather name="chevron-left" size={14} color={colors.mutedForeground} />
           </Pressable>
-
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamRow}>
             {group.manga.map((item) => (
               <TeamMangaCard
@@ -313,10 +357,69 @@ export default function SearchScreen() {
               />
             ))}
           </ScrollView>
-
           {activeManga?.teamId === group.teamId && chapterDrawer}
         </View>
       ))}
+    </View>
+  ) : null;
+
+  /* ── Source sections for FlatList header ── */
+  const sourceHeader = searched ? (
+    <View style={styles.allSourcesWrapper}>
+      {teamSection}
+
+      {/* starz section */}
+      {(results.starz.length > 0 || loadingMap["starz"]) && (
+        <View style={styles.sourceSection}>
+          <View style={styles.sourceSectionTop}>
+            <SourceHeader srcKey="starz" count={results.starz.length} />
+            {loadingMap["starz"] && <ActivityIndicator size={12} color={SOURCE_META.starz.color} />}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRow}>
+            {results.starz.map((item) => (
+              <StarzMangaCard key={item.id} manga={item} width={106} height={152} />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* linkmanga section */}
+      {(results.linkmanga.length > 0 || loadingMap["linkmanga"]) && (
+        <View style={styles.sourceSection}>
+          <View style={styles.sourceSectionTop}>
+            <SourceHeader srcKey="linkmanga" count={results.linkmanga.length} />
+            {loadingMap["linkmanga"] && <ActivityIndicator size={12} color={SOURCE_META.linkmanga.color} />}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRow}>
+            {results.linkmanga.map((item) => (
+              <UnifiedMiniCard
+                key={item.id}
+                manga={item}
+                onPress={() => navigateUnified(item, "linkmanga")}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* kenmanga section */}
+      {(results.kenmanga.length > 0 || loadingMap["kenmanga"]) && (
+        <View style={styles.sourceSection}>
+          <View style={styles.sourceSectionTop}>
+            <SourceHeader srcKey="kenmanga" count={results.kenmanga.length} />
+            {loadingMap["kenmanga"] && <ActivityIndicator size={12} color={SOURCE_META.kenmanga.color} />}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRow}>
+            {results.kenmanga.map((item) => (
+              <UnifiedMiniCard
+                key={item.id}
+                manga={item}
+                onPress={() => navigateUnified(item, "kenmanga")}
+              />
+            ))}
+          </ScrollView>
+        </View>
+      )}
     </View>
   ) : null;
 
@@ -325,91 +428,56 @@ export default function SearchScreen() {
       {/* ── Header ── */}
       <View style={[styles.header, { paddingTop: topPad, borderBottomColor: colors.border }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>البحث</Text>
-
-        <View style={styles.searchRow}>
-          <View style={{ flex: 1 }}>
-            <SearchBar value={query} onChangeText={setQuery} onClear={() => setQuery("")} />
-          </View>
-        </View>
-
-        {/* Source indicator */}
-        <View style={styles.sourceRow}>
-          <Text style={styles.sourceFlag}>{sourceInfo.flag}</Text>
-          <Text style={[styles.sourceLabel, { color: colors.mutedForeground }]}>
-            {sourceInfo.haSearch
-              ? <>البحث في <Text style={{ color: colors.primary, fontWeight: "700" }}>{sourceInfo.nameAr}</Text> + فرق الترجمة</>
-              : <>فرق الترجمة فقط — <Text style={{ color: colors.primary }}>{sourceInfo.nameAr}</Text> لا يدعم البحث</>}
-          </Text>
+        <SearchBar value={query} onChangeText={setQuery} onClear={() => setQuery("")} />
+        <View style={styles.sourceChips}>
+          {(["starz", "linkmanga", "kenmanga"] as SourceKey[]).map((k) => (
+            <View
+              key={k}
+              style={[
+                styles.chip,
+                { backgroundColor: SOURCE_META[k].color + "18", borderColor: SOURCE_META[k].color + "44" },
+              ]}
+            >
+              <Text style={styles.chipFlag}>{SOURCE_META[k].flag}</Text>
+              <Text style={[styles.chipName, { color: SOURCE_META[k].color }]}>{SOURCE_META[k].nameAr}</Text>
+              {loadingMap[k] && <ActivityIndicator size={9} color={SOURCE_META[k].color} />}
+            </View>
+          ))}
         </View>
       </View>
 
       {/* ── Body ── */}
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={[styles.hint, { color: colors.mutedForeground }]}>جار البحث...</Text>
-        </View>
-      ) : !searched ? (
+      {!searched ? (
         <View style={styles.center}>
           <Feather name="search" size={44} color={colors.muted} />
-          <Text style={[styles.hint, { color: colors.mutedForeground }]}>ابحث بالعنوان</Text>
+          <Text style={[styles.hint, { color: colors.mutedForeground }]}>ابحث في كل المصادر</Text>
           <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
-            {sourceInfo.haSearch ? `يبحث في ${sourceInfo.nameAr} وأعمال الفرق` : "يبحث في أعمال الفرق"}
+            مانجا ستارز · لينك مانجا · أريا مانجا · فرق الترجمة
           </Text>
         </View>
-      ) : !hasAnyResult ? (
+      ) : isAnyLoading && totalCount === 0 ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.primary} size="large" />
+          <Text style={[styles.hint, { color: colors.mutedForeground }]}>جارٍ البحث في المصادر...</Text>
+        </View>
+      ) : !isAnyLoading && totalCount === 0 ? (
         <View style={styles.center}>
           <Feather name="frown" size={36} color={colors.mutedForeground} />
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>لا توجد نتائج</Text>
           <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
-            جرّب البحث بالعنوان الإنجليزي
+            جرّب البحث بعنوان مختلف
           </Text>
         </View>
-      ) : starzResults.length > 0 ? (
-        <FlatList
-          data={starzResults}
-          keyExtractor={(item) => item.id}
-          numColumns={3}
-          contentContainerStyle={[styles.grid, { paddingBottom: insets.bottom + 20 }]}
-          columnWrapperStyle={styles.gridRow}
-          renderItem={({ item }) => <StarzMangaCard manga={item} width={110} height={158} />}
-          ListHeaderComponent={
-            <>
-              {teamSection}
-              <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>
-                {starzResults.length} نتيجة من {sourceInfo.nameAr}
-              </Text>
-            </>
-          }
-        />
-      ) : unifiedResults.length > 0 ? (
-        <FlatList
-          data={unifiedResults}
-          keyExtractor={(item) => item.id}
-          numColumns={3}
-          contentContainerStyle={[styles.grid, { paddingBottom: insets.bottom + 20 }]}
-          columnWrapperStyle={styles.gridRow}
-          renderItem={({ item }) => (
-            <StarzMangaCard
-              manga={{ id: item.id, slug: item.slug, title: item.title, coverUrl: item.coverUrl, url: item.url, latestChapters: item.latestChapterNum ? [{ number: item.latestChapterNum, url: item.latestChapterUrl ?? "" }] : [] }}
-              width={110}
-              height={158}
-              onPress={() => navigateUnified(item)}
-            />
-          )}
-          ListHeaderComponent={
-            <>
-              {teamSection}
-              <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>
-                {unifiedResults.length} نتيجة من {sourceInfo.nameAr}
-              </Text>
-            </>
-          }
-        />
       ) : (
-        <ScrollView contentContainerStyle={[styles.onlyTeam, { paddingBottom: insets.bottom + 20 }]}>
-          {teamSection}
-        </ScrollView>
+        <FlatList
+          data={[]}
+          renderItem={null}
+          keyExtractor={() => ""}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={sourceHeader}
+          ListEmptyComponent={null}
+        />
       )}
     </View>
   );
@@ -417,35 +485,69 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, gap: 10 },
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 10,
+  },
   title: { fontSize: 28, fontWeight: "700" },
-  searchRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sourceRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  sourceFlag: { fontSize: 13 },
-  sourceLabel: { fontSize: 11, flex: 1 },
+
+  sourceChips: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  chipFlag: { fontSize: 11 },
+  chipName: { fontSize: 10, fontWeight: "700" },
 
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   hint: { fontSize: 15, textAlign: "center", paddingHorizontal: 32 },
   hintSub: { fontSize: 12, textAlign: "center", paddingHorizontal: 32 },
 
-  grid: { padding: 16, gap: 12 },
-  gridRow: { gap: 10 },
-  resultCount: { fontSize: 12, marginBottom: 8, textAlign: "right" },
-  onlyTeam: { padding: 16 },
+  scrollContent: { paddingTop: 16 },
+  allSourcesWrapper: { gap: 24 },
 
-  /* ── Team section ── */
-  teamSection: { marginBottom: 16 },
-  teamSectionHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
+  sourceSection: { gap: 10 },
+  sourceSectionTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
+  sourceSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderLeftWidth: 3,
+    paddingLeft: 9,
+  },
+  sourceSectionFlag: { fontSize: 14 },
+  sourceSectionName: { fontSize: 14, fontWeight: "700", flex: 1 },
+  sourceSectionBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  sourceSectionCount: { fontSize: 12, fontWeight: "700" },
+  horizontalRow: { paddingHorizontal: 16, gap: 10, paddingBottom: 4 },
+
+  miniCard: {
+    width: 106,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+  },
+  miniCardCover: { width: 106, height: 150 },
+  miniCardTitle: { fontSize: 11, fontWeight: "600", padding: 6, lineHeight: 15 },
+
+  /* Team */
+  teamSection: { paddingHorizontal: 16, gap: 10 },
+  teamSectionHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
   teamSectionTitle: { flex: 1, fontSize: 14, fontWeight: "700" },
-  teamSectionCount: { fontSize: 12 },
+  teamSectionCount2: { fontSize: 12 },
   teamRow: { gap: 10, paddingRight: 4, paddingBottom: 2 },
-  teamGroup: { marginBottom: 14 },
-  teamGroupHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8, paddingVertical: 2 },
+  teamGroup: { gap: 8 },
+  teamGroupHeader: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 2 },
   teamGroupEmoji: { fontSize: 16 },
   teamGroupName: { flex: 1, fontSize: 13, fontWeight: "700" },
   teamGroupCount: { fontSize: 11 },
 
-  /* Team card */
   teamCard: { width: 128, overflow: "hidden" },
   teamCardCover: { width: 128, height: 172 },
   teamCardCoverPlaceholder: { width: 128, height: 172, alignItems: "center", justifyContent: "center" },
@@ -455,7 +557,6 @@ const styles = StyleSheet.create({
   teamCardChapters: { fontSize: 10 },
   selectedIndicator: { position: "absolute", bottom: 0, left: 0, right: 0, alignItems: "center", paddingVertical: 3 },
 
-  /* Chapter drawer */
   chapterDrawer: { borderWidth: StyleSheet.hairlineWidth, overflow: "hidden", marginTop: 6 },
   drawerHeader: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   drawerCover: { width: 38, height: 52, borderRadius: 5 },
@@ -468,7 +569,6 @@ const styles = StyleSheet.create({
   noChapters: { paddingVertical: 20, alignItems: "center" },
   noChaptersText: { fontSize: 13 },
 
-  /* Chapter row */
   chapterRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   chapterBadge: { minWidth: 40, alignItems: "center", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   chapterBadgeText: { fontSize: 12, fontWeight: "700" },
