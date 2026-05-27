@@ -1,5 +1,7 @@
+"use no memo";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -24,6 +26,7 @@ import {
   type Manga,
   type MangaTagItem,
 } from "@/lib/mangadex";
+import { searchTeamManga, type TeamMangaResult } from "@/lib/teams";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -34,6 +37,8 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
+const MANGADEX_ID_RE = /^[0-9a-f-]{36}$/;
+
 type OriginFilter = "all" | "jp" | "ko" | "zh";
 
 const ORIGIN_OPTS: { id: OriginFilter; label: string; emoji: string }[] = [
@@ -43,13 +48,82 @@ const ORIGIN_OPTS: { id: OriginFilter; label: string; emoji: string }[] = [
   { id: "zh",  label: "مانهوا صيني", emoji: "🇨🇳" },
 ];
 
+function TeamMangaCard({
+  item,
+  onPress,
+}: {
+  item: TeamMangaResult;
+  onPress: () => void;
+}) {
+  "use no memo";
+  const colors = useColors();
+  const canRead = MANGADEX_ID_RE.test(item.mangaId);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.teamCard,
+        {
+          backgroundColor: colors.card,
+          borderRadius: colors.radius,
+          borderColor: colors.border,
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}
+      onPress={canRead ? onPress : undefined}
+    >
+      {item.coverUrl ? (
+        <Image
+          source={{ uri: item.coverUrl }}
+          style={styles.teamCardCover}
+          contentFit="cover"
+        />
+      ) : (
+        <View
+          style={[styles.teamCardCoverPlaceholder, { backgroundColor: colors.secondary }]}
+        >
+          <Feather name="book" size={20} color={colors.mutedForeground} />
+        </View>
+      )}
+      <View style={styles.teamCardBody}>
+        <Text
+          style={[styles.teamCardTitle, { color: colors.foreground }]}
+          numberOfLines={2}
+        >
+          {item.title}
+        </Text>
+        <View style={styles.teamCardMeta}>
+          <Text style={[styles.teamCardTeam, { color: colors.primary }]} numberOfLines={1}>
+            {item.teamEmoji} {item.teamName}
+          </Text>
+          {item.chaptersCount > 0 && (
+            <Text style={[styles.teamCardChapters, { color: colors.mutedForeground }]}>
+              {item.chaptersCount} فصل
+            </Text>
+          )}
+        </View>
+        {!canRead && (
+          <View style={[styles.localBadge, { backgroundColor: colors.secondary }]}>
+            <Text style={[styles.localBadgeText, { color: colors.mutedForeground }]}>
+              محلي
+            </Text>
+          </View>
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
 export default function SearchScreen() {
+  "use no memo";
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const [query,          setQuery]          = useState("");
   const [originFilter,   setOriginFilter]   = useState<OriginFilter>("all");
   const [results,        setResults]        = useState<Manga[]>([]);
+  const [teamResults,    setTeamResults]    = useState<TeamMangaResult[]>([]);
   const [loading,        setLoading]        = useState(false);
   const [searched,       setSearched]       = useState(false);
   const [showGenres,     setShowGenres]     = useState(false);
@@ -65,26 +139,24 @@ export default function SearchScreen() {
   const doSearch = useCallback(
     async (q: string, genre: MangaTagItem | null, origin: OriginFilter) => {
       if (!q.trim() && !genre) {
-        setResults([]); setSearched(false); return;
+        setResults([]); setTeamResults([]); setSearched(false); return;
       }
       setLoading(true); setSearched(true);
       try {
-        let data: Manga[];
-        if (q.trim()) {
-          data = await searchManga(q.trim());
-          if (genre) data = data.filter((m) => m.attributes.tags.some((t) => t.id === genre.id));
-        } else {
-          data = await browseMangaByGenre(genre!.id);
-        }
-        // Client-side origin filter
-        if (origin !== "all") {
-          const langMap: Record<OriginFilter, string[]> = { all: [], jp: ["ja"], ko: ["ko"], zh: ["zh", "zh-hk"] };
-          // MangaDex doesn't always expose originalLanguage on list results, so we filter by title lang heuristic
-          // For now just return all — the API already filters by available Arabic
-        }
-        setResults(data);
+        const [mangaData, teamData] = await Promise.allSettled([
+          q.trim()
+            ? searchManga(q.trim()).then((data) =>
+                genre ? data.filter((m) => m.attributes.tags.some((t) => t.id === genre.id)) : data
+              )
+            : browseMangaByGenre(genre!.id),
+          q.trim() ? searchTeamManga(q.trim()) : Promise.resolve([]),
+        ]);
+
+        setResults(mangaData.status === "fulfilled" ? mangaData.value : []);
+        setTeamResults(teamData.status === "fulfilled" ? teamData.value : []);
       } catch {
         setResults([]);
+        setTeamResults([]);
       } finally {
         setLoading(false);
       }
@@ -97,6 +169,35 @@ export default function SearchScreen() {
   }, [debouncedQuery, selectedGenre, originFilter, doSearch]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top + 12;
+  const hasAnyResults = results.length > 0 || teamResults.length > 0;
+
+  const teamSection =
+    teamResults.length > 0 ? (
+      <View style={styles.teamSection}>
+        <View style={styles.teamSectionHeader}>
+          <Feather name="users" size={13} color={colors.primary} />
+          <Text style={[styles.teamSectionTitle, { color: colors.foreground }]}>
+            ترجمات الفرق
+          </Text>
+          <Text style={[styles.teamSectionCount, { color: colors.mutedForeground }]}>
+            {teamResults.length}
+          </Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.teamRow}
+        >
+          {teamResults.map((item) => (
+            <TeamMangaCard
+              key={`${item.teamId}-${item.mangaId}`}
+              item={item}
+              onPress={() => router.push(`/manga/${item.mangaId}` as any)}
+            />
+          ))}
+        </ScrollView>
+      </View>
+    ) : null;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -200,16 +301,16 @@ export default function SearchScreen() {
           <Feather name="search" size={44} color={colors.muted} />
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>ابحث بالعنوان أو اختر فئة</Text>
           <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
-            يبحث في المانجا والمانهوا المترجمة للعربية
+            يبحث في المانجا والمانهوا المترجمة للعربية وأعمال الفرق
           </Text>
         </View>
-      ) : results.length === 0 ? (
+      ) : !hasAnyResults ? (
         <View style={styles.center}>
           <Feather name="frown" size={36} color={colors.mutedForeground} />
-          <Text style={[styles.hint, { color: colors.mutedForeground }]}>لا توجد نتائج عربية</Text>
+          <Text style={[styles.hint, { color: colors.mutedForeground }]}>لا توجد نتائج</Text>
           <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>جرّب البحث بالعنوان الإنجليزي</Text>
         </View>
-      ) : (
+      ) : results.length > 0 ? (
         <FlatList
           data={results}
           keyExtractor={(item) => item.id}
@@ -218,11 +319,19 @@ export default function SearchScreen() {
           columnWrapperStyle={styles.gridRow}
           renderItem={({ item }) => <MangaCard manga={item} width={110} height={158} />}
           ListHeaderComponent={
-            <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>
-              {results.length} نتيجة عربية
-            </Text>
+            <>
+              {teamSection}
+              <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>
+                {results.length} نتيجة عربية
+              </Text>
+            </>
           }
         />
+      ) : (
+        /* Only team results, no MangaDex results */
+        <ScrollView contentContainerStyle={[styles.onlyTeamContainer, { paddingBottom: insets.bottom + 20 }]}>
+          {teamSection}
+        </ScrollView>
       )}
     </View>
   );
@@ -250,4 +359,24 @@ const styles = StyleSheet.create({
   grid: { padding: 16, gap: 12 },
   gridRow: { gap: 10 },
   resultCount: { fontSize: 12, marginBottom: 8, textAlign: "right" },
+  onlyTeamContainer: { padding: 16 },
+
+  /* Team results section */
+  teamSection: { marginBottom: 16 },
+  teamSectionHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
+  teamSectionTitle: { flex: 1, fontSize: 14, fontWeight: "700" },
+  teamSectionCount: { fontSize: 12 },
+  teamRow: { gap: 10, paddingRight: 4 },
+
+  /* Team manga card */
+  teamCard: { width: 130, borderWidth: StyleSheet.hairlineWidth, overflow: "hidden" },
+  teamCardCover: { width: 130, height: 175 },
+  teamCardCoverPlaceholder: { width: 130, height: 175, alignItems: "center", justifyContent: "center" },
+  teamCardBody: { padding: 8, gap: 4 },
+  teamCardTitle: { fontSize: 12, fontWeight: "700", lineHeight: 17 },
+  teamCardMeta: { gap: 2 },
+  teamCardTeam: { fontSize: 11, fontWeight: "600" },
+  teamCardChapters: { fontSize: 10 },
+  localBadge: { alignSelf: "flex-start", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2 },
+  localBadgeText: { fontSize: 10, fontWeight: "600" },
 });

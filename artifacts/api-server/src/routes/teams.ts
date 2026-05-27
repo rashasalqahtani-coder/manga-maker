@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, ilike, desc } from "drizzle-orm";
+import { eq, ilike, desc, sql } from "drizzle-orm";
 import { db, publicTeamsTable } from "@workspace/db";
 
 const router = Router();
@@ -22,6 +22,40 @@ router.get("/teams", async (req, res) => {
     res.json(results);
   } catch (err) {
     req.log.error({ err }, "teams search error");
+    res.status(500).json({ error: "internal error" });
+  }
+});
+
+router.get("/teams/manga", async (req, res) => {
+  const q = (req.query["q"] as string | undefined)?.trim() ?? "";
+  if (!q) { res.json([]); return; }
+  try {
+    const result = await db.execute<{
+      mangaId: string;
+      title: string;
+      coverUrl: string | null;
+      chaptersCount: number;
+      teamName: string;
+      teamEmoji: string;
+      teamId: string;
+    }>(sql`
+      SELECT
+        elem->>'id'          AS "mangaId",
+        elem->>'title'       AS "title",
+        elem->>'coverUrl'    AS "coverUrl",
+        COALESCE(jsonb_array_length(elem->'chapters'), 0)::int AS "chaptersCount",
+        t.name               AS "teamName",
+        t.emoji              AS "teamEmoji",
+        t.id                 AS "teamId"
+      FROM public_teams t,
+           jsonb_array_elements(t.manga) AS elem
+      WHERE lower(elem->>'title') LIKE lower(${`%${q}%`})
+      ORDER BY t.updated_at DESC
+      LIMIT 30
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    req.log.error({ err }, "team manga search error");
     res.status(500).json({ error: "internal error" });
   }
 });

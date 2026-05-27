@@ -165,8 +165,9 @@ export default function TeamDetailScreen() {
                 Haptics.selectionAsync();
                 setExpandedManga((prev) => (prev === manga.id ? null : manga.id));
               }}
-              onRead={() => {
+              onNavigate={() => {
                 if (isMangaDexManga(manga.id)) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push(`/manga/${manga.id}` as any);
                 }
               }}
@@ -191,19 +192,23 @@ function MangaEntry({
   manga,
   expanded,
   onToggle,
-  onRead,
+  onNavigate,
 }: {
   manga: PublicTeamManga;
   expanded: boolean;
   onToggle: () => void;
-  onRead: () => void;
+  onNavigate: () => void;
 }) {
   const colors = useColors();
   const canRead = isMangaDexManga(manga.id);
 
   return (
     <View style={[styles.mangaCard, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
-      <Pressable style={styles.mangaRow} onPress={onToggle}>
+      {/* Main tappable row — navigates for MangaDex manga, toggles for local */}
+      <Pressable
+        style={({ pressed }) => [styles.mangaRow, { opacity: pressed ? 0.75 : 1 }]}
+        onPress={canRead ? onNavigate : onToggle}
+      >
         {manga.coverUrl ? (
           <Image
             source={{ uri: manga.coverUrl }}
@@ -239,28 +244,31 @@ function MangaEntry({
                 </Text>
               </View>
             )}
+            {canRead && (
+              <View style={[styles.readableBadge, { backgroundColor: colors.primary + "18" }]}>
+                <Feather name="book-open" size={10} color={colors.primary} />
+                <Text style={[styles.readableBadgeText, { color: colors.primary }]}>اقرأ</Text>
+              </View>
+            )}
           </View>
         </View>
 
         <View style={styles.mangaActions}>
-          {canRead && (
+          {/* For local manga show expand/collapse; for MangaDex show chevron-right */}
+          {canRead ? (
+            <Feather name="chevron-left" size={17} color={colors.mutedForeground} />
+          ) : (
             <Pressable
-              style={[styles.readBtn, { backgroundColor: colors.primary }]}
-              hitSlop={8}
-              onPress={(e) => {
-                e.stopPropagation();
-                onRead();
-              }}
+              hitSlop={12}
+              onPress={(e) => { e.stopPropagation(); onToggle(); }}
             >
-              <Feather name="book-open" size={13} color="#fff" />
-              <Text style={styles.readBtnText}>اقرأ</Text>
+              <Feather
+                name={expanded ? "chevron-up" : "chevron-down"}
+                size={17}
+                color={colors.mutedForeground}
+              />
             </Pressable>
           )}
-          <Feather
-            name={expanded ? "chevron-up" : "chevron-down"}
-            size={17}
-            color={colors.mutedForeground}
-          />
         </View>
       </Pressable>
 
@@ -398,4 +406,6 @@ const styles = StyleSheet.create({
   noChaptersText: { fontSize: 13 },
   emptyManga: { alignItems: "center", gap: 10, marginTop: 32, paddingHorizontal: 32 },
   emptyText: { fontSize: 14, textAlign: "center" },
+  readableBadge: { flexDirection: "row" as const, alignItems: "center" as const, gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  readableBadgeText: { fontSize: 10, fontWeight: "600" as const },
 });

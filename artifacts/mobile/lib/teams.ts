@@ -67,3 +67,20 @@ export async function unpublishTeam(id: string): Promise<void> {
   });
   if (!res.ok) throw new Error("فشل إلغاء النشر");
 }
+
+export interface TeamMangaResult {
+  mangaId: string;
+  title: string;
+  coverUrl: string | null;
+  chaptersCount: number;
+  teamName: string;
+  teamEmoji: string;
+  teamId: string;
+}
+
+export async function searchTeamManga(q: string): Promise<TeamMangaResult[]> {
+  if (!q.trim()) return [];
+  const res = await fetch(`${API_BASE}/teams/manga?q=${encodeURIComponent(q.trim())}`);
+  if (!res.ok) return [];
+  return res.json() as Promise<TeamMangaResult[]>;
+}

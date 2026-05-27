@@ -21,6 +21,7 @@ export const publicTeamsTable = pgTable("public_teams", {
   description: text("description").notNull().default(""),
   emoji: text("emoji").notNull().default("📚"),
   manga: jsonb("manga").$type<PublicTeamMangaItem[]>().notNull().default([]),
+  ownerHash: text("owner_hash").notNull().default(""),
   publishedAt: timestamp("published_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
