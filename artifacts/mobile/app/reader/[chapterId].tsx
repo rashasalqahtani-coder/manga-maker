@@ -19,7 +19,7 @@ import { addToHistory } from "@/app/(tabs)/history";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { useColors } from "@/hooks/useColors";
 import { getLocalPages } from "@/lib/download";
-import { getChapterPages, type ChapterPages } from "@/lib/mangadex";
+import { getChapterPages, getMangaChapters, type Chapter, type ChapterPages } from "@/lib/mangadex";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -51,6 +51,36 @@ export default function ReaderScreen() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const [showComments, setShowComments] = useState(false);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+
+  // Fetch sibling chapters for next/prev navigation
+  useEffect(() => {
+    if (!mangaId) return;
+    getMangaChapters(mangaId).then((list) => {
+      // Keep only readable chapters (have pages and no external redirect)
+      setChapters(list.filter((c) => c.attributes.pages > 0 && !c.attributes.externalUrl));
+    }).catch(() => { /* navigation optional */ });
+  }, [mangaId]);
+
+  // Chapters arrive sorted desc (highest first). Find neighbours.
+  const currentIdx = chapters.findIndex((c) => c.id === chapterId);
+  const nextChapter  = currentIdx > 0 ? chapters[currentIdx - 1] : null;   // higher number
+  const prevChapter  = currentIdx >= 0 && currentIdx < chapters.length - 1
+    ? chapters[currentIdx + 1]   // lower number
+    : null;
+
+  const goToChapter = (ch: Chapter) => {
+    router.replace({
+      pathname: "/reader/[chapterId]" as any,
+      params: {
+        chapterId: ch.id,
+        mangaId: mangaId ?? "",
+        mangaTitle: mangaTitle ?? "",
+        coverUrl: coverUrl ?? "",
+        chapterNum: ch.attributes.chapter ?? "",
+      },
+    });
+  };
 
   useEffect(() => {
     if (!chapterId) return;
@@ -253,7 +283,57 @@ export default function ReaderScreen() {
               { paddingBottom: insets.bottom + 8, backgroundColor: "rgba(0,0,0,0.7)" },
             ]}
           >
-            <Text style={styles.bottomText}>اضغط لإظهار أو إخفاء التحكم</Text>
+            {/* Chapter navigation */}
+            {chapters.length > 0 ? (
+              <View style={styles.navRow}>
+                {/* Next chapter = higher number (index-1 in desc list) */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.navBtn,
+                    { opacity: nextChapter && !pressed ? 1 : 0.35 },
+                  ]}
+                  onPress={() => nextChapter && goToChapter(nextChapter)}
+                  disabled={!nextChapter}
+                  hitSlop={8}
+                >
+                  <Feather name="chevron-right" size={18} color="#fff" />
+                  <View style={styles.navBtnInfo}>
+                    <Text style={styles.navBtnLabel}>الفصل التالي</Text>
+                    {nextChapter && (
+                      <Text style={styles.navBtnNum}>
+                        {nextChapter.attributes.chapter ?? ""}
+                      </Text>
+                    )}
+                  </View>
+                </Pressable>
+
+                <Text style={styles.navDivider}>|</Text>
+
+                {/* Prev chapter = lower number (index+1 in desc list) */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.navBtn,
+                    styles.navBtnReverse,
+                    { opacity: prevChapter && !pressed ? 1 : 0.35 },
+                  ]}
+                  onPress={() => prevChapter && goToChapter(prevChapter)}
+                  disabled={!prevChapter}
+                  hitSlop={8}
+                >
+                  <View style={[styles.navBtnInfo, { alignItems: "flex-end" }]}>
+                    <Text style={styles.navBtnLabel}>الفصل السابق</Text>
+                    {prevChapter && (
+                      <Text style={styles.navBtnNum}>
+                        {prevChapter.attributes.chapter ?? ""}
+                      </Text>
+                    )}
+                  </View>
+                  <Feather name="chevron-left" size={18} color="#fff" />
+                </Pressable>
+              </View>
+            ) : (
+              <Text style={styles.bottomText}>اضغط لإظهار أو إخفاء التحكم</Text>
+            )}
           </View>
         </>
       )}
@@ -339,4 +419,26 @@ const styles = StyleSheet.create({
   },
   bottomText: { color: "rgba(255,255,255,0.5)", fontSize: 12 },
   commentBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  navBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  navBtnReverse: {
+    justifyContent: "flex-end",
+  },
+  navBtnInfo: { gap: 1 },
+  navBtnLabel: { color: "rgba(255,255,255,0.55)", fontSize: 10, fontWeight: "500" },
+  navBtnNum: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  navDivider: { color: "rgba(255,255,255,0.2)", fontSize: 18, marginHorizontal: 8 },
 });
