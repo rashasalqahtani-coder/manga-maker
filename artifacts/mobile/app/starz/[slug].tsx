@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -14,9 +14,10 @@ import {
   Text,
   View,
 } from "react-native";
-
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { WebView } from "react-native-webview";
 
+import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import {
   buildChapterUrl as buildStarzChapterUrl,
@@ -24,14 +25,60 @@ import {
   type StarzChapter,
 } from "@/lib/mangastarz";
 
-// Chapter patterns built from known URL structure since manga detail pages
-// are Cloudflare-protected server-side. Chapters are opened in external browser.
 const API_BASE =
   typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
     ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
     : "/api";
 
 type SrcParam = "starz" | "linkmanga" | "kenmanga" | "olympus";
+
+// JS injected into hidden WebView to extract chapter image URLs
+const EXTRACT_IMAGES_JS = `
+(function() {
+  function extract() {
+    try {
+      var html = document.documentElement.innerHTML;
+      var m = html.match(/ts_reader\\.run\\((\\{[\\s\\S]*?\\})\\)/);
+      if (m) {
+        var d = JSON.parse(m[1]);
+        var imgs = d && d.sources && d.sources[0] && d.sources[0].images ? d.sources[0].images : [];
+        if (imgs.length > 0) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({type:'images',urls:imgs}));
+          return;
+        }
+      }
+    } catch(e) {}
+
+    var readImgs = [];
+    document.querySelectorAll('.reading-content img, .page-break img').forEach(function(img) {
+      var src = img.getAttribute('data-src') || img.getAttribute('src') || '';
+      if (src.startsWith('http')) readImgs.push(src);
+    });
+    if (readImgs.length > 0) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({type:'images',urls:readImgs}));
+      return;
+    }
+
+    var upImgs = [];
+    document.querySelectorAll('img').forEach(function(img) {
+      var src = img.src || '';
+      if (src.includes('/uploads/') && !src.includes('TeamX') && !src.includes('logo')) upImgs.push(src);
+    });
+    if (upImgs.length > 0) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({type:'images',urls:upImgs}));
+      return;
+    }
+
+    window.ReactNativeWebView.postMessage(JSON.stringify({type:'error',message:'no images found'}));
+  }
+  setTimeout(extract, 3000);
+  true;
+})();
+`;
+
+function makeChapterId(src: SrcParam, slug: string, chapterNum: string): string {
+  return `${src}__${slug}__${chapterNum}`;
+}
 
 function getChapterFetchApi(src: SrcParam, slug: string, latestChapter?: string): string {
   if (src === "linkmanga") {
@@ -65,6 +112,12 @@ function getSourceLabel(src: SrcParam): string {
   return "مانجا ستارز";
 }
 
+interface ScrapeJob {
+  chapter: StarzChapter;
+  url: string;
+  chapterId: string;
+}
+
 export default function StarzMangaDetailScreen() {
   "use no memo";
   const params = useLocalSearchParams<{
@@ -81,13 +134,80 @@ export default function StarzMangaDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { startSourceDownload, cancelDownload, downloads } = useDownloads();
 
   const [chapters, setChapters] = useState<StarzChapter[]>([]);
   const [chaptersLoading, setChaptersLoading] = useState(true);
   const [chaptersError, setChaptersError] = useState(false);
   const [showAllChapters, setShowAllChapters] = useState(false);
 
-  // Derive display title — prefer param, fall back to slug
+  // ── Hidden WebView download scraping ────────────────────────────────────────
+  const [scrapeQueue, setScrapeQueue] = useState<ScrapeJob[]>([]);
+  const [activeScrape, setActiveScrape] = useState<ScrapeJob | null>(null);
+  const scrapeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Advance queue when activeScrape finishes
+  useEffect(() => {
+    if (!activeScrape && scrapeQueue.length > 0) {
+      const [next, ...rest] = scrapeQueue;
+      setActiveScrape(next!);
+      setScrapeQueue(rest);
+    }
+  }, [activeScrape, scrapeQueue]);
+
+  // Set scrape timeout
+  useEffect(() => {
+    if (activeScrape) {
+      scrapeTimeoutRef.current = setTimeout(() => {
+        setActiveScrape(null);
+      }, 15_000);
+      return () => {
+        if (scrapeTimeoutRef.current) clearTimeout(scrapeTimeoutRef.current);
+      };
+    }
+    return undefined;
+  }, [activeScrape]);
+
+  const handleExtractedImages = useCallback(
+    (data: string) => {
+      if (scrapeTimeoutRef.current) clearTimeout(scrapeTimeoutRef.current);
+      try {
+        const parsed = JSON.parse(data) as { type: string; urls?: string[] };
+        if (parsed.type === "images" && parsed.urls && parsed.urls.length > 0 && activeScrape) {
+          startSourceDownload(activeScrape.chapterId, parsed.urls, {
+            mangaTitle: title,
+            chapterNum: activeScrape.chapter.number,
+            coverUrl,
+          });
+        }
+      } catch (_e) {}
+      setActiveScrape(null);
+    },
+    [activeScrape, startSourceDownload]
+  );
+
+  const handleScrapeError = useCallback(() => {
+    if (scrapeTimeoutRef.current) clearTimeout(scrapeTimeoutRef.current);
+    setActiveScrape(null);
+  }, []);
+
+  const onDownloadRequest = useCallback(
+    (chapter: StarzChapter, chapterUrl: string, chapterId: string) => {
+      const dl = downloads[chapterId];
+      if (dl?.status === "downloading") {
+        cancelDownload(chapterId);
+        return;
+      }
+      if (dl?.status === "done") return;
+      const alreadyQueued = scrapeQueue.some((j) => j.chapterId === chapterId);
+      const isActive = activeScrape?.chapterId === chapterId;
+      if (alreadyQueued || isActive) return;
+      setScrapeQueue((prev) => [...prev, { chapter, url: chapterUrl, chapterId }]);
+    },
+    [downloads, cancelDownload, scrapeQueue, activeScrape]
+  );
+  // ────────────────────────────────────────────────────────────────────────────
+
   const title = params.title
     ? decodeURIComponent(params.title)
     : slug.replace(/-/g, " ");
@@ -119,7 +239,6 @@ export default function StarzMangaDetailScreen() {
       });
   }, [slug, src]);
 
-  void getSourceLabel;
   const mangaUrl = buildMangaUrl(src, slug);
   const displayChapters = showAllChapters ? chapters : chapters.slice(0, 30);
 
@@ -205,11 +324,12 @@ export default function StarzMangaDetailScreen() {
                   router.push({
                     pathname: "/starz/reader" as any,
                     params: {
-                      url: encodeURIComponent(first.url),
+                      url: encodeURIComponent(first.url || buildChapterUrl(src, slug, first.number)),
                       title: encodeURIComponent(title),
                       chapterNum: encodeURIComponent(first.number),
                       slug: encodeURIComponent(slug),
                       latestChapter: encodeURIComponent(chapters[0]?.number ?? ""),
+                      src,
                     },
                   });
                 } else {
@@ -248,6 +368,14 @@ export default function StarzMangaDetailScreen() {
               {chapters.length > 0 ? ` (${chapters.length})` : ""}
               {chaptersLoading ? " ..." : ""}
             </Text>
+            {scrapeQueue.length > 0 && (
+              <View style={styles.queueBadge}>
+                <ActivityIndicator size={10} color={colors.primary} />
+                <Text style={[styles.queueText, { color: colors.mutedForeground }]}>
+                  {scrapeQueue.length + (activeScrape ? 1 : 0)} في الطابور
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -286,8 +414,11 @@ export default function StarzMangaDetailScreen() {
               key={ch.number}
               chapter={ch}
               slug={slug}
+              src={src}
               mangaTitle={title}
+              coverUrl={coverUrl}
               latestChapterNum={chapters[0]?.number ?? ""}
+              onDownloadRequest={onDownloadRequest}
             />
           ))
         )}
@@ -327,6 +458,23 @@ export default function StarzMangaDetailScreen() {
           <Feather name="chevron-left" size={24} color="#fff" />
         </Pressable>
       </View>
+
+      {/* ── HIDDEN SCRAPER WEBVIEW ── */}
+      {activeScrape && (
+        <WebView
+          source={{ uri: activeScrape.url }}
+          style={styles.hiddenWebView}
+          javaScriptEnabled
+          domStorageEnabled
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
+          userAgent="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+          injectedJavaScript={EXTRACT_IMAGES_JS}
+          onMessage={(e) => handleExtractedImages(e.nativeEvent.data)}
+          onError={handleScrapeError}
+          onHttpError={handleScrapeError}
+        />
+      )}
     </View>
   );
 }
@@ -334,21 +482,34 @@ export default function StarzMangaDetailScreen() {
 function StarzChapterItem({
   chapter,
   slug,
+  src,
   mangaTitle,
+  coverUrl,
   latestChapterNum,
+  onDownloadRequest,
 }: {
   chapter: StarzChapter;
   slug: string;
+  src: SrcParam;
   mangaTitle: string;
+  coverUrl: string;
   latestChapterNum: string;
+  onDownloadRequest: (chapter: StarzChapter, url: string, chapterId: string) => void;
 }) {
   "use no memo";
   const colors = useColors();
   const router = useRouter();
+  const { downloads } = useDownloads();
+
+  const chapterId = makeChapterId(src, slug, chapter.number);
+  const dl = downloads[chapterId];
+  const isDownloading = dl?.status === "downloading";
+  const isDone = dl?.status === "done";
+  const progress = dl?.progress ?? 0;
 
   const handlePress = () => {
     Haptics.selectionAsync();
-    const url = chapter.url || buildStarzChapterUrl(slug, chapter.number);
+    const url = chapter.url || buildChapterUrl(src, slug, chapter.number);
     router.push({
       pathname: "/starz/reader" as any,
       params: {
@@ -357,8 +518,15 @@ function StarzChapterItem({
         chapterNum: encodeURIComponent(chapter.number),
         slug: encodeURIComponent(slug),
         latestChapter: encodeURIComponent(latestChapterNum),
+        src,
       },
     });
+  };
+
+  const handleDownload = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const url = chapter.url || buildChapterUrl(src, slug, chapter.number);
+    onDownloadRequest(chapter, url, chapterId);
   };
 
   return (
@@ -376,7 +544,42 @@ function StarzChapterItem({
         <Text style={[chStyles.chapterNum, { color: colors.foreground }]}>
           فصل {chapter.number}
         </Text>
+        <View style={chStyles.metaRow}>
+          {isDone && (
+            <View style={[chStyles.offlineBadge, { backgroundColor: colors.primary + "22" }]}>
+              <Feather name="wifi-off" size={10} color={colors.primary} />
+              <Text style={[chStyles.offlineText, { color: colors.primary }]}>محمّل</Text>
+            </View>
+          )}
+          {coverUrl === "" && null}
+        </View>
+        {isDownloading && (
+          <View style={[chStyles.progressBar, { backgroundColor: colors.border }]}>
+            <View
+              style={[
+                chStyles.progressFill,
+                { backgroundColor: colors.primary, width: `${Math.round(progress * 100)}%` },
+              ]}
+            />
+          </View>
+        )}
       </View>
+
+      {/* Download button */}
+      <Pressable
+        onPress={handleDownload}
+        hitSlop={10}
+        style={chStyles.dlBtn}
+        disabled={isDone}
+      >
+        {isDownloading ? (
+          <ActivityIndicator size={16} color={colors.primary} />
+        ) : isDone ? (
+          <Feather name="check-circle" size={18} color={colors.primary} />
+        ) : (
+          <Feather name="download" size={18} color={colors.mutedForeground} />
+        )}
+      </Pressable>
 
       <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
     </Pressable>
@@ -394,16 +597,19 @@ const chStyles = StyleSheet.create({
   },
   left: { flex: 1, gap: 3 },
   chapterNum: { fontSize: 14, fontWeight: "600" },
-  externalBadge: {
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  offlineBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
     paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 2,
+    borderRadius: 10,
   },
-  externalText: { fontSize: 10, fontWeight: "600" },
+  offlineText: { fontSize: 10, fontWeight: "700" },
+  progressBar: { height: 3, borderRadius: 2, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 2 },
+  dlBtn: { width: 30, alignItems: "center", justifyContent: "center" },
 });
 
 const styles = StyleSheet.create({
@@ -451,30 +657,14 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   iconBtn: { width: 48, alignItems: "center", justifyContent: "center" },
-  notice: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  noticeText: { flex: 1, fontSize: 12, lineHeight: 18 },
   sectionLabel: { fontSize: 17, fontWeight: "700" },
   chaptersHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  externalNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  externalNoteText: { fontSize: 11, fontWeight: "600" },
+  queueBadge: { flexDirection: "row", alignItems: "center", gap: 5 },
+  queueText: { fontSize: 11 },
   chaptersLoader: { paddingVertical: 32, alignItems: "center", gap: 10 },
   loadingText: { fontSize: 13 },
   noChapters: { padding: 32, alignItems: "center", gap: 12 },
@@ -505,5 +695,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+  },
+  hiddenWebView: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    opacity: 0,
+    top: -100,
   },
 });

@@ -1,10 +1,12 @@
 "use no memo";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   StyleSheet,
   Text,
@@ -14,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 
 import { useColors } from "@/hooks/useColors";
+import { getLocalPages } from "@/lib/download";
 
 // Injected into the WebView to strip ads/nav and focus on manga images
 const INJECTED_JS = `
@@ -128,6 +131,7 @@ export default function StarzWebViewReader() {
     latestChapter?: string;
     prevUrl?: string;
     nextUrl?: string;
+    src?: string;
   }>();
 
   const router = useRouter();
@@ -138,13 +142,27 @@ export default function StarzWebViewReader() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
+  const [localPages, setLocalPages] = useState<string[] | null>(null);
 
   const url = params.url ? decodeURIComponent(params.url) : "";
   const title = params.title ? decodeURIComponent(params.title) : "قارئ المانجا";
   const chapterNum = params.chapterNum ? decodeURIComponent(params.chapterNum) : "";
   const slug = params.slug ? decodeURIComponent(params.slug) : "";
+  const src = params.src ?? "";
   const latestNum = params.latestChapter ? parseInt(params.latestChapter, 10) : 0;
   const currentNum = chapterNum ? parseInt(chapterNum, 10) : 0;
+
+  // Check for offline-downloaded pages
+  useEffect(() => {
+    if (!src || !slug || !chapterNum) return;
+    const chapterId = `${src}__${slug}__${chapterNum}`;
+    getLocalPages(chapterId).then((pages) => {
+      if (pages.length > 0) {
+        setLocalPages(pages);
+        setLoading(false);
+      }
+    });
+  }, [src, slug, chapterNum]);
 
   const prevUrl = currentNum > 1
     ? `https://manga-starz.net/manga/${slug}/${currentNum - 1}/`
@@ -163,6 +181,7 @@ export default function StarzWebViewReader() {
         chapterNum: encodeURIComponent(String(num)),
         slug: encodeURIComponent(slug),
         latestChapter: encodeURIComponent(String(latestNum)),
+        src,
       },
     });
   };
@@ -187,7 +206,7 @@ export default function StarzWebViewReader() {
         <Pressable
           onPress={() => {
             Haptics.selectionAsync();
-            if (canGoBack && webviewRef.current) {
+            if (!localPages && canGoBack && webviewRef.current) {
               webviewRef.current.goBack();
             } else {
               router.back();
@@ -203,9 +222,19 @@ export default function StarzWebViewReader() {
           <Text style={styles.mangaTitle} numberOfLines={1}>
             {title}
           </Text>
-          {chapterNum ? (
-            <Text style={styles.chapterSub}>فصل {chapterNum}</Text>
-          ) : null}
+          <View style={styles.chapterSubRow}>
+            {chapterNum ? (
+              <Text style={styles.chapterSub}>فصل {chapterNum}</Text>
+            ) : null}
+            {localPages && (
+              <View style={styles.offlinePill}>
+                <Feather name="wifi-off" size={9} color={colors.primary} />
+                <Text style={[styles.offlinePillText, { color: colors.primary }]}>
+                  أوفلاين
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.navBtns}>
@@ -228,8 +257,23 @@ export default function StarzWebViewReader() {
         </View>
       </View>
 
-      {/* ── WEBVIEW ── */}
-      {error ? (
+      {/* ── OFFLINE READER (downloaded pages) ── */}
+      {localPages ? (
+        <FlatList
+          data={localPages}
+          keyExtractor={(item) => item}
+          renderItem={({ item }) => (
+            <Image
+              source={{ uri: item }}
+              style={styles.localPage}
+              contentFit="contain"
+            />
+          )}
+          showsVerticalScrollIndicator={false}
+          style={styles.localReader}
+        />
+      ) : error ? (
+        /* ── WEBVIEW ERROR ── */
         <View style={styles.errorContainer}>
           <Feather name="wifi-off" size={48} color="#555" />
           <Text style={styles.errorText}>تعذّر تحميل الفصل</Text>
@@ -245,6 +289,7 @@ export default function StarzWebViewReader() {
           </Pressable>
         </View>
       ) : (
+        /* ── WEBVIEW ── */
         <WebView
           ref={webviewRef}
           source={{ uri: url }}
@@ -271,7 +316,7 @@ export default function StarzWebViewReader() {
       )}
 
       {/* Loading overlay */}
-      {loading && !error && (
+      {loading && !error && !localPages && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>جارٍ تحميل الفصل...</Text>
@@ -328,12 +373,25 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   backBtn: { padding: 4 },
-  titleBlock: { flex: 1, gap: 1 },
+  titleBlock: { flex: 1, gap: 2 },
   mangaTitle: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  chapterSubRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   chapterSub: { color: "rgba(255,255,255,0.5)", fontSize: 11 },
+  offlinePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  offlinePillText: { fontSize: 9, fontWeight: "700" },
   navBtns: { flexDirection: "row", gap: 4 },
   navBtn: { padding: 6 },
   webview: { flex: 1, backgroundColor: "#0a0a0a" },
+  localReader: { flex: 1, backgroundColor: "#0a0a0a" },
+  localPage: { width: "100%", minHeight: 300 },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#0a0a0a",

@@ -189,6 +189,52 @@ export async function deleteChapter(chapterId: string): Promise<void> {
   await saveDownloadsMeta(list.filter((m) => m.chapterId !== chapterId));
 }
 
+/**
+ * Download a chapter from an external source (starz/linkmanga/kenmanga/olympus).
+ * Image URLs are scraped client-side (via hidden WebView) and passed here.
+ */
+export async function downloadSourceChapter(
+  chapterId: string,
+  imageUrls: string[],
+  mangaTitle: string,
+  chapterNum: string,
+  coverUrl: string,
+  onProgress: (downloaded: number, total: number) => void,
+  signal?: { cancelled: boolean }
+): Promise<void> {
+  if (!isNative) throw new Error("التنزيل غير متاح على هذه المنصة");
+
+  const chapterDir = `${DOWNLOADS_DIR}${chapterId}/`;
+  await ensureDir(chapterDir);
+
+  const total = imageUrls.length;
+  for (let i = 0; i < imageUrls.length; i++) {
+    if (signal?.cancelled) {
+      await FileSystem.deleteAsync(chapterDir, { idempotent: true });
+      throw new Error("cancelled");
+    }
+    const localPath = `${chapterDir}${i}.jpg`;
+    const existing = await FileSystem.getInfoAsync(localPath);
+    if (!existing.exists) {
+      await FileSystem.downloadAsync(imageUrls[i]!, localPath);
+    }
+    onProgress(i + 1, total);
+  }
+
+  const list = await getDownloadsMeta();
+  const filtered = list.filter((m) => m.chapterId !== chapterId);
+  filtered.unshift({
+    chapterId,
+    mangaId: chapterId,
+    mangaTitle,
+    chapterNum,
+    coverUrl,
+    pageCount: total,
+    downloadedAt: Date.now(),
+  });
+  await saveDownloadsMeta(filtered);
+}
+
 export async function downloadTeamChapter(
   chapter: { id: string; imageUris: string[]; number: string },
   manga: TeamManga,

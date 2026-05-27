@@ -10,6 +10,7 @@ import React, {
 import {
   deleteChapter,
   downloadChapter,
+  downloadSourceChapter,
   getDownloadsMeta,
   isChapterDownloaded,
   type DownloadedChapterMeta,
@@ -24,10 +25,17 @@ interface DownloadEntry {
   error?: string;
 }
 
+interface SourceChapterMeta {
+  mangaTitle: string;
+  chapterNum: string;
+  coverUrl: string;
+}
+
 interface DownloadContextType {
   downloads: Record<string, DownloadEntry>;
   downloadedChapters: DownloadedChapterMeta[];
   startDownload: (chapterId: string, manga: Manga, chapterNum: string | null) => void;
+  startSourceDownload: (chapterId: string, imageUrls: string[], meta: SourceChapterMeta) => void;
   cancelDownload: (chapterId: string) => void;
   removeDownload: (chapterId: string) => Promise<void>;
   refreshMeta: () => Promise<void>;
@@ -37,6 +45,7 @@ const DownloadContext = createContext<DownloadContextType>({
   downloads: {},
   downloadedChapters: [],
   startDownload: () => {},
+  startSourceDownload: () => {},
   cancelDownload: () => {},
   removeDownload: async () => {},
   refreshMeta: async () => {},
@@ -119,6 +128,57 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
     [downloads, refreshMeta]
   );
 
+  const startSourceDownload = useCallback(
+    (chapterId: string, imageUrls: string[], meta: SourceChapterMeta) => {
+      if (downloads[chapterId]?.status === "downloading") return;
+
+      const signal = { cancelled: false };
+      cancelRefs.current[chapterId] = signal;
+
+      setDownloads((prev) => ({
+        ...prev,
+        [chapterId]: { status: "downloading", progress: 0 },
+      }));
+
+      downloadSourceChapter(
+        chapterId,
+        imageUrls,
+        meta.mangaTitle,
+        meta.chapterNum,
+        meta.coverUrl,
+        (downloaded, total) => {
+          setDownloads((prev) => ({
+            ...prev,
+            [chapterId]: { status: "downloading", progress: downloaded / total },
+          }));
+        },
+        signal
+      )
+        .then(() => {
+          setDownloads((prev) => ({
+            ...prev,
+            [chapterId]: { status: "done", progress: 1 },
+          }));
+          refreshMeta();
+        })
+        .catch((err: Error) => {
+          if (err.message === "cancelled") {
+            setDownloads((prev) => {
+              const next = { ...prev };
+              delete next[chapterId];
+              return next;
+            });
+          } else {
+            setDownloads((prev) => ({
+              ...prev,
+              [chapterId]: { status: "error", progress: 0, error: err.message },
+            }));
+          }
+        });
+    },
+    [downloads, refreshMeta]
+  );
+
   const cancelDownload = useCallback((chapterId: string) => {
     if (cancelRefs.current[chapterId]) {
       cancelRefs.current[chapterId].cancelled = true;
@@ -145,6 +205,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
         downloads,
         downloadedChapters,
         startDownload,
+        startSourceDownload,
         cancelDownload,
         removeDownload,
         refreshMeta,
