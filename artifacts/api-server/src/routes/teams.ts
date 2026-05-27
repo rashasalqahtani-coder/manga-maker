@@ -35,6 +35,7 @@ router.get("/teams/manga", async (req, res) => {
       title: string;
       coverUrl: string | null;
       chaptersCount: number;
+      chapters: Array<{ id: string; number: string; title: string; imageCount: number }>;
       teamName: string;
       teamEmoji: string;
       teamId: string;
@@ -44,6 +45,7 @@ router.get("/teams/manga", async (req, res) => {
         elem->>'title'       AS "title",
         elem->>'coverUrl'    AS "coverUrl",
         COALESCE(jsonb_array_length(elem->'chapters'), 0)::int AS "chaptersCount",
+        COALESCE(elem->'chapters', '[]'::jsonb)               AS "chapters",
         t.name               AS "teamName",
         t.emoji              AS "teamEmoji",
         t.id                 AS "teamId"

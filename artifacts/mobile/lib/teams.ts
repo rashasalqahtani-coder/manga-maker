@@ -73,6 +73,7 @@ export interface TeamMangaResult {
   title: string;
   coverUrl: string | null;
   chaptersCount: number;
+  chapters: PublicTeamChapter[];
   teamName: string;
   teamEmoji: string;
   teamId: string;
