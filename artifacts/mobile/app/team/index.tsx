@@ -25,28 +25,203 @@ import { searchManga, getCoverUrl, getMangaTitle } from "@/lib/mangadex";
 type Tab = "manga" | "members";
 type AddMode = "search" | "manual";
 
+// ─── MangaCard ──────────────────────────────────────────────────────────────
+function MangaCard({ manga }: { manga: TeamManga }) {
+  const colors = useColors();
+  const { removeManga, addChapter, removeChapter } = useTeam();
+
+  const [expanded, setExpanded] = useState(false);
+  const [showChapterForm, setShowChapterForm] = useState(false);
+  const [chapNum, setChapNum] = useState("");
+  const [chapTitle, setChapTitle] = useState("");
+
+  const coverSrc = manga.localCoverUri ?? manga.coverUrl;
+  const chapters = manga.chapters ?? [];
+
+  const handleAddChapter = () => {
+    if (!chapNum.trim()) return;
+    addChapter(manga.id, { number: chapNum.trim(), title: chapTitle.trim() });
+    setChapNum("");
+    setChapTitle("");
+    setShowChapterForm(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  return (
+    <View style={[styles.mangaCard, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
+      {/* ── Row ── */}
+      <Pressable
+        style={styles.mangaRow}
+        onPress={() => { setExpanded((v) => !v); Haptics.selectionAsync(); }}
+      >
+        {coverSrc ? (
+          <Image source={{ uri: coverSrc }} style={styles.mangaCover} contentFit="cover" />
+        ) : (
+          <View style={[styles.mangaCoverPlaceholder, { backgroundColor: colors.secondary }]}>
+            <Feather name="book" size={18} color={colors.mutedForeground} />
+          </View>
+        )}
+
+        <View style={styles.mangaInfo}>
+          <Text style={[styles.mangaTitle, { color: colors.foreground }]} numberOfLines={2}>
+            {manga.title}
+          </Text>
+          {manga.description ? (
+            <Text style={[styles.mangaDesc, { color: colors.mutedForeground }]} numberOfLines={expanded ? 10 : 2}>
+              {manga.description}
+            </Text>
+          ) : null}
+          <View style={styles.chapterCountRow}>
+            <Feather name="layers" size={11} color={colors.primary} />
+            <Text style={[styles.chapterCount, { color: colors.primary }]}>
+              {chapters.length} {chapters.length === 1 ? "فصل" : "فصول"}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.mangaActions}>
+          <Feather
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={18}
+            color={colors.mutedForeground}
+          />
+        </View>
+      </Pressable>
+
+      {/* ── Expanded section ── */}
+      {expanded && (
+        <View style={[styles.expandedSection, { borderTopColor: colors.border }]}>
+
+          {/* Chapters list */}
+          {chapters.length > 0 && (
+            <View style={styles.chapterList}>
+              {chapters.map((ch, idx) => (
+                <View
+                  key={ch.id}
+                  style={[
+                    styles.chapterRow,
+                    { borderBottomColor: colors.border },
+                    idx === chapters.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <View style={[styles.chapterNumBadge, { backgroundColor: colors.primary + "20" }]}>
+                    <Text style={[styles.chapterNumText, { color: colors.primary }]}>
+                      {ch.number}
+                    </Text>
+                  </View>
+                  <Text style={[styles.chapterTitleText, { color: colors.foreground }]} numberOfLines={2}>
+                    {ch.title || `فصل ${ch.number}`}
+                  </Text>
+                  <Pressable
+                    hitSlop={10}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      removeChapter(manga.id, ch.id);
+                    }}
+                  >
+                    <Feather name="x" size={15} color={colors.mutedForeground} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Add chapter toggle */}
+          <Pressable
+            style={[styles.addChapterBtn, { borderColor: colors.primary }]}
+            onPress={() => { setShowChapterForm((v) => !v); Haptics.selectionAsync(); }}
+          >
+            <Feather name={showChapterForm ? "x" : "plus"} size={14} color={colors.primary} />
+            <Text style={[styles.addChapterBtnText, { color: colors.primary }]}>
+              {showChapterForm ? "إلغاء" : "إضافة فصل"}
+            </Text>
+          </Pressable>
+
+          {/* Chapter form */}
+          {showChapterForm && (
+            <View style={[styles.chapterForm, { backgroundColor: colors.secondary, borderRadius: 10 }]}>
+              <View style={styles.chapterFormRow}>
+                <View style={styles.chapterNumField}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>رقم الفصل *</Text>
+                  <TextInput
+                    style={[styles.numInput, { backgroundColor: colors.card, color: colors.foreground, borderRadius: 8 }]}
+                    value={chapNum}
+                    onChangeText={setChapNum}
+                    placeholder="١"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="numeric"
+                    textAlign="center"
+                    maxLength={6}
+                  />
+                </View>
+                <View style={styles.chapterTitleField}>
+                  <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>عنوان الفصل</Text>
+                  <TextInput
+                    style={[styles.titleInput, { backgroundColor: colors.card, color: colors.foreground, borderRadius: 8 }]}
+                    value={chapTitle}
+                    onChangeText={setChapTitle}
+                    placeholder="اختياري"
+                    placeholderTextColor={colors.mutedForeground}
+                    textAlign="right"
+                    maxLength={80}
+                  />
+                </View>
+              </View>
+
+              <Pressable
+                style={[
+                  styles.saveChapterBtn,
+                  { backgroundColor: colors.primary, borderRadius: 8, opacity: chapNum.trim() ? 1 : 0.45 },
+                ]}
+                onPress={handleAddChapter}
+                disabled={!chapNum.trim()}
+              >
+                <Feather name="check" size={15} color="#fff" />
+                <Text style={styles.saveChapterBtnText}>حفظ الفصل</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* Delete manga */}
+          <Pressable
+            style={styles.deleteMangaBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              removeManga(manga.id);
+            }}
+          >
+            <Feather name="trash-2" size={13} color="#EF4444" />
+            <Text style={styles.deleteMangaBtnText}>حذف المانجا</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── TeamScreen ──────────────────────────────────────────────────────────────
 export default function TeamScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { team, deleteTeam, addMember, removeMember, addManga, removeManga } = useTeam();
+  const { team, deleteTeam, addMember, removeMember, addManga } = useTeam();
 
   const [tab, setTab] = useState<Tab>("manga");
 
-  // Search mode state
+  // Add-manga panel
   const [addMode, setAddMode] = useState<AddMode>("search");
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<TeamManga[]>([]);
+  const [searchResults, setSearchResults] = useState<Omit<TeamManga, "chapters">[]>([]);
   const [searching, setSearching] = useState(false);
 
-  // Manual add state
+  // Manual add
   const [manualTitle, setManualTitle] = useState("");
   const [manualDesc, setManualDesc] = useState("");
   const [manualCoverUri, setManualCoverUri] = useState<string | null>(null);
   const [pickingImage, setPickingImage] = useState(false);
 
-  // Members state
+  // Members
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberName, setMemberName] = useState("");
   const [memberRole, setMemberRole] = useState("");
@@ -108,7 +283,7 @@ export default function TeamScreen() {
     finally { setSearching(false); }
   };
 
-  const handleAddFromSearch = (m: TeamManga) => {
+  const handleAddFromSearch = (m: Omit<TeamManga, "chapters">) => {
     addManga(m);
     resetAddPanel();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -139,9 +314,8 @@ export default function TeamScreen() {
 
   const handleAddManual = () => {
     if (!manualTitle.trim()) return;
-    const id = `manual_${Date.now()}`;
     addManga({
-      id,
+      id: `manual_${Date.now()}`,
       title: manualTitle.trim(),
       description: manualDesc.trim() || undefined,
       localCoverUri: manualCoverUri ?? undefined,
@@ -197,13 +371,20 @@ export default function TeamScreen() {
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
+              <Text style={[styles.statNum, { color: colors.primary }]}>
+                {team.manga.reduce((s, m) => s + (m.chapters?.length ?? 0), 0)}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>فصول</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.statItem}>
               <Text style={[styles.statNum, { color: colors.primary }]}>{team.members.length}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>أعضاء</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <Pressable style={styles.statItem} onPress={handleDeleteTeam}>
               <Feather name="trash-2" size={16} color="#EF4444" />
-              <Text style={[styles.statLabel, { color: "#EF4444" }]}>حذف الفريق</Text>
+              <Text style={[styles.statLabel, { color: "#EF4444" }]}>حذف</Text>
             </Pressable>
           </View>
         </View>
@@ -232,7 +413,7 @@ export default function TeamScreen() {
         {tab === "manga" && (
           <View style={{ marginHorizontal: 16, marginTop: 12, gap: 8 }}>
 
-            {/* Add manga toggle button */}
+            {/* Add manga toggle */}
             <Pressable
               style={[styles.addRowBtn, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.primary }]}
               onPress={() => { showAddPanel ? resetAddPanel() : setShowAddPanel(true); }}
@@ -254,22 +435,18 @@ export default function TeamScreen() {
                     onPress={() => setAddMode("search")}
                   >
                     <Feather name="search" size={13} color={addMode === "search" ? "#fff" : colors.mutedForeground} />
-                    <Text style={[styles.modeBtnText, { color: addMode === "search" ? "#fff" : colors.mutedForeground }]}>
-                      بحث
-                    </Text>
+                    <Text style={[styles.modeBtnText, { color: addMode === "search" ? "#fff" : colors.mutedForeground }]}>بحث</Text>
                   </Pressable>
                   <Pressable
                     style={[styles.modeBtn, addMode === "manual" && { backgroundColor: colors.primary, borderRadius: 8 }]}
                     onPress={() => setAddMode("manual")}
                   >
                     <Feather name="edit-3" size={13} color={addMode === "manual" ? "#fff" : colors.mutedForeground} />
-                    <Text style={[styles.modeBtnText, { color: addMode === "manual" ? "#fff" : colors.mutedForeground }]}>
-                      يدوي
-                    </Text>
+                    <Text style={[styles.modeBtnText, { color: addMode === "manual" ? "#fff" : colors.mutedForeground }]}>يدوي</Text>
                   </Pressable>
                 </View>
 
-                {/* ── SEARCH MODE ── */}
+                {/* Search mode */}
                 {addMode === "search" && (
                   <View style={{ gap: 8, marginTop: 8 }}>
                     <View style={[styles.searchBox, { backgroundColor: colors.secondary, borderRadius: 10, borderColor: colors.border }]}>
@@ -284,7 +461,6 @@ export default function TeamScreen() {
                       />
                       {searching && <ActivityIndicator size={14} color={colors.mutedForeground} />}
                     </View>
-
                     {searchResults.map((m) => (
                       <Pressable
                         key={m.id}
@@ -305,45 +481,36 @@ export default function TeamScreen() {
                   </View>
                 )}
 
-                {/* ── MANUAL MODE ── */}
+                {/* Manual mode */}
                 {addMode === "manual" && (
                   <View style={{ gap: 12, marginTop: 8 }}>
-
-                    {/* Cover picker */}
-                    <View style={styles.coverPickerRow}>
+                    {/* Cover */}
+                    <View style={{ alignItems: "center", gap: 8 }}>
                       <Pressable
                         style={[styles.coverPickerBtn, { backgroundColor: colors.secondary, borderRadius: 10, borderColor: colors.border }]}
                         onPress={handlePickImage}
                         disabled={pickingImage}
                       >
                         {manualCoverUri ? (
-                          <Image
-                            source={{ uri: manualCoverUri }}
-                            style={styles.coverPreview}
-                            contentFit="cover"
-                          />
+                          <Image source={{ uri: manualCoverUri }} style={styles.coverPreview} contentFit="cover" />
                         ) : (
                           <View style={styles.coverPlaceholder}>
-                            {pickingImage ? (
-                              <ActivityIndicator color={colors.primary} />
-                            ) : (
-                              <>
-                                <Feather name="image" size={28} color={colors.mutedForeground} />
-                                <Text style={[styles.coverPlaceholderText, { color: colors.mutedForeground }]}>
-                                  اختر صورة الغلاف
-                                </Text>
-                              </>
-                            )}
+                            {pickingImage
+                              ? <ActivityIndicator color={colors.primary} />
+                              : <>
+                                  <Feather name="image" size={28} color={colors.mutedForeground} />
+                                  <Text style={[styles.coverPlaceholderText, { color: colors.mutedForeground }]}>اختر صورة الغلاف</Text>
+                                </>
+                            }
                           </View>
                         )}
                       </Pressable>
-
                       {manualCoverUri && (
                         <Pressable
                           style={[styles.removeCoverBtn, { backgroundColor: colors.secondary }]}
                           onPress={() => setManualCoverUri(null)}
                         >
-                          <Feather name="x" size={16} color={colors.mutedForeground} />
+                          <Feather name="x" size={14} color={colors.mutedForeground} />
                           <Text style={[styles.removeCoverText, { color: colors.mutedForeground }]}>إزالة الصورة</Text>
                         </Pressable>
                       )}
@@ -378,17 +545,11 @@ export default function TeamScreen() {
                         maxLength={500}
                         textAlignVertical="top"
                       />
-                      <Text style={[styles.charCount, { color: colors.mutedForeground }]}>
-                        {manualDesc.length} / 500
-                      </Text>
+                      <Text style={[styles.charCount, { color: colors.mutedForeground }]}>{manualDesc.length} / 500</Text>
                     </View>
 
-                    {/* Add button */}
                     <Pressable
-                      style={[
-                        styles.manualAddBtn,
-                        { backgroundColor: colors.primary, borderRadius: 10, opacity: manualTitle.trim() ? 1 : 0.45 },
-                      ]}
+                      style={[styles.manualAddBtn, { backgroundColor: colors.primary, borderRadius: 10, opacity: manualTitle.trim() ? 1 : 0.45 }]}
                       onPress={handleAddManual}
                       disabled={!manualTitle.trim()}
                     >
@@ -403,36 +564,11 @@ export default function TeamScreen() {
             {/* Manga list */}
             {team.manga.length === 0 ? (
               <View style={styles.emptyTab}>
+                <Feather name="book-open" size={32} color={colors.muted} />
                 <Text style={[styles.emptyTabText, { color: colors.mutedForeground }]}>لا توجد مانجا بعد</Text>
               </View>
             ) : (
-              team.manga.map((m) => {
-                const coverSrc = m.localCoverUri ?? m.coverUrl;
-                return (
-                  <View key={m.id} style={[styles.mangaRow, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
-                    {coverSrc ? (
-                      <Image source={{ uri: coverSrc }} style={styles.mangaCover} contentFit="cover" />
-                    ) : (
-                      <View style={[styles.mangaCoverPlaceholder, { backgroundColor: colors.secondary }]}>
-                        <Feather name="book" size={18} color={colors.mutedForeground} />
-                      </View>
-                    )}
-                    <View style={styles.mangaInfo}>
-                      <Text style={[styles.mangaTitle, { color: colors.foreground }]} numberOfLines={2}>
-                        {m.title}
-                      </Text>
-                      {m.description ? (
-                        <Text style={[styles.mangaDesc, { color: colors.mutedForeground }]} numberOfLines={2}>
-                          {m.description}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Pressable onPress={() => removeManga(m.id)} hitSlop={8}>
-                      <Feather name="trash-2" size={18} color="#EF4444" />
-                    </Pressable>
-                  </View>
-                );
-              })
+              team.manga.map((m) => <MangaCard key={m.id} manga={m} />)
             )}
           </View>
         )}
@@ -484,6 +620,7 @@ export default function TeamScreen() {
 
             {team.members.length === 0 ? (
               <View style={styles.emptyTab}>
+                <Feather name="users" size={32} color={colors.muted} />
                 <Text style={[styles.emptyTabText, { color: colors.mutedForeground }]}>لا يوجد أعضاء بعد</Text>
               </View>
             ) : (
@@ -492,7 +629,7 @@ export default function TeamScreen() {
                   <View style={[styles.memberAvatar, { backgroundColor: colors.primary + "22" }]}>
                     <Feather name="user" size={18} color={colors.primary} />
                   </View>
-                  <View style={styles.memberInfo}>
+                  <View style={styles.memberInfoBlock}>
                     <Text style={[styles.memberName, { color: colors.foreground }]}>{m.name}</Text>
                     <Text style={[styles.memberRole, { color: colors.mutedForeground }]}>{m.role}</Text>
                   </View>
@@ -511,6 +648,7 @@ export default function TeamScreen() {
   );
 }
 
+// ─── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: {
@@ -521,20 +659,14 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   headerTitle: { fontSize: 18, fontWeight: "700" },
+
   emptyCenter: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 12 },
   emptyIconBox: { width: 88, height: 88, borderRadius: 44, alignItems: "center", justifyContent: "center" },
   emptyTitle: { fontSize: 20, fontWeight: "700", textAlign: "center" },
   emptySub: { fontSize: 14, textAlign: "center", lineHeight: 22 },
-  createBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 14,
-    marginTop: 8,
-  },
+  createBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 14, marginTop: 8 },
   createBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+
   teamCard: { overflow: "hidden", marginTop: 8 },
   teamCardRow: { flexDirection: "row", alignItems: "center", padding: 16, gap: 14 },
   teamEmoji: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
@@ -547,112 +679,93 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 18, fontWeight: "700" },
   statLabel: { fontSize: 11, fontWeight: "500" },
   statDivider: { width: StyleSheet.hairlineWidth },
+
   tabBar: { flexDirection: "row", padding: 4, gap: 4 },
-  tab: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-  },
+  tab: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10 },
   tabLabel: { fontSize: 13, fontWeight: "600" },
 
-  /* Add panel */
-  addRowBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-  },
+  addRowBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderWidth: 1.5, borderStyle: "dashed" },
   addRowBtnText: { fontSize: 14, fontWeight: "600" },
-  addPanel: { padding: 14, gap: 0 },
 
-  /* Mode switcher */
+  addPanel: { padding: 14 },
   modeSwitcher: { flexDirection: "row", padding: 4, gap: 4 },
-  modeBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    paddingVertical: 9,
-  },
+  modeBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 9 },
   modeBtnText: { fontSize: 13, fontWeight: "600" },
 
-  /* Search */
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
+  searchBox: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: StyleSheet.hairlineWidth },
   searchInput: { flex: 1, fontSize: 14 },
   resultRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12 },
   resultCover: { width: 40, height: 56, borderRadius: 6 },
   resultCoverPlaceholder: { width: 40, height: 56, borderRadius: 6, alignItems: "center", justifyContent: "center" },
   resultTitle: { flex: 1, fontSize: 13, fontWeight: "500", lineHeight: 18 },
 
-  /* Manual mode */
-  coverPickerRow: { gap: 8 },
-  coverPickerBtn: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderStyle: "dashed",
-    overflow: "hidden",
-    alignSelf: "center",
-    width: 120,
-    height: 160,
-    borderRadius: 10,
-  },
+  coverPickerBtn: { borderWidth: StyleSheet.hairlineWidth, borderStyle: "dashed", overflow: "hidden", width: 120, height: 160 },
   coverPreview: { width: 120, height: 160 },
   coverPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   coverPlaceholderText: { fontSize: 11, textAlign: "center", paddingHorizontal: 6 },
-  removeCoverBtn: {
+  removeCoverBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
+  removeCoverText: { fontSize: 12, fontWeight: "500" },
+
+  fieldLabel: { fontSize: 12, fontWeight: "600", textAlign: "right" },
+  fieldInput: { height: 46, paddingHorizontal: 12, fontSize: 14 },
+  fieldInputMulti: { minHeight: 100, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
+  charCount: { fontSize: 11, textAlign: "left" },
+  manualAddBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12 },
+  manualAddBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+
+  // MangaCard
+  mangaCard: { overflow: "hidden" },
+  mangaRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
+  mangaCover: { width: 52, height: 72, borderRadius: 8 },
+  mangaCoverPlaceholder: { width: 52, height: 72, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  mangaInfo: { flex: 1, gap: 4 },
+  mangaTitle: { fontSize: 14, fontWeight: "700", lineHeight: 20 },
+  mangaDesc: { fontSize: 12, lineHeight: 17 },
+  chapterCountRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  chapterCount: { fontSize: 11, fontWeight: "600" },
+  mangaActions: { gap: 8, alignItems: "center" },
+
+  expandedSection: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 10, gap: 8 },
+
+  chapterList: { borderRadius: 10, overflow: "hidden" },
+  chapterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  chapterNumBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, minWidth: 36, alignItems: "center" },
+  chapterNumText: { fontSize: 12, fontWeight: "700" },
+  chapterTitleText: { flex: 1, fontSize: 13, lineHeight: 18 },
+
+  addChapterBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 8,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderStyle: "dashed",
     borderRadius: 8,
   },
-  removeCoverText: { fontSize: 12, fontWeight: "500" },
-  fieldLabel: { fontSize: 12, fontWeight: "600", textAlign: "right" },
-  fieldInput: {
-    height: 46,
-    paddingHorizontal: 12,
-    fontSize: 14,
-  },
-  fieldInputMulti: {
-    minHeight: 100,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-  },
-  charCount: { fontSize: 11, textAlign: "left" },
-  manualAddBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-  },
-  manualAddBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  addChapterBtnText: { fontSize: 13, fontWeight: "600" },
 
-  /* Manga list */
-  mangaRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
-  mangaCover: { width: 48, height: 68, borderRadius: 8 },
-  mangaCoverPlaceholder: { width: 48, height: 68, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  mangaInfo: { flex: 1, gap: 4 },
-  mangaTitle: { fontSize: 14, fontWeight: "600", lineHeight: 20 },
-  mangaDesc: { fontSize: 12, lineHeight: 17 },
+  chapterForm: { padding: 12, gap: 10 },
+  chapterFormRow: { flexDirection: "row", gap: 10 },
+  chapterNumField: { width: 90, gap: 4 },
+  chapterTitleField: { flex: 1, gap: 4 },
+  numInput: { height: 42, paddingHorizontal: 8, fontSize: 16, fontWeight: "700" },
+  titleInput: { height: 42, paddingHorizontal: 10, fontSize: 14 },
+  saveChapterBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10 },
+  saveChapterBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
 
-  /* Members */
-  emptyTab: { paddingVertical: 24, alignItems: "center" },
+  deleteMangaBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 6 },
+  deleteMangaBtnText: { fontSize: 12, color: "#EF4444", fontWeight: "600" },
+
+  // Members
+  emptyTab: { paddingVertical: 28, alignItems: "center", gap: 8 },
   emptyTabText: { fontSize: 14 },
   memberForm: { padding: 14, gap: 10 },
   memberInput: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14 },
@@ -660,7 +773,7 @@ const styles = StyleSheet.create({
   memberAddBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   memberRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },
   memberAvatar: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-  memberInfo: { flex: 1 },
+  memberInfoBlock: { flex: 1 },
   memberName: { fontSize: 14, fontWeight: "600" },
   memberRole: { fontSize: 12, marginTop: 2 },
 });

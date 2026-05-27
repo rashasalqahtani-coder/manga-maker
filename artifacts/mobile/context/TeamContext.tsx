@@ -7,12 +7,19 @@ export interface TeamMember {
   role: string;
 }
 
+export interface TeamChapter {
+  id: string;
+  number: string;
+  title: string;
+}
+
 export interface TeamManga {
   id: string;
   title: string;
   coverUrl?: string;
   localCoverUri?: string;
   description?: string;
+  chapters: TeamChapter[];
 }
 
 export interface Team {
@@ -31,9 +38,11 @@ interface TeamContextType {
   deleteTeam: () => void;
   addMember: (member: Omit<TeamMember, "id">) => void;
   removeMember: (id: string) => void;
-  addManga: (m: TeamManga) => void;
+  addManga: (m: Omit<TeamManga, "chapters">) => void;
   removeManga: (id: string) => void;
-  updateManga: (id: string, updates: Partial<TeamManga>) => void;
+  updateManga: (id: string, updates: Partial<Omit<TeamManga, "chapters">>) => void;
+  addChapter: (mangaId: string, chapter: Omit<TeamChapter, "id">) => void;
+  removeChapter: (mangaId: string, chapterId: string) => void;
 }
 
 const KEY = "@translation_team";
@@ -48,7 +57,18 @@ const TeamContext = createContext<TeamContextType>({
   addManga: () => {},
   removeManga: () => {},
   updateManga: () => {},
+  addChapter: () => {},
+  removeChapter: () => {},
 });
+
+// Migrate old data that may be missing the `chapters` field
+function migrate(raw: unknown): Team {
+  const t = raw as Team;
+  return {
+    ...t,
+    manga: (t.manga ?? []).map((m) => ({ ...m, chapters: m.chapters ?? [] })),
+  };
+}
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
   const [team, setTeam] = useState<Team | null>(null);
@@ -56,7 +76,7 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     AsyncStorage.getItem(KEY).then((raw) => {
       if (raw) {
-        try { setTeam(JSON.parse(raw) as Team); } catch { /* ignore */ }
+        try { setTeam(migrate(JSON.parse(raw))); } catch { /* ignore */ }
       }
     }).catch(() => {});
   }, []);
@@ -88,10 +108,10 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     save({ ...team, members: team.members.filter((m) => m.id !== id) });
   }, [team, save]);
 
-  const addManga = useCallback((m: TeamManga) => {
+  const addManga = useCallback((m: Omit<TeamManga, "chapters">) => {
     if (!team) return;
     if (team.manga.some((x) => x.id === m.id)) return;
-    save({ ...team, manga: [...team.manga, m] });
+    save({ ...team, manga: [...team.manga, { ...m, chapters: [] }] });
   }, [team, save]);
 
   const removeManga = useCallback((id: string) => {
@@ -99,13 +119,42 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     save({ ...team, manga: team.manga.filter((m) => m.id !== id) });
   }, [team, save]);
 
-  const updateManga = useCallback((id: string, updates: Partial<TeamManga>) => {
+  const updateManga = useCallback((id: string, updates: Partial<Omit<TeamManga, "chapters">>) => {
     if (!team) return;
     save({ ...team, manga: team.manga.map((m) => m.id === id ? { ...m, ...updates } : m) });
   }, [team, save]);
 
+  const addChapter = useCallback((mangaId: string, chapter: Omit<TeamChapter, "id">) => {
+    if (!team) return;
+    save({
+      ...team,
+      manga: team.manga.map((m) =>
+        m.id === mangaId
+          ? { ...m, chapters: [...(m.chapters ?? []), { ...chapter, id: Date.now().toString() }] }
+          : m
+      ),
+    });
+  }, [team, save]);
+
+  const removeChapter = useCallback((mangaId: string, chapterId: string) => {
+    if (!team) return;
+    save({
+      ...team,
+      manga: team.manga.map((m) =>
+        m.id === mangaId
+          ? { ...m, chapters: (m.chapters ?? []).filter((c) => c.id !== chapterId) }
+          : m
+      ),
+    });
+  }, [team, save]);
+
   return (
-    <TeamContext.Provider value={{ team, createTeam, updateTeam, deleteTeam, addMember, removeMember, addManga, removeManga, updateManga }}>
+    <TeamContext.Provider value={{
+      team, createTeam, updateTeam, deleteTeam,
+      addMember, removeMember,
+      addManga, removeManga, updateManga,
+      addChapter, removeChapter,
+    }}>
       {children}
     </TeamContext.Provider>
   );
