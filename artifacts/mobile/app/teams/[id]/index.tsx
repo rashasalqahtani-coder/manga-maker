@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { getPublicTeam, type PublicTeam, type PublicTeamManga } from "@/lib/teams";
 
+const MANGADEX_ID_RE = /^[0-9a-f-]{36}$/;
+
 export default function TeamDetailScreen() {
   "use no memo";
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -138,7 +140,7 @@ export default function TeamDetailScreen() {
         {/* Manga list */}
         <View style={styles.mangaList}>
           {team.manga.map((manga) => (
-            <MangaRow key={manga.id} manga={manga} onPress={() => openManga(manga)} />
+            <MangaRow key={manga.id} manga={manga} teamId={id ?? ""} onPress={() => openManga(manga)} />
           ))}
         </View>
 
@@ -153,10 +155,11 @@ export default function TeamDetailScreen() {
   );
 }
 
-function MangaRow({ manga, onPress }: { manga: PublicTeamManga; onPress: () => void }) {
+function MangaRow({ manga, teamId, onPress }: { manga: PublicTeamManga; teamId: string; onPress: () => void }) {
   const colors = useColors();
-  const MANGADEX_ID_RE = /^[0-9a-f-]{36}$/;
+  const router = useRouter();
   const isMangaDex = MANGADEX_ID_RE.test(manga.id);
+  const firstReadable = manga.chapters.find((ch) => MANGADEX_ID_RE.test(ch.id)) ?? null;
 
   return (
     <Pressable
@@ -191,6 +194,31 @@ function MangaRow({ manga, onPress }: { manga: PublicTeamManga; onPress: () => v
             </View>
           )}
         </View>
+        {firstReadable && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.readBtn,
+              { backgroundColor: colors.primary, borderRadius: colors.radius, opacity: pressed ? 0.8 : 1 },
+            ]}
+            onPress={(e) => {
+              e.stopPropagation();
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push({
+                pathname: "/reader/[chapterId]" as any,
+                params: {
+                  chapterId: firstReadable.id,
+                  mangaId: manga.id,
+                  mangaTitle: manga.title,
+                  coverUrl: manga.coverUrl ?? "",
+                  chapterNum: firstReadable.number,
+                },
+              });
+            }}
+          >
+            <Feather name="play" size={12} color="#fff" />
+            <Text style={styles.readBtnText}>ابدأ القراءة</Text>
+          </Pressable>
+        )}
       </View>
       <Feather name="chevron-left" size={17} color={colors.mutedForeground} />
     </Pressable>
@@ -234,6 +262,16 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 11, fontWeight: "600" },
   localBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   localBadgeText: { fontSize: 10, fontWeight: "600" },
+  readBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginTop: 4,
+  },
+  readBtnText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 
   emptyManga: { alignItems: "center", gap: 10, marginTop: 32, paddingHorizontal: 32 },
   emptyText: { fontSize: 14, textAlign: "center" },
