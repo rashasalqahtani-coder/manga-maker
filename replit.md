@@ -1,10 +1,10 @@
 # مانجا — قارئ المانجا العربي
 
-تطبيق موبايل عربي كامل لقراءة المانجا، مبني على Expo SDK 54 ويستخدم MangaDex API كمصدر للمحتوى.
+تطبيق موبايل عربي كامل لقراءة المانجا، مبني على Expo SDK 54 ويدعم 4 مصادر مانجا.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -28,26 +28,37 @@
   - `app/(tabs)/` — Tab screens: index (home), search, library, history, settings
   - `app/(auth)/` — Auth screens: sign-in, sign-up (Clerk)
   - `app/team/` — Translation team screens: index, create
-  - `app/manga/[id].tsx` — Manga detail page
-  - `app/reader/[chapterId].tsx` — Chapter reader
-  - `context/` — React contexts: Library, Download, Theme, Team, ReaderSettings
+  - `app/manga/[id].tsx` — MangaDex manga detail page
+  - `app/reader/[chapterId].tsx` — MangaDex chapter reader
+  - `app/starz/[slug].tsx` — Starz/linkmanga/dilar manga detail + chapter list
+  - `app/starz/reader.tsx` — WebView reader for starz/linkmanga/dilar/olympus chapters
+  - `context/` — React contexts: Library, Download, Theme, Team, ReaderSettings, Source
+  - `context/SourceContext.tsx` — 4-source selector (starz/linkmanga/dilar/olympus), persisted via AsyncStorage
+  - `lib/sources.ts` — UnifiedManga type + fetchHomeMangas/searchMangas/getChaptersUrl adapters
   - `lib/mangadex.ts` — MangaDex API client (source of truth for Manga/Chapter types)
+  - `lib/mangastarz.ts` — Manga-starz API client
   - `constants/colors.ts` — Static dark theme fallback colors
   - `hooks/useColors.ts` — Merges ThemeContext + static colors into unified token palette
 - `artifacts/api-server/` — Express API backend
+  - `src/routes/mangastarz.ts` — manga-starz.net scraper (route prefix: /starz)
+  - `src/routes/linkmanga.ts` — link-manga.net Madara scraper (route prefix: /linkmanga)
+  - `src/routes/dilar.ts` — dilar.tube REST API proxy (route prefix: /dilar)
+  - `src/routes/olympus.ts` — olympustaff.com HTML scraper (route prefix: /olympus)
 
 ## Architecture decisions
 
 - **ThemeContext**: Uses "use no memo" directive to bypass React Compiler memoization. Persists via localStorage (web) and dynamic AsyncStorage import (native). Must NOT block the initial render.
 - **useColors hook**: Calls `useColorScheme()` (for hook count stability with React Compiler) AND `useTheme()` to merge dynamic theme values into the static color structure.
-- **Provider order in _layout.tsx**: ClerkProvider → ClerkLoaded → SafeAreaProvider → ThemeProvider → ErrorBoundary → QueryClientProvider → LibraryProvider → TeamProvider → ReaderSettingsProvider → DownloadProvider → GestureHandlerRootView → KeyboardProvider.
+- **Provider order in _layout.tsx**: ClerkProvider → ClerkLoaded → SafeAreaProvider → ThemeProvider → ErrorBoundary → QueryClientProvider → LibraryProvider → TeamProvider → ReaderSettingsProvider → DownloadProvider → SourceProvider → GestureHandlerRootView → KeyboardProvider.
 - **Team feature**: Local-only (AsyncStorage), no backend sync. One team per user.
 - **Reader settings**: Persisted via AsyncStorage, applied globally via ReaderSettingsContext.
+- **Multi-source system**: SourceContext stores active source (starz/linkmanga/dilar/olympus) in AsyncStorage. `lib/sources.ts` provides unified adapters. Home/search screens use `fetchHomeMangas`/`searchMangas`. All 4 source home endpoints have 2-minute in-memory TTL cache for fast subsequent loads.
+- **Navigation per source**: starz/linkmanga/dilar → `/starz/[slug]?src=X` (detail + chapter list); olympus → `/starz/reader` directly (JS-rendered chapters, open site URL in WebView).
 
 ## Product
 
-- Browse and search Arabic-translated manga via MangaDex API
-- Home screen sections: أفضل تقييماً (featured banner), الأكثر شعبية, محدّثة مؤخراً, مانهوا كورية 🇰🇷, مانهوا صينية 🇨🇳, أحدث الإضافات عربياً
+- Browse and search Arabic-translated manga from 4 sources: manga-starz.net, link-manga.net, dilar.tube, olympustaff.com
+- Home screen: source picker banner (tap to change), featured carousel, trending row, recently updated row
 - Library management with local bookmarks
 - Chapter reader with RTL/LTR/vertical reading modes
 - Download chapters for offline reading
@@ -72,8 +83,14 @@ _Populate as you build — explicit user instructions worth remembering across s
 - **Reader "use no memo"**: `app/reader/[chapterId].tsx` needs `"use no memo"` at file and function level. Also wrap `getLocalPages()` call in try-catch (the outer try-catch only covers the network fetch). Use `useCallback` + `useRef` for `onViewableItemsChanged` and `viewabilityConfig` — FlatList requires stable references.
 - **External chapters**: Many Arabic-translated chapters on MangaDex have `externalUrl` and `pages: 0` — they are hosted on external sites (e.g. Tappytoon). `at-home/server` returns `data: []` for these. `ChapterItem` detects them via `pages === 0 && externalUrl` and opens `Linking.openURL` directly instead of navigating to the reader. They display a "خارجي" badge. The `Chapter.attributes` type includes `externalUrl: string | null`.
 - **FlatList viewability**: `onViewableItemsChanged` must be a stable reference (useCallback). `viewabilityConfig` must be a stable ref (useRef). Passing either inline causes FlatList to warn and behave incorrectly.
+- **linkmanga title parsing**: Titles are extracted from anchor `title="..."` attributes (NOT img alt tags). The `slugTitleMap` approach ensures correct title-to-slug alignment.
+- **dilar.tube covers**: The cover image URL base is unknown — cover field returns only a filename (e.g. `1000084279.webp`). Tested candidates all 404. Manga cards show a placeholder cover for dilar source. Do not guess new URL patterns without checking the actual HTML.
+- **olympus chapters**: `olympustaff.com` renders chapters via JavaScript — there is no server-side chapter list. Navigation for olympus manga opens the manga URL directly in the WebView reader.
+- **API home cache**: All 4 `/home` endpoints (starz/linkmanga/dilar/olympus) have a 2-minute in-memory TTL cache. Cache is module-level (survives request cycles, cleared on server restart). First load ~1.5s, cached load ~5ms.
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
 - MangaDex API types: `Manga`, `Chapter` in `artifacts/mobile/lib/mangadex.ts`
+- Source API routes: `/api/starz/*`, `/api/linkmanga/*`, `/api/dilar/*`, `/api/olympus/*`
+- UnifiedManga type and source adapters: `artifacts/mobile/lib/sources.ts`

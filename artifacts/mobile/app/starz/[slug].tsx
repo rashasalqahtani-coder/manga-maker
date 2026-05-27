@@ -19,8 +19,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import {
-  buildChapterUrl,
-  buildMangaUrl,
+  buildChapterUrl as buildStarzChapterUrl,
+  buildMangaUrl as buildStarzMangaUrl,
   type StarzChapter,
 } from "@/lib/mangastarz";
 
@@ -31,11 +31,32 @@ const API_BASE =
     ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
     : "/api";
 
-const CHAPTER_FETCH_API = (slug: string, latestChapter?: string) => {
-  const base = `${API_BASE}/starz/manga/${encodeURIComponent(slug)}/chapters`;
-  if (latestChapter) return `${base}?latest=${encodeURIComponent(latestChapter)}`;
-  return base;
-};
+type SrcParam = "starz" | "linkmanga" | "dilar";
+
+function getChapterFetchApi(src: SrcParam, slug: string, latestChapter?: string): string {
+  const prefix = src === "linkmanga" ? "linkmanga" : src === "dilar" ? "dilar" : "starz";
+  const idPath = `${API_BASE}/${prefix}/manga/${encodeURIComponent(slug)}/chapters`;
+  if (latestChapter) return `${idPath}?latest=${encodeURIComponent(latestChapter)}`;
+  return idPath;
+}
+
+function buildMangaUrl(src: SrcParam, slug: string): string {
+  if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/`;
+  if (src === "dilar") return `https://dilar.tube/series/${slug}`;
+  return buildStarzMangaUrl(slug);
+}
+
+function buildChapterUrl(src: SrcParam, slug: string, chapterNum: string): string {
+  if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/${chapterNum}/`;
+  if (src === "dilar") return `https://dilar.tube/series/${slug}/chapter/${chapterNum}`;
+  return buildStarzChapterUrl(slug, chapterNum);
+}
+
+function getSourceLabel(src: SrcParam): string {
+  if (src === "linkmanga") return "لينك مانجا";
+  if (src === "dilar") return "ديلار";
+  return "مانجا ستارز";
+}
 
 export default function StarzMangaDetailScreen() {
   "use no memo";
@@ -46,8 +67,10 @@ export default function StarzMangaDetailScreen() {
     rating?: string;
     genres?: string;
     latestChapter?: string;
+    src?: string;
   }>();
   const slug = params.slug ?? "";
+  const src: SrcParam = (params.src as SrcParam) ?? "starz";
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -74,7 +97,7 @@ export default function StarzMangaDetailScreen() {
     if (!slug) return;
     setChaptersLoading(true);
     setChaptersError(false);
-    fetch(CHAPTER_FETCH_API(slug, latestChapter))
+    fetch(getChapterFetchApi(src, slug, latestChapter))
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status}`);
         return r.json() as Promise<{ chapters: StarzChapter[] }>;
@@ -87,9 +110,10 @@ export default function StarzMangaDetailScreen() {
         setChaptersError(true);
         setChaptersLoading(false);
       });
-  }, [slug]);
+  }, [slug, src]);
 
-  const mangaUrl = buildMangaUrl(slug);
+  void getSourceLabel;
+  const mangaUrl = buildMangaUrl(src, slug);
   const displayChapters = showAllChapters ? chapters : chapters.slice(0, 30);
 
   return (
@@ -138,7 +162,7 @@ export default function StarzMangaDetailScreen() {
                 ) : null}
                 <View style={styles.sourceBadge}>
                   <Feather name="globe" size={10} color="rgba(255,255,255,0.5)" />
-                  <Text style={styles.sourceBadgeText}>مانجا ستارز</Text>
+                  <Text style={styles.sourceBadgeText}>{getSourceLabel(src)}</Text>
                 </View>
               </View>
               {genreList.length > 0 && (
@@ -245,7 +269,7 @@ export default function StarzMangaDetailScreen() {
             >
               <Feather name="external-link" size={14} color={colors.primary} />
               <Text style={[styles.openMangaBtnText, { color: colors.primary }]}>
-                افتح في موقع مانجا ستارز
+                افتح في موقع المانجا
               </Text>
             </Pressable>
           </View>
@@ -317,7 +341,7 @@ function StarzChapterItem({
 
   const handlePress = () => {
     Haptics.selectionAsync();
-    const url = chapter.url || buildChapterUrl(slug, chapter.number);
+    const url = chapter.url || buildStarzChapterUrl(slug, chapter.number);
     router.push({
       pathname: "/starz/reader" as any,
       params: {

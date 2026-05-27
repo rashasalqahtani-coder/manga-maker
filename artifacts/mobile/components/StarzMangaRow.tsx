@@ -19,9 +19,10 @@ interface Props {
   loading?: boolean;
   error?: boolean;
   onMorePress?: () => void;
+  onPressManga?: (manga: StarzManga) => void;
 }
 
-export function StarzMangaRow({ title, manga, loading, error, onMorePress }: Props) {
+export function StarzMangaRow({ title, manga, loading, error, onMorePress, onPressManga }: Props) {
   const colors = useColors();
 
   return (
@@ -64,7 +65,7 @@ export function StarzMangaRow({ title, manga, loading, error, onMorePress }: Pro
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => <StarzMangaCard manga={item} />}
+          renderItem={({ item }) => <StarzMangaCard manga={item} onPress={onPressManga} />}
         />
       )}
     </View>

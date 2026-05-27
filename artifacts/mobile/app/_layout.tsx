@@ -19,6 +19,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DownloadProvider } from "@/context/DownloadContext";
 import { LibraryProvider } from "@/context/LibraryContext";
 import { ReaderSettingsProvider } from "@/context/ReaderSettingsContext";
+import { SourceProvider } from "@/context/SourceContext";
 import { TeamProvider } from "@/context/TeamContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 
@@ -70,6 +71,7 @@ export default function RootLayout() {
       <ClerkLoaded>
         <SafeAreaProvider>
           <ThemeProvider>
+            <SourceProvider>
             <ErrorBoundary>
               <QueryClientProvider client={queryClient}>
                 <LibraryProvider>
@@ -87,6 +89,7 @@ export default function RootLayout() {
                 </LibraryProvider>
               </QueryClientProvider>
             </ErrorBoundary>
+            </SourceProvider>
           </ThemeProvider>
         </SafeAreaProvider>
       </ClerkLoaded>

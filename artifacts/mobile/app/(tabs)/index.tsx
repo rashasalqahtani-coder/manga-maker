@@ -2,9 +2,10 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -18,31 +19,178 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { StarzFeaturedBanner } from "@/components/StarzFeaturedBanner";
 import { StarzMangaRow } from "@/components/StarzMangaRow";
+import { SOURCES, useSource, type SourceId } from "@/context/SourceContext";
 import { useColors } from "@/hooks/useColors";
-import { getHomeManga, type StarzManga } from "@/lib/mangastarz";
+import { fetchHomeMangas, type UnifiedManga } from "@/lib/sources";
+
+function navigateToManga(
+  router: ReturnType<typeof useRouter>,
+  manga: UnifiedManga
+) {
+  "use no memo";
+  const titleE = encodeURIComponent(manga.title);
+  const coverE = encodeURIComponent(manga.coverUrl);
+  const ratingE = encodeURIComponent(manga.rating ?? "");
+  const latestE = encodeURIComponent(manga.latestChapterNum ?? "");
+
+  if (manga.sourceId === "olympus") {
+    router.push({
+      pathname: "/starz/reader" as any,
+      params: {
+        url: encodeURIComponent(manga.url),
+        title: titleE,
+        chapterNum: "",
+        slug: manga.slug,
+        latestChapter: "",
+      },
+    });
+    return;
+  }
+
+  router.push({
+    pathname: "/starz/[slug]" as any,
+    params: {
+      slug: manga.slug,
+      title: titleE,
+      coverUrl: coverE,
+      rating: ratingE,
+      latestChapter: latestE,
+      src: manga.sourceId,
+    },
+  });
+}
+
+function toStarzMangaShape(manga: UnifiedManga) {
+  return {
+    id: manga.id,
+    slug: manga.slug,
+    title: manga.title,
+    coverUrl: manga.coverUrl,
+    url: manga.url,
+    latestChapters: manga.latestChapterNum
+      ? [{ number: manga.latestChapterNum, url: manga.latestChapterUrl ?? "" }]
+      : [],
+  };
+}
+
+function SourcePickerModal({
+  visible,
+  onClose,
+  current,
+  onSelect,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  current: SourceId;
+  onSelect: (id: SourceId) => void;
+}) {
+  "use no memo";
+  const colors = useColors();
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View
+          style={[
+            styles.modalSheet,
+            { backgroundColor: colors.card, borderRadius: colors.radius * 1.5 },
+          ]}
+        >
+          <Text style={[styles.modalTitle, { color: colors.foreground }]}>
+            اختر مصدر المانجا
+          </Text>
+          {SOURCES.map((src, i) => {
+            const selected = src.id === current;
+            return (
+              <React.Fragment key={src.id}>
+                {i > 0 && (
+                  <View
+                    style={[styles.modalDivider, { backgroundColor: colors.border }]}
+                  />
+                )}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.sourceOption,
+                    {
+                      backgroundColor: selected
+                        ? colors.primary + "18"
+                        : pressed
+                        ? colors.secondary
+                        : "transparent",
+                      borderRadius: colors.radius,
+                    },
+                  ]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    onSelect(src.id);
+                    onClose();
+                  }}
+                >
+                  <Text style={styles.sourceFlag}>{src.flag}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.sourceName,
+                        {
+                          color: selected ? colors.primary : colors.foreground,
+                          fontWeight: selected ? "700" : "500",
+                        },
+                      ]}
+                    >
+                      {src.nameAr}
+                    </Text>
+                    <Text
+                      style={[styles.sourceDesc, { color: colors.mutedForeground }]}
+                      numberOfLines={1}
+                    >
+                      {src.description}
+                    </Text>
+                  </View>
+                  {selected && (
+                    <Feather name="check" size={16} color={colors.primary} />
+                  )}
+                </Pressable>
+              </React.Fragment>
+            );
+          })}
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
 
 export default function HomeScreen() {
   "use no memo";
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { source, sourceInfo, setSource } = useSource();
 
-  const [manga, setManga] = useState<StarzManga[]>([]);
+  const [manga, setManga] = useState<UnifiedManga[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  function loadData() {
+  const currentSource = useRef(source);
+  currentSource.current = source;
+
+  const loadData = useCallback(() => {
     setLoading(true);
-    getHomeManga()
+    fetchHomeMangas(currentSource.current)
       .then((d) => setManga(d))
       .catch(() => setManga([]))
       .finally(() => setLoading(false));
-  }
+  }, []);
 
   useEffect(() => {
+    setManga([]);
     loadData();
-  }, []);
+  }, [source, loadData]);
 
   async function onRefresh() {
     setRefreshing(true);
@@ -59,7 +207,6 @@ export default function HomeScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top + 12;
 
-  // Split into sections — use all manga for featured, then split by index for rows
   const featured = manga.slice(0, 10);
   const trending = manga.slice(0, 12);
   const recent = manga.slice(manga.length > 12 ? 12 : 0);
@@ -67,6 +214,15 @@ export default function HomeScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" />
+      <SourcePickerModal
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        current={source}
+        onSelect={(id) => {
+          setSource(id);
+        }}
+      />
+
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: topPad, paddingBottom: insets.bottom + 20 }}
@@ -128,44 +284,67 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Source badge ── */}
-        <View
-          style={[
+        {/* ── Source badge (tappable) ── */}
+        <Pressable
+          style={({ pressed }) => [
             styles.sourceBanner,
             {
               backgroundColor: colors.card,
               borderRadius: colors.radius,
               marginHorizontal: 16,
               marginBottom: 4,
+              opacity: pressed ? 0.75 : 1,
             },
           ]}
+          onPress={() => {
+            Haptics.selectionAsync();
+            setPickerOpen(true);
+          }}
         >
-          <Feather name="globe" size={13} color={colors.primary} />
+          <Text style={styles.sourceFlag}>{sourceInfo.flag}</Text>
           <Text style={[styles.sourceBannerText, { color: colors.mutedForeground }]}>
-            {"مصدر المحتوى: "}
-            <Text style={{ color: colors.foreground, fontWeight: "700" }}>مانجا ستارز</Text>
+            {"المصدر: "}
+            <Text style={{ color: colors.foreground, fontWeight: "700" }}>
+              {sourceInfo.nameAr}
+            </Text>
           </Text>
           <View style={[styles.arBadge, { backgroundColor: colors.primary + "22" }]}>
-            <Text style={[styles.arBadgeText, { color: colors.primary }]}>عربي</Text>
+            <Text style={[styles.arBadgeText, { color: colors.primary }]}>تغيير</Text>
           </View>
-        </View>
+          <Feather name="chevron-down" size={12} color={colors.mutedForeground} />
+        </Pressable>
 
         {/* ── Featured banner ── */}
-        <StarzFeaturedBanner manga={featured} loading={loading} />
+        <StarzFeaturedBanner
+          manga={featured.map(toStarzMangaShape) as any}
+          loading={loading}
+          onPressManga={(m) => {
+            const u = manga.find((x) => x.id === m.id || x.slug === m.slug);
+            if (u) navigateToManga(router, u);
+          }}
+        />
 
         {/* ── Trending ── */}
         <StarzMangaRow
           title="الرائج الآن"
-          manga={trending}
+          manga={trending.map(toStarzMangaShape) as any}
           loading={loading}
+          onPressManga={(m) => {
+            const u = manga.find((x) => x.id === m.id || x.slug === m.slug);
+            if (u) navigateToManga(router, u);
+          }}
         />
 
         {/* ── Recently updated ── */}
         {recent.length > 0 && (
           <StarzMangaRow
             title="محدّثة مؤخراً"
-            manga={recent}
+            manga={recent.map(toStarzMangaShape) as any}
             loading={loading}
+            onPressManga={(m) => {
+              const u = manga.find((x) => x.id === m.id || x.slug === m.slug);
+              if (u) navigateToManga(router, u);
+            }}
           />
         )}
       </ScrollView>
@@ -216,7 +395,38 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 4,
   },
+  sourceFlag: { fontSize: 14 },
   sourceBannerText: { fontSize: 12, flex: 1 },
   arBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
   arBadgeText: { fontSize: 10, fontWeight: "700" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalSheet: {
+    width: "100%",
+    maxWidth: 360,
+    padding: 16,
+    gap: 2,
+  },
+  modalTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    textAlign: "right",
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  modalDivider: { height: StyleSheet.hairlineWidth, marginVertical: 2 },
+  sourceOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  sourceName: { fontSize: 15, writingDirection: "rtl" },
+  sourceDesc: { fontSize: 11, marginTop: 2, writingDirection: "rtl" },
 });

@@ -19,8 +19,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SearchBar } from "@/components/SearchBar";
 import { StarzMangaCard } from "@/components/StarzMangaCard";
+import { useSource } from "@/context/SourceContext";
 import { useColors } from "@/hooks/useColors";
 import { searchStarzManga, type StarzManga } from "@/lib/mangastarz";
+import { searchMangas, type UnifiedManga } from "@/lib/sources";
 import {
   searchTeamManga,
   type PublicTeamChapter,
@@ -137,41 +139,76 @@ export default function SearchScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { source, sourceInfo } = useSource();
 
   const [query, setQuery] = useState("");
   const [starzResults, setStarzResults] = useState<StarzManga[]>([]);
+  const [unifiedResults, setUnifiedResults] = useState<UnifiedManga[]>([]);
   const [teamResults, setTeamResults] = useState<TeamMangaResult[]>([]);
   const [activeManga, setActiveManga] = useState<TeamMangaResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
+  const currentSource = useRef(source);
+  currentSource.current = source;
+
   const debouncedQuery = useDebounce(query, 600);
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) {
-      setStarzResults([]); setTeamResults([]); setActiveManga(null); setSearched(false); return;
+      setStarzResults([]); setUnifiedResults([]); setTeamResults([]);
+      setActiveManga(null); setSearched(false); return;
     }
     setLoading(true); setSearched(true); setActiveManga(null);
+    const src = currentSource.current;
     try {
-      const [starzSettled, teamSettled] = await Promise.allSettled([
-        searchStarzManga(q.trim()),
-        searchTeamManga(q.trim()),
-      ]);
-      setStarzResults(starzSettled.status === "fulfilled" ? starzSettled.value : []);
-      setTeamResults(teamSettled.status === "fulfilled" ? teamSettled.value : []);
+      if (src === "starz") {
+        const [starzSettled, teamSettled] = await Promise.allSettled([
+          searchStarzManga(q.trim()),
+          searchTeamManga(q.trim()),
+        ]);
+        setStarzResults(starzSettled.status === "fulfilled" ? starzSettled.value : []);
+        setUnifiedResults([]);
+        setTeamResults(teamSettled.status === "fulfilled" ? teamSettled.value : []);
+      } else if (sourceInfo.haSearch) {
+        const [unifiedSettled, teamSettled] = await Promise.allSettled([
+          searchMangas(src, q.trim()),
+          searchTeamManga(q.trim()),
+        ]);
+        setUnifiedResults(unifiedSettled.status === "fulfilled" ? unifiedSettled.value : []);
+        setStarzResults([]);
+        setTeamResults(teamSettled.status === "fulfilled" ? teamSettled.value : []);
+      } else {
+        const teamSettled = await Promise.allSettled([searchTeamManga(q.trim())]);
+        setUnifiedResults([]);
+        setStarzResults([]);
+        setTeamResults(teamSettled[0].status === "fulfilled" ? teamSettled[0].value : []);
+      }
     } catch {
-      setStarzResults([]); setTeamResults([]);
+      setStarzResults([]); setUnifiedResults([]); setTeamResults([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sourceInfo.haSearch]);
 
   useEffect(() => {
     doSearch(debouncedQuery);
   }, [debouncedQuery, doSearch]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top + 12;
-  const hasAnyResult = starzResults.length > 0 || teamResults.length > 0;
+  const hasAnyResult = starzResults.length > 0 || unifiedResults.length > 0 || teamResults.length > 0;
+
+  function navigateUnified(manga: UnifiedManga) {
+    "use no memo";
+    const titleE = encodeURIComponent(manga.title);
+    const coverE = encodeURIComponent(manga.coverUrl);
+    const latestE = encodeURIComponent(manga.latestChapterNum ?? "");
+    if (manga.sourceId === "olympus") {
+      router.push({ pathname: "/starz/reader" as any, params: { url: encodeURIComponent(manga.url), title: titleE, chapterNum: "", slug: manga.slug, latestChapter: "" } });
+      return;
+    }
+    router.push({ pathname: "/starz/[slug]" as any, params: { slug: manga.slug, title: titleE, coverUrl: coverE, latestChapter: latestE, src: manga.sourceId } });
+  }
 
   /* ── Group team results ── */
   const teamGroups = teamResults.reduce<
@@ -301,9 +338,11 @@ export default function SearchScreen() {
 
         {/* Source indicator */}
         <View style={styles.sourceRow}>
-          <Feather name="globe" size={11} color={colors.mutedForeground} />
+          <Text style={styles.sourceFlag}>{sourceInfo.flag}</Text>
           <Text style={[styles.sourceLabel, { color: colors.mutedForeground }]}>
-            البحث في <Text style={{ color: colors.primary, fontWeight: "700" }}>مانجا ستارز</Text> + فرق الترجمة
+            {sourceInfo.haSearch
+              ? <>البحث في <Text style={{ color: colors.primary, fontWeight: "700" }}>{sourceInfo.nameAr}</Text> + فرق الترجمة</>
+              : <>فرق الترجمة فقط — <Text style={{ color: colors.primary }}>{sourceInfo.nameAr}</Text> لا يدعم البحث</>}
           </Text>
         </View>
       </View>
@@ -319,7 +358,7 @@ export default function SearchScreen() {
           <Feather name="search" size={44} color={colors.muted} />
           <Text style={[styles.hint, { color: colors.mutedForeground }]}>ابحث بالعنوان</Text>
           <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
-            يبحث في مانجا ستارز وأعمال الفرق
+            {sourceInfo.haSearch ? `يبحث في ${sourceInfo.nameAr} وأعمال الفرق` : "يبحث في أعمال الفرق"}
           </Text>
         </View>
       ) : !hasAnyResult ? (
@@ -342,7 +381,31 @@ export default function SearchScreen() {
             <>
               {teamSection}
               <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>
-                {starzResults.length} نتيجة من مانجا ستارز
+                {starzResults.length} نتيجة من {sourceInfo.nameAr}
+              </Text>
+            </>
+          }
+        />
+      ) : unifiedResults.length > 0 ? (
+        <FlatList
+          data={unifiedResults}
+          keyExtractor={(item) => item.id}
+          numColumns={3}
+          contentContainerStyle={[styles.grid, { paddingBottom: insets.bottom + 20 }]}
+          columnWrapperStyle={styles.gridRow}
+          renderItem={({ item }) => (
+            <StarzMangaCard
+              manga={{ id: item.id, slug: item.slug, title: item.title, coverUrl: item.coverUrl, url: item.url, latestChapters: item.latestChapterNum ? [{ number: item.latestChapterNum, url: item.latestChapterUrl ?? "" }] : [] }}
+              width={110}
+              height={158}
+              onPress={() => navigateUnified(item)}
+            />
+          )}
+          ListHeaderComponent={
+            <>
+              {teamSection}
+              <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>
+                {unifiedResults.length} نتيجة من {sourceInfo.nameAr}
               </Text>
             </>
           }
@@ -362,7 +425,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: "700" },
   searchRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   sourceRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  sourceLabel: { fontSize: 11 },
+  sourceFlag: { fontSize: 13 },
+  sourceLabel: { fontSize: 11, flex: 1 },
 
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   hint: { fontSize: 15, textAlign: "center", paddingHorizontal: 32 },

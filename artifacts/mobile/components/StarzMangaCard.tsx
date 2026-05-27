@@ -10,27 +10,31 @@ interface Props {
   manga: StarzManga;
   width?: number;
   height?: number;
+  onPress?: (manga: StarzManga) => void;
 }
 
-export function StarzMangaCard({ manga, width = 130, height = 185 }: Props) {
+export function StarzMangaCard({ manga, width = 130, height = 185, onPress }: Props) {
   const colors = useColors();
   const router = useRouter();
+
+  const handlePress = () => {
+    if (onPress) { onPress(manga); return; }
+    router.push({
+      pathname: "/starz/[slug]" as any,
+      params: {
+        slug: manga.slug,
+        title: encodeURIComponent(manga.title),
+        coverUrl: encodeURIComponent(manga.coverUrl),
+        rating: encodeURIComponent(manga.rating ?? ""),
+        latestChapter: encodeURIComponent(manga.latestChapters[0]?.number ?? ""),
+      },
+    });
+  };
 
   return (
     <Pressable
       style={({ pressed }) => [styles.container, { width, opacity: pressed ? 0.75 : 1 }]}
-      onPress={() =>
-        router.push({
-          pathname: "/starz/[slug]" as any,
-          params: {
-            slug: manga.slug,
-            title: encodeURIComponent(manga.title),
-            coverUrl: encodeURIComponent(manga.coverUrl),
-            rating: encodeURIComponent(manga.rating ?? ""),
-            latestChapter: encodeURIComponent(manga.latestChapters[0]?.number ?? ""),
-          },
-        })
-      }
+      onPress={handlePress}
     >
       <View
         style={[

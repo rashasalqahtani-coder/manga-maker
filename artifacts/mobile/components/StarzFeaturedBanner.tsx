@@ -24,11 +24,17 @@ const CARD_WIDTH = SCREEN_WIDTH - 32;
 interface Props {
   manga: StarzManga[];
   loading?: boolean;
+  onPressManga?: (manga: StarzManga) => void;
 }
 
-function BannerCard({ manga }: { manga: StarzManga }) {
+function BannerCard({ manga, onPress }: { manga: StarzManga; onPress?: (m: StarzManga) => void }) {
   const colors = useColors();
   const router = useRouter();
+
+  const handlePress = () => {
+    if (onPress) { onPress(manga); return; }
+    router.push(`/starz/${manga.slug}` as any);
+  };
 
   return (
     <Pressable
@@ -36,7 +42,7 @@ function BannerCard({ manga }: { manga: StarzManga }) {
         styles.card,
         { width: CARD_WIDTH, borderRadius: colors.radius * 1.5, opacity: pressed ? 0.92 : 1 },
       ]}
-      onPress={() => router.push(`/starz/${manga.slug}` as any)}
+      onPress={handlePress}
     >
       {manga.coverUrl ? (
         <Image
@@ -74,19 +80,7 @@ function BannerCard({ manga }: { manga: StarzManga }) {
         <View style={styles.btnRow}>
           <Pressable
             style={[styles.readBtn, { backgroundColor: colors.primary, borderRadius: 8 }]}
-            onPress={() =>
-              router.push({
-                pathname: "/starz/[slug]" as any,
-                params: {
-                  slug: manga.slug,
-                  title: encodeURIComponent(manga.title),
-                  coverUrl: encodeURIComponent(manga.coverUrl),
-                  rating: encodeURIComponent(manga.rating ?? ""),
-                  genres: encodeURIComponent((manga.genres ?? []).join(",")),
-                  latestChapter: encodeURIComponent(manga.latestChapters[0]?.number ?? ""),
-                },
-              })
-            }
+            onPress={handlePress}
           >
             <Feather name="book-open" size={14} color="#fff" />
             <Text style={styles.readBtnText}>تفاصيل</Text>
@@ -106,7 +100,7 @@ function BannerCard({ manga }: { manga: StarzManga }) {
   );
 }
 
-export function StarzFeaturedBanner({ manga, loading }: Props) {
+export function StarzFeaturedBanner({ manga, loading, onPressManga }: Props) {
   const colors = useColors();
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<FlatList>(null);
@@ -161,7 +155,7 @@ export function StarzFeaturedBanner({ manga, loading }: Props) {
         viewabilityConfig={viewabilityConfig.current}
         renderItem={({ item }) => (
           <View style={{ marginRight: 12 }}>
-            <BannerCard manga={item} />
+            <BannerCard manga={item} onPress={onPressManga} />
           </View>
         )}
       />

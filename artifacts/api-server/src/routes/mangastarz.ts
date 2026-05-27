@@ -193,11 +193,19 @@ function parseMangaDetail(html: string, slug: string): StarzManga | null {
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
+let starzHomeCache: { manga: ReturnType<typeof parseMangaCards>; ts: number } | null = null;
+const STARZ_HOME_TTL = 2 * 60 * 1000;
+
 /** GET /api/starz/home — homepage manga (trending / latest) */
 router.get("/starz/home", async (req, res) => {
   try {
+    if (starzHomeCache && Date.now() - starzHomeCache.ts < STARZ_HOME_TTL) {
+      res.json({ manga: starzHomeCache.manga });
+      return;
+    }
     const html = await fetchHtml(BASE + "/");
     const manga = parseMangaCards(html);
+    starzHomeCache = { manga, ts: Date.now() };
     res.json({ manga });
   } catch (err) {
     req.log.error({ err }, "starz home error");
