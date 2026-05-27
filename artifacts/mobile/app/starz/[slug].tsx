@@ -31,30 +31,31 @@ const API_BASE =
     ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
     : "/api";
 
-type SrcParam = "starz" | "linkmanga" | "dilar";
+type SrcParam = "starz" | "linkmanga" | "kenmanga";
 
 function getChapterFetchApi(src: SrcParam, slug: string, latestChapter?: string): string {
-  const prefix = src === "linkmanga" ? "linkmanga" : src === "dilar" ? "dilar" : "starz";
+  const prefix = src === "linkmanga" ? "linkmanga" : src === "kenmanga" ? "kenmanga" : "starz";
   const idPath = `${API_BASE}/${prefix}/manga/${encodeURIComponent(slug)}/chapters`;
-  if (latestChapter) return `${idPath}?latest=${encodeURIComponent(latestChapter)}`;
+  if (latestChapter && src !== "kenmanga") return `${idPath}?latest=${encodeURIComponent(latestChapter)}`;
   return idPath;
 }
 
 function buildMangaUrl(src: SrcParam, slug: string): string {
   if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/`;
-  if (src === "dilar") return `https://dilar.tube/series/${slug}`;
+  if (src === "kenmanga") return `https://ar.kenmanga.com/manga/${slug}/`;
   return buildStarzMangaUrl(slug);
 }
 
 function buildChapterUrl(src: SrcParam, slug: string, chapterNum: string): string {
   if (src === "linkmanga") return `https://link-manga.net/manga/${slug}/${chapterNum}/`;
-  if (src === "dilar") return `https://dilar.tube/series/${slug}/chapter/${chapterNum}`;
+  // kenmanga: chapter URL is returned directly from API, not reconstructed
+  if (src === "kenmanga") return `https://ar.kenmanga.com/${slug}-الفصل-${chapterNum}/`;
   return buildStarzChapterUrl(slug, chapterNum);
 }
 
 function getSourceLabel(src: SrcParam): string {
   if (src === "linkmanga") return "لينك مانجا";
-  if (src === "dilar") return "ديلار";
+  if (src === "kenmanga") return "أريا مانجا";
   return "مانجا ستارز";
 }
 

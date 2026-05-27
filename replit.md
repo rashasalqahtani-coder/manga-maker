@@ -42,7 +42,7 @@
 - `artifacts/api-server/` — Express API backend
   - `src/routes/mangastarz.ts` — manga-starz.net scraper (route prefix: /starz)
   - `src/routes/linkmanga.ts` — link-manga.net Madara scraper (route prefix: /linkmanga)
-  - `src/routes/dilar.ts` — dilar.tube REST API proxy (route prefix: /dilar)
+  - `src/routes/kenmanga.ts` — ar.kenmanga.com HTML scraper (route prefix: /kenmanga)
   - `src/routes/olympus.ts` — olympustaff.com HTML scraper (route prefix: /olympus)
 
 ## Architecture decisions
@@ -57,7 +57,7 @@
 
 ## Product
 
-- Browse and search Arabic-translated manga from 4 sources: manga-starz.net, link-manga.net, dilar.tube, olympustaff.com
+- Browse and search Arabic-translated manga from 4 sources: manga-starz.net, link-manga.net, ar.kenmanga.com (AREA Manga), olympustaff.com
 - Home screen: source picker banner (tap to change), featured carousel, trending row, recently updated row
 - Library management with local bookmarks
 - Chapter reader with RTL/LTR/vertical reading modes
@@ -84,9 +84,11 @@ _Populate as you build — explicit user instructions worth remembering across s
 - **External chapters**: Many Arabic-translated chapters on MangaDex have `externalUrl` and `pages: 0` — they are hosted on external sites (e.g. Tappytoon). `at-home/server` returns `data: []` for these. `ChapterItem` detects them via `pages === 0 && externalUrl` and opens `Linking.openURL` directly instead of navigating to the reader. They display a "خارجي" badge. The `Chapter.attributes` type includes `externalUrl: string | null`.
 - **FlatList viewability**: `onViewableItemsChanged` must be a stable reference (useCallback). `viewabilityConfig` must be a stable ref (useRef). Passing either inline causes FlatList to warn and behave incorrectly.
 - **linkmanga title parsing**: Titles are extracted from anchor `title="..."` attributes (NOT img alt tags). The `slugTitleMap` approach ensures correct title-to-slug alignment.
-- **dilar.tube covers**: The cover image URL base is unknown — cover field returns only a filename (e.g. `1000084279.webp`). Tested candidates all 404. Manga cards show a placeholder cover for dilar source. Do not guess new URL patterns without checking the actual HTML.
+- **kenmanga home parsing**: Uses sequential extraction — titles from `card-v-title`, slugs from `/manga/{slug}/` hrefs, covers from `i0.wp.com` CDN. Must zip arrays by index since card-v regex stops too early to contain all fields.
+- **kenmanga search**: Uses `/search/{query}/` (not `/?s=`). Result cards use `update-card` class with `u-title` for title. Chapter links use `chapter-chip` class.
+- **kenmanga chapters**: Chapter URLs encoded as `/{manga-slug}-الفصل-{num}/` (URL encoded). Chapter number extracted from last numeric segment of decoded URL.
 - **olympus chapters**: `olympustaff.com` renders chapters via JavaScript — there is no server-side chapter list. Navigation for olympus manga opens the manga URL directly in the WebView reader.
-- **API home cache**: All 4 `/home` endpoints (starz/linkmanga/dilar/olympus) have a 2-minute in-memory TTL cache. Cache is module-level (survives request cycles, cleared on server restart). First load ~1.5s, cached load ~5ms.
+- **API home cache**: All 4 `/home` endpoints (starz/linkmanga/kenmanga/olympus) have a 2-minute in-memory TTL cache. Cache is module-level (survives request cycles, cleared on server restart). First load ~1.5s, cached load ~5ms.
 
 ## Pointers
 

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Platform } from "react-native";
 
-export type SourceId = "starz" | "linkmanga" | "dilar" | "olympus";
+export type SourceId = "starz" | "linkmanga" | "kenmanga" | "olympus";
 
 export interface SourceInfo {
   id: SourceId;
@@ -37,14 +37,14 @@ export const SOURCES: SourceInfo[] = [
     flag: "🔗",
   },
   {
-    id: "dilar",
-    nameAr: "ديلار",
-    nameEn: "Dilar",
-    url: "https://dilar.tube",
-    description: "مانجا ومانهوا — API مباشر",
+    id: "kenmanga",
+    nameAr: "أريا مانجا",
+    nameEn: "AREA Manga",
+    url: "https://ar.kenmanga.com",
+    description: "مانجا ومانهوا — ترجمات عربية",
     haSearch: true,
     hasChapterList: true,
-    flag: "📺",
+    flag: "🌙",
   },
   {
     id: "olympus",
