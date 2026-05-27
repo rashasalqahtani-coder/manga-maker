@@ -65,10 +65,13 @@ _Populate as you build — explicit user instructions worth remembering across s
 - **React Compiler + Context**: The React Compiler can incorrectly memoize context consumers, causing white screens. Always add `"use no memo"` to context files and ensure `useColorScheme()` is called in `useColors.ts`.
 - **White screen debug**: If screen is white but browser logs show app loading (3 standard warnings), the issue is likely a hook or context initialization problem. Revert `useColors.ts` to call `useColorScheme()` as first hook.
 - **expo-router typed routes**: New route files require `as any` cast until Metro re-generates route types.
-- **lib/download.ts**: Pre-existing TS error on `documentDirectory` (unrelated to main features, does not affect runtime).
+- **lib/download.ts**: Import from `expo-file-system/legacy` (not `expo-file-system`) — SDK 54 deprecated `getInfoAsync` and `makeDirectoryAsync` in the new API. The legacy import fixes the crash on native.
 - **Do not run `pnpm dev` at workspace root** — use `restart_workflow` instead.
 - **ComicK.io blocked**: ComicK's API redirects to comick.dev which is protected by Cloudflare and returns 403 for all server-side requests. `lib/comick.ts` is kept as a no-op stub so imports don't break. Do not attempt to re-integrate ComicK via server proxy.
 - **Home screen "use no memo"**: `app/(tabs)/index.tsx` needs `"use no memo"` at both file and function level due to React Compiler memoizing async state updates incorrectly.
+- **Reader "use no memo"**: `app/reader/[chapterId].tsx` needs `"use no memo"` at file and function level. Also wrap `getLocalPages()` call in try-catch (the outer try-catch only covers the network fetch). Use `useCallback` + `useRef` for `onViewableItemsChanged` and `viewabilityConfig` — FlatList requires stable references.
+- **External chapters**: Many Arabic-translated chapters on MangaDex have `externalUrl` and `pages: 0` — they are hosted on external sites (e.g. Tappytoon). `at-home/server` returns `data: []` for these. `ChapterItem` detects them via `pages === 0 && externalUrl` and opens `Linking.openURL` directly instead of navigating to the reader. They display a "خارجي" badge. The `Chapter.attributes` type includes `externalUrl: string | null`.
+- **FlatList viewability**: `onViewableItemsChanged` must be a stable reference (useCallback). `viewabilityConfig` must be a stable ref (useRef). Passing either inline causes FlatList to warn and behave incorrectly.
 
 ## Pointers
 
