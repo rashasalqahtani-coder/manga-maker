@@ -260,15 +260,15 @@ export default function SearchScreen() {
                 {activeManga.teamEmoji} {activeManga.teamName}
               </Text>
             </View>
-            {isMangaDexId(activeManga.mangaId) && (
-              <Pressable
-                style={[styles.viewMangaBtn, { backgroundColor: colors.primary + "18", borderRadius: colors.radius }]}
-                onPress={() => router.push(`/manga/${activeManga.mangaId}` as any)}
-              >
-                <Feather name="external-link" size={13} color={colors.primary} />
-                <Text style={[styles.viewMangaBtnText, { color: colors.primary }]}>المانجا</Text>
-              </Pressable>
-            )}
+            <Pressable
+              style={[styles.viewMangaBtn, { backgroundColor: colors.primary + "18", borderRadius: colors.radius }]}
+              onPress={() =>
+                router.push(`/teams/${activeManga.teamId}/manga/${activeManga.mangaId}` as any)
+              }
+            >
+              <Feather name="book-open" size={13} color={colors.primary} />
+              <Text style={[styles.viewMangaBtnText, { color: colors.primary }]}>صفحة المانجا</Text>
+            </Pressable>
           </View>
 
           {/* Chapter list */}
