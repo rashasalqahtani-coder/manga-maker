@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -24,6 +25,9 @@ export function ChapterItem({ chapter, manga, isRead }: ChapterItemProps) {
   const colors = useColors();
   const router = useRouter();
   const { downloads, startDownload, cancelDownload } = useDownloads();
+
+  const isExternal =
+    chapter.attributes.pages === 0 && !!chapter.attributes.externalUrl;
 
   const chapterNum = chapter.attributes.chapter
     ? `فصل ${chapter.attributes.chapter}`
@@ -54,6 +58,15 @@ export function ChapterItem({ chapter, manga, isRead }: ChapterItemProps) {
     }
   };
 
+  const handlePress = () => {
+    Haptics.selectionAsync();
+    if (isExternal && chapter.attributes.externalUrl) {
+      Linking.openURL(chapter.attributes.externalUrl);
+    } else {
+      router.push(`/reader/${chapter.id}` as any);
+    }
+  };
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -63,22 +76,38 @@ export function ChapterItem({ chapter, manga, isRead }: ChapterItemProps) {
           borderBottomColor: colors.border,
         },
       ]}
-      onPress={() => router.push(`/reader/${chapter.id}`)}
+      onPress={handlePress}
     >
       <View style={styles.left}>
-        <Text
-          style={[
-            styles.chapterNum,
-            { color: isRead ? colors.mutedForeground : colors.foreground },
-          ]}
-        >
-          {vol}
-          {chapterNum}
-          {title}
-        </Text>
+        <View style={styles.titleRow}>
+          <Text
+            style={[
+              styles.chapterNum,
+              { color: isRead ? colors.mutedForeground : colors.foreground },
+            ]}
+          >
+            {vol}
+            {chapterNum}
+            {title}
+          </Text>
+          {isExternal && (
+            <View
+              style={[
+                styles.externalBadge,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <Feather name="external-link" size={10} color={colors.mutedForeground} />
+              <Text style={[styles.externalText, { color: colors.mutedForeground }]}>
+                خارجي
+              </Text>
+            </View>
+          )}
+        </View>
         <View style={styles.metaRow}>
           <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-            {date} · {pagesCount} صفحة
+            {date}
+            {!isExternal && pagesCount > 0 ? ` · ${pagesCount} صفحة` : ""}
           </Text>
           {isDone && (
             <View style={[styles.offlineBadge, { backgroundColor: colors.primary + "22" }]}>
@@ -99,7 +128,7 @@ export function ChapterItem({ chapter, manga, isRead }: ChapterItemProps) {
         )}
       </View>
 
-      {manga && (
+      {manga && !isExternal && (
         <Pressable
           onPress={handleDownload}
           hitSlop={10}
@@ -116,7 +145,11 @@ export function ChapterItem({ chapter, manga, isRead }: ChapterItemProps) {
         </Pressable>
       )}
 
-      <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+      <Feather
+        name={isExternal ? "external-link" : "chevron-right"}
+        size={18}
+        color={colors.mutedForeground}
+      />
     </Pressable>
   );
 }
@@ -134,8 +167,28 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
   chapterNum: {
     fontSize: 14,
+    fontWeight: "600",
+    flexShrink: 1,
+  },
+  externalBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  externalText: {
+    fontSize: 9,
     fontWeight: "600",
   },
   metaRow: {

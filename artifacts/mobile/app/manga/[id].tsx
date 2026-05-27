@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -163,7 +164,16 @@ export default function MangaDetailScreen() {
                 styles.primaryBtn,
                 { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1, flex: 1, borderRadius: colors.radius },
               ]}
-              onPress={() => filteredChapters[filteredChapters.length - 1] && router.push(`/reader/${filteredChapters[filteredChapters.length - 1].id}`)}
+              onPress={() => {
+                const first = filteredChapters[filteredChapters.length - 1];
+                if (!first) return;
+                const isExternal = first.attributes.pages === 0 && !!first.attributes.externalUrl;
+                if (isExternal && first.attributes.externalUrl) {
+                  Linking.openURL(first.attributes.externalUrl);
+                } else {
+                  router.push(`/reader/${first.id}` as any);
+                }
+              }}
             >
               <Feather name="book-open" size={18} color="#fff" />
               <Text style={styles.primaryBtnText}>ابدأ القراءة</Text>

@@ -64,6 +64,7 @@ export interface Chapter {
     translatedLanguage: string;
     publishAt: string;
     pages: number;
+    externalUrl: string | null;
   };
   relationships: MangaRelationship[];
 }

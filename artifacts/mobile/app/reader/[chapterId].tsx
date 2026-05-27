@@ -1,11 +1,13 @@
+"use no memo";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
   FlatList,
   Image as RNImage,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -25,7 +27,11 @@ interface PageItem {
 }
 
 export default function ReaderScreen() {
-  const { chapterId } = useLocalSearchParams<{ chapterId: string }>();
+  "use no memo";
+  const { chapterId, externalUrl } = useLocalSearchParams<{
+    chapterId: string;
+    externalUrl?: string;
+  }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -33,6 +39,7 @@ export default function ReaderScreen() {
   const [pages, setPages] = useState<PageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showControls, setShowControls] = useState(true);
@@ -41,20 +48,30 @@ export default function ReaderScreen() {
     if (!chapterId) return;
     setLoading(true);
     setError(false);
+    setIsEmpty(false);
 
     const load = async () => {
-      // Try local pages first
-      const localPages = await getLocalPages(chapterId);
-      if (localPages.length > 0) {
-        setIsOffline(true);
-        setPages(localPages.map((uri, i) => ({ uri, index: i })));
-        setLoading(false);
-        return;
+      // Try local pages first (wrapped in try-catch for native safety)
+      try {
+        const localPages = await getLocalPages(chapterId);
+        if (localPages.length > 0) {
+          setIsOffline(true);
+          setPages(localPages.map((uri, i) => ({ uri, index: i })));
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Local pages unavailable — fall through to network
       }
 
-      // Fall back to network
+      // Fetch from network
       try {
         const info: ChapterPages = await getChapterPages(chapterId);
+        if (!info.data || info.data.length === 0) {
+          setIsEmpty(true);
+          setLoading(false);
+          return;
+        }
         setPages(
           info.data.map((filename, i) => ({
             uri: `${info.baseUrl}/data/${info.hash}/${filename}`,
@@ -71,6 +88,18 @@ export default function ReaderScreen() {
     load();
   }, [chapterId]);
 
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: Array<{ item: unknown }> }) => {
+      if (viewableItems.length > 0) {
+        const idx = viewableItems[0].item as PageItem;
+        setCurrentPage(idx.index + 1);
+      }
+    },
+    []
+  );
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: "#000" }]}>
@@ -82,19 +111,64 @@ export default function ReaderScreen() {
     );
   }
 
+  if (isEmpty) {
+    return (
+      <View style={[styles.center, { backgroundColor: "#000" }]}>
+        <Feather name="external-link" size={40} color={colors.mutedForeground} />
+        <Text style={[styles.errorTitle, { color: colors.foreground }]}>
+          فصل خارجي
+        </Text>
+        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
+          هذا الفصل مستضاف على موقع خارجي
+        </Text>
+        <View style={styles.btnRow}>
+          {externalUrl ? (
+            <Pressable
+              style={[styles.retryBtn, { backgroundColor: colors.primary }]}
+              onPress={() => Linking.openURL(externalUrl)}
+            >
+              <Feather name="external-link" size={16} color="#fff" />
+              <Text style={styles.retryText}>فتح في المتصفح</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            style={[styles.retryBtn, { backgroundColor: colors.card }]}
+            onPress={() => router.back()}
+          >
+            <Text style={[styles.retryText, { color: colors.foreground }]}>رجوع</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
   if (error || pages.length === 0) {
     return (
       <View style={[styles.center, { backgroundColor: "#000" }]}>
         <Feather name="alert-circle" size={40} color={colors.mutedForeground} />
-        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
+        <Text style={[styles.errorTitle, { color: colors.foreground }]}>
           تعذّر تحميل الفصل
         </Text>
-        <Pressable
-          style={[styles.retryBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.retryText}>رجوع</Text>
-        </Pressable>
+        <Text style={[styles.errorText, { color: colors.mutedForeground }]}>
+          تحقق من اتصالك بالإنترنت وأعد المحاولة
+        </Text>
+        <View style={styles.btnRow}>
+          <Pressable
+            style={[styles.retryBtn, { backgroundColor: colors.primary }]}
+            onPress={() => {
+              setError(false);
+              setLoading(true);
+            }}
+          >
+            <Text style={styles.retryText}>إعادة المحاولة</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.retryBtn, { backgroundColor: colors.card }]}
+            onPress={() => router.back()}
+          >
+            <Text style={[styles.retryText, { color: colors.foreground }]}>رجوع</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
@@ -110,13 +184,8 @@ export default function ReaderScreen() {
           </Pressable>
         )}
         showsVerticalScrollIndicator={false}
-        onViewableItemsChanged={({ viewableItems }) => {
-          if (viewableItems.length > 0) {
-            const idx = viewableItems[0].item as PageItem;
-            setCurrentPage(idx.index + 1);
-          }
-        }}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig.current}
       />
 
       {showControls && (
@@ -180,11 +249,20 @@ function PageImage({ uri }: { uri: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingHorizontal: 24 },
   loadingText: { fontSize: 14, marginTop: 8 },
-  errorText: { fontSize: 15, textAlign: "center" },
-  retryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
-  retryText: { color: "#fff", fontWeight: "600" },
+  errorTitle: { fontSize: 17, fontWeight: "700", textAlign: "center" },
+  errorText: { fontSize: 14, textAlign: "center", lineHeight: 20 },
+  btnRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  retryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  retryText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   topBar: {
     position: "absolute",
     top: 0,
