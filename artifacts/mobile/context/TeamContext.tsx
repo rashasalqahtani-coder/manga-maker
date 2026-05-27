@@ -11,6 +11,8 @@ export interface TeamManga {
   id: string;
   title: string;
   coverUrl?: string;
+  localCoverUri?: string;
+  description?: string;
 }
 
 export interface Team {
@@ -31,6 +33,7 @@ interface TeamContextType {
   removeMember: (id: string) => void;
   addManga: (m: TeamManga) => void;
   removeManga: (id: string) => void;
+  updateManga: (id: string, updates: Partial<TeamManga>) => void;
 }
 
 const KEY = "@translation_team";
@@ -44,6 +47,7 @@ const TeamContext = createContext<TeamContextType>({
   removeMember: () => {},
   addManga: () => {},
   removeManga: () => {},
+  updateManga: () => {},
 });
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
@@ -95,8 +99,13 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
     save({ ...team, manga: team.manga.filter((m) => m.id !== id) });
   }, [team, save]);
 
+  const updateManga = useCallback((id: string, updates: Partial<TeamManga>) => {
+    if (!team) return;
+    save({ ...team, manga: team.manga.map((m) => m.id === id ? { ...m, ...updates } : m) });
+  }, [team, save]);
+
   return (
-    <TeamContext.Provider value={{ team, createTeam, updateTeam, deleteTeam, addMember, removeMember, addManga, removeManga }}>
+    <TeamContext.Provider value={{ team, createTeam, updateTeam, deleteTeam, addMember, removeMember, addManga, removeManga, updateManga }}>
       {children}
     </TeamContext.Provider>
   );
