@@ -17,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getLastReadChapter, type HistoryEntry } from "@/app/(tabs)/history";
+import { useTeam } from "@/context/TeamContext";
 import { useColors } from "@/hooks/useColors";
 import { getPublicTeam, type PublicTeam, type PublicTeamChapter, type PublicTeamManga } from "@/lib/teams";
 
@@ -30,6 +31,7 @@ export default function TeamMangaScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  const { team: localTeam } = useTeam();
   const [team, setTeam] = useState<PublicTeam | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -98,11 +100,47 @@ export default function TeamMangaScreen() {
     );
   }
 
-  const readableChapters = manga.chapters.filter((ch) => isMangaDexId(ch.id)).length;
-  const firstReadableChapter = manga.chapters.find((ch) => isMangaDexId(ch.id)) ?? null;
+  // Local team manga (for reading locally-uploaded chapters)
+  const localManga = localTeam?.manga.find((m) => m.id === mangaId) ?? null;
+
+  const readableChapters = manga.chapters.filter((ch) => {
+    if (isMangaDexId(ch.id)) return true;
+    const local = localManga?.chapters.find((c) => c.id === ch.id);
+    return (local?.imageUris?.length ?? 0) > 0;
+  }).length;
+
+  const firstReadableChapter = manga.chapters.find((ch) => {
+    if (isMangaDexId(ch.id)) return true;
+    const local = localManga?.chapters.find((c) => c.id === ch.id);
+    return (local?.imageUris?.length ?? 0) > 0;
+  }) ?? null;
+
+  const navigateToChapter = (ch: PublicTeamChapter) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (isMangaDexId(ch.id)) {
+      router.push({
+        pathname: "/reader/[chapterId]" as any,
+        params: {
+          chapterId: ch.id,
+          mangaId: mangaId ?? "",
+          mangaTitle: manga.title,
+          coverUrl: manga.coverUrl ?? "",
+          chapterNum: ch.number,
+        },
+      });
+    } else {
+      router.push({
+        pathname: "/team/reader" as any,
+        params: { mangaId: localManga?.id ?? mangaId ?? "", chapterId: ch.id },
+      });
+    }
+  };
 
   const renderChapter = ({ item, index }: { item: PublicTeamChapter; index: number }) => {
-    const canRead = isMangaDexId(item.id);
+    const isMdx = isMangaDexId(item.id);
+    const localCh = localManga?.chapters.find((c) => c.id === item.id);
+    const hasLocalImages = (localCh?.imageUris?.length ?? 0) > 0;
+    const canRead = isMdx || hasLocalImages;
     const isLast = index === manga.chapters.length - 1;
 
     return (
@@ -116,23 +154,7 @@ export default function TeamMangaScreen() {
             backgroundColor: canRead ? "transparent" : colors.secondary + "40",
           },
         ]}
-        onPress={
-          canRead
-            ? () => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push({
-                  pathname: "/reader/[chapterId]" as any,
-                  params: {
-                    chapterId: item.id,
-                    mangaId: mangaId ?? "",
-                    mangaTitle: manga.title,
-                    coverUrl: manga.coverUrl ?? "",
-                    chapterNum: item.number,
-                  },
-                });
-              }
-            : undefined
-        }
+        onPress={canRead ? () => navigateToChapter(item) : undefined}
         disabled={!canRead}
       >
         <View style={[styles.chapterBadge, { backgroundColor: colors.primary + "20" }]}>
@@ -253,18 +275,21 @@ export default function TeamMangaScreen() {
                     ]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      const destId = lastRead ? lastRead.chapterId : firstReadableChapter!.id;
-                      const destNum = lastRead ? lastRead.chapterNum : firstReadableChapter!.number;
-                      router.push({
-                        pathname: "/reader/[chapterId]" as any,
-                        params: {
-                          chapterId: destId,
-                          mangaId: mangaId ?? "",
-                          mangaTitle: manga.title,
-                          coverUrl: manga.coverUrl ?? "",
-                          chapterNum: destNum ?? "",
-                        },
-                      });
+                      if (lastRead) {
+                        // Resume from history (always MangaDex chapter)
+                        router.push({
+                          pathname: "/reader/[chapterId]" as any,
+                          params: {
+                            chapterId: lastRead.chapterId,
+                            mangaId: mangaId ?? "",
+                            mangaTitle: manga.title,
+                            coverUrl: manga.coverUrl ?? "",
+                            chapterNum: lastRead.chapterNum ?? "",
+                          },
+                        });
+                      } else {
+                        navigateToChapter(firstReadableChapter!);
+                      }
                     }}
                   >
                     <Feather name="play" size={16} color="#fff" />
