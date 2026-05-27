@@ -34,15 +34,50 @@ function MangaCard({ manga }: { manga: TeamManga }) {
   const [showChapterForm, setShowChapterForm] = useState(false);
   const [chapNum, setChapNum] = useState("");
   const [chapTitle, setChapTitle] = useState("");
+  const [chapImages, setChapImages] = useState<string[]>([]);
+  const [pickingImages, setPickingImages] = useState(false);
 
   const coverSrc = manga.localCoverUri ?? manga.coverUrl;
   const chapters = manga.chapters ?? [];
 
+  const handlePickChapterImages = async () => {
+    setPickingImages(true);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert("الإذن مرفوض", "يرجى السماح للتطبيق بالوصول إلى الصور من الإعدادات.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsMultipleSelection: true,
+        quality: 0.85,
+        orderedSelection: true,
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        setChapImages((prev) => [...prev, ...result.assets.map((a) => a.uri)]);
+        Haptics.selectionAsync();
+      }
+    } finally {
+      setPickingImages(false);
+    }
+  };
+
+  const handleRemoveChapImage = (idx: number) => {
+    setChapImages((prev) => prev.filter((_, i) => i !== idx));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   const handleAddChapter = () => {
     if (!chapNum.trim()) return;
-    addChapter(manga.id, { number: chapNum.trim(), title: chapTitle.trim() });
+    addChapter(manga.id, {
+      number: chapNum.trim(),
+      title: chapTitle.trim(),
+      imageUris: chapImages.length > 0 ? chapImages : undefined,
+    });
     setChapNum("");
     setChapTitle("");
+    setChapImages([]);
     setShowChapterForm(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
@@ -140,6 +175,7 @@ function MangaCard({ manga }: { manga: TeamManga }) {
           {/* Chapter form */}
           {showChapterForm && (
             <View style={[styles.chapterForm, { backgroundColor: colors.secondary, borderRadius: 10 }]}>
+              {/* Number + Title row */}
               <View style={styles.chapterFormRow}>
                 <View style={styles.chapterNumField}>
                   <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>رقم الفصل *</Text>
@@ -168,6 +204,61 @@ function MangaCard({ manga }: { manga: TeamManga }) {
                 </View>
               </View>
 
+              {/* Images section */}
+              <View style={{ gap: 8 }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                  صور الفصل {chapImages.length > 0 ? `(${chapImages.length})` : ""}
+                </Text>
+
+                {/* Picked images grid */}
+                {chapImages.length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.imagesScrollContent}
+                  >
+                    {chapImages.map((uri, idx) => (
+                      <View key={uri + idx} style={styles.chapImageWrap}>
+                        <Image source={{ uri }} style={styles.chapImageThumb} contentFit="cover" />
+                        {/* Order badge */}
+                        <View style={[styles.chapImageBadge, { backgroundColor: colors.primary }]}>
+                          <Text style={styles.chapImageBadgeText}>{idx + 1}</Text>
+                        </View>
+                        {/* Remove button */}
+                        <Pressable
+                          style={[styles.chapImageRemove, { backgroundColor: "rgba(0,0,0,0.55)" }]}
+                          onPress={() => handleRemoveChapImage(idx)}
+                          hitSlop={4}
+                        >
+                          <Feather name="x" size={11} color="#fff" />
+                        </Pressable>
+                      </View>
+                    ))}
+                  </ScrollView>
+                )}
+
+                {/* Pick images button */}
+                <Pressable
+                  style={[styles.pickImagesBtn, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: 8 }]}
+                  onPress={handlePickChapterImages}
+                  disabled={pickingImages}
+                >
+                  {pickingImages ? (
+                    <ActivityIndicator size={16} color={colors.primary} />
+                  ) : (
+                    <Feather name="image" size={16} color={colors.primary} />
+                  )}
+                  <Text style={[styles.pickImagesBtnText, { color: colors.primary }]}>
+                    {pickingImages
+                      ? "جارٍ الاختيار..."
+                      : chapImages.length > 0
+                      ? "إضافة المزيد من الصور"
+                      : "اختر صور الفصل من الاستوديو"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {/* Save button */}
               <Pressable
                 style={[
                   styles.saveChapterBtn,
@@ -760,6 +851,15 @@ const styles = StyleSheet.create({
   titleInput: { height: 42, paddingHorizontal: 10, fontSize: 14 },
   saveChapterBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10 },
   saveChapterBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+
+  pickImagesBtn: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1 },
+  pickImagesBtnText: { fontSize: 13, fontWeight: "600" },
+  imagesScrollContent: { gap: 8, paddingVertical: 2 },
+  chapImageWrap: { width: 72, height: 96, borderRadius: 6, overflow: "hidden" },
+  chapImageThumb: { width: 72, height: 96 },
+  chapImageBadge: { position: "absolute", top: 4, left: 4, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 },
+  chapImageBadgeText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  chapImageRemove: { position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 
   deleteMangaBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 6 },
   deleteMangaBtnText: { fontSize: 12, color: "#EF4444", fontWeight: "600" },

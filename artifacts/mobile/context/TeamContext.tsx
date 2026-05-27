@@ -11,6 +11,7 @@ export interface TeamChapter {
   id: string;
   number: string;
   title: string;
+  imageUris?: string[];
 }
 
 export interface TeamManga {
