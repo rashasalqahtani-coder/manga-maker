@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 import { getChapterPages } from "./mangadex";
 import type { Manga } from "./mangadex";
 import { getCoverUrl, getMangaTitle } from "./mangadex";
+import type { TeamManga } from "@/context/TeamContext";
 
 const isNative = Platform.OS !== "web";
 const DOWNLOADS_DIR = isNative
@@ -116,4 +117,42 @@ export async function deleteChapter(chapterId: string): Promise<void> {
   }
   const list = await getDownloadsMeta();
   await saveDownloadsMeta(list.filter((m) => m.chapterId !== chapterId));
+}
+
+export async function downloadTeamChapter(
+  chapter: { id: string; imageUris: string[]; number: string },
+  manga: TeamManga,
+  onProgress: (downloaded: number, total: number) => void
+): Promise<void> {
+  if (!isNative) {
+    throw new Error("التنزيل غير متاح على هذه المنصة");
+  }
+
+  const chapterDir = `${DOWNLOADS_DIR}${chapter.id}/`;
+  await ensureDir(chapterDir);
+
+  const total = chapter.imageUris.length;
+
+  for (let i = 0; i < chapter.imageUris.length; i++) {
+    const src = chapter.imageUris[i];
+    const dest = `${chapterDir}${i}.jpg`;
+    const existing = await FileSystem.getInfoAsync(dest);
+    if (!existing.exists) {
+      await FileSystem.copyAsync({ from: src, to: dest });
+    }
+    onProgress(i + 1, total);
+  }
+
+  const list = await getDownloadsMeta();
+  const filtered = list.filter((m) => m.chapterId !== chapter.id);
+  filtered.unshift({
+    chapterId: chapter.id,
+    mangaId: manga.id,
+    mangaTitle: manga.title,
+    chapterNum: chapter.number,
+    coverUrl: manga.localCoverUri ?? manga.coverUrl ?? "",
+    pageCount: total,
+    downloadedAt: Date.now(),
+  });
+  await saveDownloadsMeta(filtered);
 }

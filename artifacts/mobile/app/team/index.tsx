@@ -19,7 +19,9 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTeam, type TeamManga } from "@/context/TeamContext";
+import { useLibrary } from "@/context/LibraryContext";
 import { useColors } from "@/hooks/useColors";
+import { downloadTeamChapter, isChapterDownloaded } from "@/lib/download";
 import { searchManga, getCoverUrl, getMangaTitle } from "@/lib/mangadex";
 
 type Tab = "manga" | "members";
@@ -28,7 +30,9 @@ type AddMode = "search" | "manual";
 // ─── MangaCard ──────────────────────────────────────────────────────────────
 function MangaCard({ manga }: { manga: TeamManga }) {
   const colors = useColors();
+  const router = useRouter();
   const { removeManga, addChapter, removeChapter } = useTeam();
+  const { isInLocalLibrary, addToLocalLibrary, removeFromLocalLibrary } = useLibrary();
 
   const [expanded, setExpanded] = useState(false);
   const [showChapterForm, setShowChapterForm] = useState(false);
@@ -36,9 +40,41 @@ function MangaCard({ manga }: { manga: TeamManga }) {
   const [chapTitle, setChapTitle] = useState("");
   const [chapImages, setChapImages] = useState<string[]>([]);
   const [pickingImages, setPickingImages] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const coverSrc = manga.localCoverUri ?? manga.coverUrl;
   const chapters = manga.chapters ?? [];
+  const inLibrary = isInLocalLibrary(manga.id);
+
+  const handleToggleLibrary = () => {
+    if (inLibrary) {
+      removeFromLocalLibrary(manga.id);
+    } else {
+      addToLocalLibrary(manga);
+    }
+    Haptics.selectionAsync();
+  };
+
+  const handleDownloadChapter = async (ch: (typeof chapters)[0]) => {
+    if (!ch.imageUris || ch.imageUris.length === 0) {
+      Alert.alert("لا توجد صور", "أضف صور الفصل أولاً ثم حاول التنزيل.");
+      return;
+    }
+    setDownloadingId(ch.id);
+    try {
+      await downloadTeamChapter(
+        { id: ch.id, imageUris: ch.imageUris, number: ch.number },
+        manga,
+        () => {}
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("تم التنزيل", `فصل ${ch.number} جاهز للقراءة بدون إنترنت.`);
+    } catch (e) {
+      Alert.alert("خطأ", "تعذّر تنزيل الفصل.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const handlePickChapterImages = async () => {
     setPickingImages(true);
@@ -115,6 +151,17 @@ function MangaCard({ manga }: { manga: TeamManga }) {
         </View>
 
         <View style={styles.mangaActions}>
+          {/* Library toggle */}
+          <Pressable
+            hitSlop={8}
+            onPress={(e) => { e.stopPropagation(); handleToggleLibrary(); }}
+          >
+            <Feather
+              name="bookmark"
+              size={18}
+              color={inLibrary ? colors.primary : colors.mutedForeground}
+            />
+          </Pressable>
           <Feather
             name={expanded ? "chevron-up" : "chevron-down"}
             size={18}
@@ -130,34 +177,92 @@ function MangaCard({ manga }: { manga: TeamManga }) {
           {/* Chapters list */}
           {chapters.length > 0 && (
             <View style={styles.chapterList}>
-              {chapters.map((ch, idx) => (
-                <View
-                  key={ch.id}
-                  style={[
-                    styles.chapterRow,
-                    { borderBottomColor: colors.border },
-                    idx === chapters.length - 1 && { borderBottomWidth: 0 },
-                  ]}
-                >
-                  <View style={[styles.chapterNumBadge, { backgroundColor: colors.primary + "20" }]}>
-                    <Text style={[styles.chapterNumText, { color: colors.primary }]}>
-                      {ch.number}
-                    </Text>
-                  </View>
-                  <Text style={[styles.chapterTitleText, { color: colors.foreground }]} numberOfLines={2}>
-                    {ch.title || `فصل ${ch.number}`}
-                  </Text>
-                  <Pressable
-                    hitSlop={10}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      removeChapter(manga.id, ch.id);
-                    }}
+              {chapters.map((ch, idx) => {
+                const hasImages = ch.imageUris && ch.imageUris.length > 0;
+                const isDownloading = downloadingId === ch.id;
+                return (
+                  <View
+                    key={ch.id}
+                    style={[
+                      styles.chapterRow,
+                      { borderBottomColor: colors.border },
+                      idx === chapters.length - 1 && { borderBottomWidth: 0 },
+                    ]}
                   >
-                    <Feather name="x" size={15} color={colors.mutedForeground} />
-                  </Pressable>
-                </View>
-              ))}
+                    {/* Number badge */}
+                    <View style={[styles.chapterNumBadge, { backgroundColor: colors.primary + "20" }]}>
+                      <Text style={[styles.chapterNumText, { color: colors.primary }]}>
+                        {ch.number}
+                      </Text>
+                    </View>
+
+                    {/* Title + image count */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.chapterTitleText, { color: colors.foreground }]} numberOfLines={1}>
+                        {ch.title || `فصل ${ch.number}`}
+                      </Text>
+                      {hasImages && (
+                        <Text style={[styles.chapterImageCount, { color: colors.mutedForeground }]}>
+                          {ch.imageUris!.length} صورة
+                        </Text>
+                      )}
+                    </View>
+
+                    {/* Action buttons */}
+                    <View style={styles.chapterActions}>
+                      {/* Read */}
+                      <Pressable
+                        hitSlop={8}
+                        style={[
+                          styles.chapterActionBtn,
+                          { backgroundColor: hasImages ? colors.primary + "18" : colors.secondary },
+                        ]}
+                        onPress={() => {
+                          if (!hasImages) {
+                            Alert.alert("لا توجد صور", "أضف صور الفصل أولاً للقراءة.");
+                            return;
+                          }
+                          router.push(
+                            `/team/reader?mangaId=${manga.id}&chapterId=${ch.id}` as any
+                          );
+                        }}
+                      >
+                        <Feather
+                          name="book-open"
+                          size={13}
+                          color={hasImages ? colors.primary : colors.mutedForeground}
+                        />
+                      </Pressable>
+
+                      {/* Download */}
+                      <Pressable
+                        hitSlop={8}
+                        style={[styles.chapterActionBtn, { backgroundColor: colors.secondary }]}
+                        onPress={() => handleDownloadChapter(ch)}
+                        disabled={isDownloading}
+                      >
+                        {isDownloading ? (
+                          <ActivityIndicator size={13} color={colors.primary} />
+                        ) : (
+                          <Feather name="download" size={13} color={colors.mutedForeground} />
+                        )}
+                      </Pressable>
+
+                      {/* Delete */}
+                      <Pressable
+                        hitSlop={8}
+                        style={[styles.chapterActionBtn, { backgroundColor: colors.secondary }]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          removeChapter(manga.id, ch.id);
+                        }}
+                      >
+                        <Feather name="x" size={13} color="#EF4444" />
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           )}
 
@@ -311,6 +416,9 @@ export default function TeamScreen() {
   const [manualDesc, setManualDesc] = useState("");
   const [manualCoverUri, setManualCoverUri] = useState<string | null>(null);
   const [pickingImage, setPickingImage] = useState(false);
+
+  // Manga filter
+  const [mangaFilter, setMangaFilter] = useState("");
 
   // Members
   const [showAddMember, setShowAddMember] = useState(false);
@@ -652,15 +760,50 @@ export default function TeamScreen() {
               </View>
             )}
 
+            {/* Manga filter search */}
+            {team.manga.length > 0 && (
+              <View style={[styles.filterBox, { backgroundColor: colors.card, borderRadius: colors.radius, borderColor: colors.border }]}>
+                <Feather name="search" size={15} color={colors.mutedForeground} />
+                <TextInput
+                  style={[styles.filterInput, { color: colors.foreground }]}
+                  value={mangaFilter}
+                  onChangeText={setMangaFilter}
+                  placeholder="ابحث في مانجا فريقك..."
+                  placeholderTextColor={colors.mutedForeground}
+                  textAlign="right"
+                />
+                {mangaFilter.length > 0 && (
+                  <Pressable hitSlop={8} onPress={() => setMangaFilter("")}>
+                    <Feather name="x" size={15} color={colors.mutedForeground} />
+                  </Pressable>
+                )}
+              </View>
+            )}
+
             {/* Manga list */}
             {team.manga.length === 0 ? (
               <View style={styles.emptyTab}>
                 <Feather name="book-open" size={32} color={colors.muted} />
                 <Text style={[styles.emptyTabText, { color: colors.mutedForeground }]}>لا توجد مانجا بعد</Text>
               </View>
-            ) : (
-              team.manga.map((m) => <MangaCard key={m.id} manga={m} />)
-            )}
+            ) : (() => {
+              const filtered = mangaFilter.trim()
+                ? team.manga.filter((m) =>
+                    m.title.toLowerCase().includes(mangaFilter.toLowerCase())
+                  )
+                : team.manga;
+              if (filtered.length === 0) {
+                return (
+                  <View style={styles.emptyTab}>
+                    <Feather name="search" size={28} color={colors.muted} />
+                    <Text style={[styles.emptyTabText, { color: colors.mutedForeground }]}>
+                      لا توجد نتائج لـ «{mangaFilter}»
+                    </Text>
+                  </View>
+                );
+              }
+              return filtered.map((m) => <MangaCard key={m.id} manga={m} />);
+            })()}
           </View>
         )}
 
@@ -814,7 +957,7 @@ const styles = StyleSheet.create({
   mangaDesc: { fontSize: 12, lineHeight: 17 },
   chapterCountRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   chapterCount: { fontSize: 11, fontWeight: "600" },
-  mangaActions: { gap: 8, alignItems: "center" },
+  mangaActions: { flexDirection: "row", gap: 10, alignItems: "center" },
 
   expandedSection: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 10, gap: 8 },
 
@@ -829,7 +972,10 @@ const styles = StyleSheet.create({
   },
   chapterNumBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, minWidth: 36, alignItems: "center" },
   chapterNumText: { fontSize: 12, fontWeight: "700" },
-  chapterTitleText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  chapterTitleText: { fontSize: 13, lineHeight: 18 },
+  chapterImageCount: { fontSize: 10, marginTop: 1 },
+  chapterActions: { flexDirection: "row", gap: 4, alignItems: "center" },
+  chapterActionBtn: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
 
   addChapterBtn: {
     flexDirection: "row",
@@ -863,6 +1009,9 @@ const styles = StyleSheet.create({
 
   deleteMangaBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 6 },
   deleteMangaBtnText: { fontSize: 12, color: "#EF4444", fontWeight: "600" },
+
+  filterBox: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 9, borderWidth: StyleSheet.hairlineWidth },
+  filterInput: { flex: 1, fontSize: 14, paddingVertical: 0 },
 
   // Members
   emptyTab: { paddingVertical: 28, alignItems: "center", gap: 8 },
