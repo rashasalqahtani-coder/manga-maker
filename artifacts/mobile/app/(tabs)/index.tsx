@@ -16,18 +16,10 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { FeaturedBanner } from "@/components/FeaturedBanner";
-import { MangaRow } from "@/components/MangaRow";
+import { StarzFeaturedBanner } from "@/components/StarzFeaturedBanner";
+import { StarzMangaRow } from "@/components/StarzMangaRow";
 import { useColors } from "@/hooks/useColors";
-import {
-  getArabicManhua,
-  getArabicManhwa,
-  getNewArabic,
-  getPopularManga,
-  getRecentlyUpdated,
-  getTopRatedManga,
-  type Manga,
-} from "@/lib/mangadex";
+import { getHomeManga, type StarzManga } from "@/lib/mangastarz";
 
 export default function HomeScreen() {
   "use no memo";
@@ -35,59 +27,17 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const [topRated,    setTopRated]    = useState<Manga[]>([]);
-  const [popular,     setPopular]     = useState<Manga[]>([]);
-  const [recent,      setRecent]      = useState<Manga[]>([]);
-  const [manhwa,      setManhwa]      = useState<Manga[]>([]);
-  const [manhua,      setManhua]      = useState<Manga[]>([]);
-  const [newArabic,   setNewArabic]   = useState<Manga[]>([]);
-
-  const [topLoading,       setTopLoading]       = useState(true);
-  const [popularLoading,   setPopularLoading]   = useState(true);
-  const [recentLoading,    setRecentLoading]    = useState(true);
-  const [manhwaLoading,    setManhwaLoading]    = useState(true);
-  const [manhuaLoading,    setManhuaLoading]    = useState(true);
-  const [newArabicLoading, setNewArabicLoading] = useState(true);
-
+  const [manga, setManga] = useState<StarzManga[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [spinning,   setSpinning]   = useState(false);
+  const [spinning, setSpinning] = useState(false);
 
   function loadData() {
-    setTopLoading(true);
-    getTopRatedManga()
-      .then((d) => setTopRated(d))
-      .catch(() => setTopRated([]))
-      .finally(() => setTopLoading(false));
-
-    setPopularLoading(true);
-    getPopularManga()
-      .then((d) => setPopular(d))
-      .catch(() => setPopular([]))
-      .finally(() => setPopularLoading(false));
-
-    setRecentLoading(true);
-    getRecentlyUpdated()
-      .then((d) => setRecent(d))
-      .catch(() => setRecent([]))
-      .finally(() => setRecentLoading(false));
-
-    setManhwaLoading(true);
-    getArabicManhwa()
-      .then((d) => setManhwa(d))
-      .catch(() => setManhwa([]))
-      .finally(() => setManhwaLoading(false));
-
-    setManhuaLoading(true);
-    getArabicManhua()
-      .then((d) => setManhua(d))
-      .catch(() => setManhua([]))
-      .finally(() => setManhuaLoading(false));
-
-    setNewArabicLoading(true);
-    getNewArabic()
-      .then((d) => setNewArabic(d))
-      .catch(() => setNewArabic([]))
-      .finally(() => setNewArabicLoading(false));
+    setLoading(true);
+    getHomeManga()
+      .then((d) => setManga(d))
+      .catch(() => setManga([]))
+      .finally(() => setLoading(false));
   }
 
   useEffect(() => {
@@ -109,6 +59,11 @@ export default function HomeScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top + 12;
 
+  // Split into sections — use all manga for featured, then split by index for rows
+  const featured = manga.slice(0, 10);
+  const trending = manga.slice(0, 12);
+  const recent = manga.slice(manga.length > 12 ? 12 : 0);
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" />
@@ -117,7 +72,11 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingTop: topPad, paddingBottom: insets.bottom + 20 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
         }
       >
         {/* ── Header ── */}
@@ -183,8 +142,8 @@ export default function HomeScreen() {
         >
           <Feather name="globe" size={13} color={colors.primary} />
           <Text style={[styles.sourceBannerText, { color: colors.mutedForeground }]}>
-            {"مصدر المحتوى العربي: "}
-            <Text style={{ color: colors.foreground, fontWeight: "700" }}>MangaDex</Text>
+            {"مصدر المحتوى: "}
+            <Text style={{ color: colors.foreground, fontWeight: "700" }}>مانجا ستارز</Text>
           </Text>
           <View style={[styles.arBadge, { backgroundColor: colors.primary + "22" }]}>
             <Text style={[styles.arBadgeText, { color: colors.primary }]}>عربي</Text>
@@ -192,41 +151,23 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Featured banner ── */}
-        <FeaturedBanner manga={topRated} loading={topLoading} error={false} />
+        <StarzFeaturedBanner manga={featured} loading={loading} />
 
-        {/* ── Sections ── */}
-        <MangaRow
-          title="الأكثر شعبية"
-          manga={popular}
-          loading={popularLoading}
-          error={false}
-          onMorePress={() => router.push("/browse/popular" as any)}
+        {/* ── Trending ── */}
+        <StarzMangaRow
+          title="الرائج الآن"
+          manga={trending}
+          loading={loading}
         />
-        <MangaRow
-          title="محدّثة مؤخراً"
-          manga={recent}
-          loading={recentLoading}
-          error={false}
-          onMorePress={() => router.push("/browse/recent" as any)}
-        />
-        <MangaRow
-          title="مانهوا كورية 🇰🇷"
-          manga={manhwa}
-          loading={manhwaLoading}
-          error={false}
-        />
-        <MangaRow
-          title="مانهوا صينية 🇨🇳"
-          manga={manhua}
-          loading={manhuaLoading}
-          error={false}
-        />
-        <MangaRow
-          title="أحدث الإضافات عربياً"
-          manga={newArabic}
-          loading={newArabicLoading}
-          error={false}
-        />
+
+        {/* ── Recently updated ── */}
+        {recent.length > 0 && (
+          <StarzMangaRow
+            title="محدّثة مؤخراً"
+            manga={recent}
+            loading={loading}
+          />
+        )}
       </ScrollView>
     </View>
   );

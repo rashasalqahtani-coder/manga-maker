@@ -5,6 +5,7 @@ import comickRouter from "./comick";
 import teamsRouter from "./teams";
 import commentsRouter from "./comments";
 import teamImagesRouter from "./teamImages";
+import mangastarzRouter from "./mangastarz";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use("/comick", comickRouter);
 router.use(teamsRouter);
 router.use(commentsRouter);
 router.use(teamImagesRouter);
+router.use(mangastarzRouter);
 
 export default router;
