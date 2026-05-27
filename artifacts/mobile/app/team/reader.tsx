@@ -45,9 +45,10 @@ function PageImage({ uri }: { uri: string }) {
 
 export default function TeamReaderScreen() {
   "use no memo";
-  const { mangaId, chapterId } = useLocalSearchParams<{
+  const { mangaId, chapterId, imageUrlsJson } = useLocalSearchParams<{
     mangaId: string;
     chapterId: string;
+    imageUrlsJson?: string;
   }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -61,10 +62,16 @@ export default function TeamReaderScreen() {
   const manga = team?.manga.find((m) => m.id === mangaId);
   const chapter = manga?.chapters.find((c) => c.id === chapterId);
 
+  // Resolve image URIs: local context first, then remote URLs passed as param
+  const remoteUrls: string[] | null = imageUrlsJson
+    ? (() => { try { return JSON.parse(imageUrlsJson) as string[]; } catch { return null; } })()
+    : null;
+  const resolvedUris = chapter?.imageUris ?? remoteUrls;
+
   useEffect(() => {
-    if (!chapter?.imageUris || chapter.imageUris.length === 0) return;
-    setPages(chapter.imageUris.map((uri, i) => ({ uri, index: i })));
-  }, [chapter]);
+    if (!resolvedUris || resolvedUris.length === 0) return;
+    setPages(resolvedUris.map((uri, i) => ({ uri, index: i })));
+  }, [JSON.stringify(resolvedUris)]);
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: Array<{ item: unknown }> }) => {
@@ -78,7 +85,7 @@ export default function TeamReaderScreen() {
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
 
-  if (!chapter) {
+  if (!chapter && !remoteUrls) {
     return (
       <View style={[styles.center, { backgroundColor: "#000" }]}>
         <Feather name="alert-circle" size={40} color={colors.mutedForeground} />
@@ -95,7 +102,7 @@ export default function TeamReaderScreen() {
     );
   }
 
-  if (!chapter.imageUris || chapter.imageUris.length === 0) {
+  if (!resolvedUris || resolvedUris.length === 0) {
     return (
       <View style={[styles.center, { backgroundColor: "#000" }]}>
         <Feather name="image" size={40} color={colors.mutedForeground} />
@@ -143,7 +150,7 @@ export default function TeamReaderScreen() {
             </Pressable>
             <View style={styles.centerInfo}>
               <Text style={styles.chapterLabel} numberOfLines={1}>
-                {manga?.title} — فصل {chapter.number}
+                {manga?.title} — فصل {chapter?.number}
               </Text>
               <Text style={styles.pageCount}>
                 {currentPage} / {pages.length}

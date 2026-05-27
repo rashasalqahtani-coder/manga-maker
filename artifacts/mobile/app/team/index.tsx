@@ -23,7 +23,7 @@ import { useLibrary } from "@/context/LibraryContext";
 import { useColors } from "@/hooks/useColors";
 import { downloadTeamChapter, isChapterDownloaded } from "@/lib/download";
 import { searchManga, getCoverUrl, getMangaTitle } from "@/lib/mangadex";
-import { publishTeam, unpublishTeam } from "@/lib/teams";
+import { publishTeam, unpublishTeam, uploadTeamImage } from "@/lib/teams";
 
 type Tab = "manga" | "members";
 type AddMode = "search" | "manual";
@@ -557,17 +557,35 @@ export default function TeamScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert("تم إلغاء النشر", "لم يعد فريقك مرئياً للآخرين.");
       } else {
-        const publicManga = team.manga.map((m) => ({
-          id: m.id,
-          title: m.title,
-          coverUrl: m.coverUrl,
-          description: m.description,
-          chapters: (m.chapters ?? []).map((ch) => ({
-            id: ch.id,
-            number: ch.number,
-            title: ch.title,
-            imageCount: ch.imageUris?.length ?? 0,
-          })),
+        // Upload chapter images to server before publishing
+        const publicManga = await Promise.all(team.manga.map(async (m) => {
+          const chapters = await Promise.all((m.chapters ?? []).map(async (ch) => {
+            let imageUrls: string[] | undefined;
+            if (ch.imageUris && ch.imageUris.length > 0) {
+              try {
+                imageUrls = await Promise.all(
+                  ch.imageUris.map((uri) => uploadTeamImage(uri, ""))
+                );
+              } catch {
+                // Upload failed — publish without hosted images, local-only
+                imageUrls = undefined;
+              }
+            }
+            return {
+              id: ch.id,
+              number: ch.number,
+              title: ch.title,
+              imageCount: ch.imageUris?.length ?? 0,
+              ...(imageUrls ? { imageUrls } : {}),
+            };
+          }));
+          return {
+            id: m.id,
+            title: m.title,
+            coverUrl: m.coverUrl,
+            description: m.description,
+            chapters,
+          };
         }));
         await publishTeam({
           id: team.name + "_" + team.createdAt,

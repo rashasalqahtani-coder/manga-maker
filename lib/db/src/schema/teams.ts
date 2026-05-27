@@ -5,6 +5,7 @@ export interface PublicMangaChapter {
   number: string;
   title: string;
   imageCount: number;
+  imageUrls?: string[];
 }
 
 export interface PublicTeamMangaItem {

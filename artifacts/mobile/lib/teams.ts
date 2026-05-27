@@ -10,6 +10,7 @@ export interface PublicTeamChapter {
   number: string;
   title: string;
   imageCount: number;
+  imageUrls?: string[];
 }
 
 export interface PublicTeamManga {
@@ -77,6 +78,28 @@ export interface TeamMangaResult {
   teamName: string;
   teamEmoji: string;
   teamId: string;
+}
+
+/**
+ * Upload one image URI to the server and return its hosted URL.
+ * Used during team publish to host chapter images publicly.
+ */
+export async function uploadTeamImage(
+  imageUri: string,
+  token: string,
+): Promise<string> {
+  const formData = new FormData();
+  const filename = imageUri.split("/").pop() ?? "image.jpg";
+  formData.append("image", { uri: imageUri, name: filename, type: "image/jpeg" } as unknown as Blob);
+
+  const res = await fetch(`${API_BASE}/teams/images`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  if (!res.ok) throw new Error("فشل رفع الصورة");
+  const { url } = (await res.json()) as { url: string };
+  return url;
 }
 
 export async function searchTeamManga(q: string): Promise<TeamMangaResult[]> {

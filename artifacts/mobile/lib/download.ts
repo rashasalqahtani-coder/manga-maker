@@ -110,6 +110,51 @@ export async function downloadChapter(
   await saveDownloadsMeta(filtered);
 }
 
+/**
+ * Download a published team chapter whose images are hosted on the server.
+ * Saves pages to the same local directory structure as MangaDex downloads.
+ */
+export async function downloadPublishedTeamChapter(
+  chapter: { id: string; imageUrls: string[]; number: string },
+  mangaId: string,
+  mangaTitle: string,
+  coverUrl: string,
+  onProgress: (downloaded: number, total: number) => void,
+  signal?: { cancelled: boolean }
+): Promise<void> {
+  if (!isNative) throw new Error("التنزيل غير متاح على هذه المنصة");
+
+  const chapterDir = `${DOWNLOADS_DIR}${chapter.id}/`;
+  await ensureDir(chapterDir);
+
+  const total = chapter.imageUrls.length;
+  for (let i = 0; i < chapter.imageUrls.length; i++) {
+    if (signal?.cancelled) {
+      await FileSystem.deleteAsync(chapterDir, { idempotent: true });
+      throw new Error("cancelled");
+    }
+    const localPath = `${chapterDir}${i}.jpg`;
+    const existing = await FileSystem.getInfoAsync(localPath);
+    if (!existing.exists) {
+      await FileSystem.downloadAsync(chapter.imageUrls[i], localPath);
+    }
+    onProgress(i + 1, total);
+  }
+
+  const list = await getDownloadsMeta();
+  const filtered = list.filter((m) => m.chapterId !== chapter.id);
+  filtered.unshift({
+    chapterId: chapter.id,
+    mangaId,
+    mangaTitle,
+    chapterNum: chapter.number,
+    coverUrl,
+    pageCount: total,
+    downloadedAt: Date.now(),
+  });
+  await saveDownloadsMeta(filtered);
+}
+
 export async function deleteChapter(chapterId: string): Promise<void> {
   if (isNative) {
     const dir = `${DOWNLOADS_DIR}${chapterId}/`;

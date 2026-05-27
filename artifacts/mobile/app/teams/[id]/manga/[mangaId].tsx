@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -19,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getLastReadChapter, type HistoryEntry } from "@/app/(tabs)/history";
 import { useTeam } from "@/context/TeamContext";
 import { useColors } from "@/hooks/useColors";
+import { downloadPublishedTeamChapter, isChapterDownloaded } from "@/lib/download";
 import { getPublicTeam, type PublicTeam, type PublicTeamChapter, type PublicTeamManga } from "@/lib/teams";
 
 const MANGADEX_ID_RE = /^[0-9a-f-]{36}$/;
@@ -36,6 +38,8 @@ export default function TeamMangaScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lastRead, setLastRead] = useState<HistoryEntry | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!teamId) return;
@@ -60,6 +64,18 @@ export default function TeamMangaScreen() {
   }, [mangaId]);
 
   const manga: PublicTeamManga | null = team?.manga.find((m) => m.id === mangaId) ?? null;
+
+  // Check which published chapters are already downloaded
+  useEffect(() => {
+    if (!manga) return;
+    const checkAll = async () => {
+      const results = await Promise.all(
+        manga.chapters.map(async (ch) => ({ id: ch.id, done: await isChapterDownloaded(ch.id) }))
+      );
+      setDownloadedIds(new Set(results.filter((r) => r.done).map((r) => r.id)));
+    };
+    checkAll().catch(() => {});
+  }, [manga]);
   const isMangaDex = isMangaDexId(mangaId ?? "");
   const topPad = Platform.OS === "web" ? 20 : insets.top + 16;
 
@@ -105,12 +121,14 @@ export default function TeamMangaScreen() {
 
   const readableChapters = manga.chapters.filter((ch) => {
     if (isMangaDexId(ch.id)) return true;
+    if (ch.imageUrls && ch.imageUrls.length > 0) return true;
     const local = localManga?.chapters.find((c) => c.id === ch.id);
     return (local?.imageUris?.length ?? 0) > 0;
   }).length;
 
   const firstReadableChapter = manga.chapters.find((ch) => {
     if (isMangaDexId(ch.id)) return true;
+    if (ch.imageUrls && ch.imageUrls.length > 0) return true;
     const local = localManga?.chapters.find((c) => c.id === ch.id);
     return (local?.imageUris?.length ?? 0) > 0;
   }) ?? null;
@@ -128,6 +146,16 @@ export default function TeamMangaScreen() {
           chapterNum: ch.number,
         },
       });
+    } else if (ch.imageUrls && ch.imageUrls.length > 0) {
+      // Published team chapter with hosted images → pass as JSON param
+      router.push({
+        pathname: "/team/reader" as any,
+        params: {
+          mangaId: mangaId ?? "",
+          chapterId: ch.id,
+          imageUrlsJson: JSON.stringify(ch.imageUrls),
+        },
+      });
     } else {
       router.push({
         pathname: "/team/reader" as any,
@@ -136,53 +164,110 @@ export default function TeamMangaScreen() {
     }
   };
 
+  const handleDownloadPublished = async (ch: PublicTeamChapter) => {
+    if (!ch.imageUrls || ch.imageUrls.length === 0) return;
+    if (downloadingId) return;
+    setDownloadingId(ch.id);
+    try {
+      await downloadPublishedTeamChapter(
+        { id: ch.id, imageUrls: ch.imageUrls, number: ch.number },
+        mangaId ?? "",
+        manga.title,
+        manga.coverUrl ?? "",
+        () => {}
+      );
+      setDownloadedIds((prev) => new Set([...prev, ch.id]));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("تم التنزيل", `فصل ${ch.number} جاهز للقراءة بدون إنترنت.`);
+    } catch {
+      Alert.alert("خطأ", "تعذّر تنزيل الفصل.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const renderChapter = ({ item, index }: { item: PublicTeamChapter; index: number }) => {
     const isMdx = isMangaDexId(item.id);
     const localCh = localManga?.chapters.find((c) => c.id === item.id);
     const hasLocalImages = (localCh?.imageUris?.length ?? 0) > 0;
-    const canRead = isMdx || hasLocalImages;
+    const hasPublishedImages = (item.imageUrls?.length ?? 0) > 0;
+    const canRead = isMdx || hasLocalImages || hasPublishedImages;
     const isLast = index === manga.chapters.length - 1;
+    const alreadyDownloaded = downloadedIds.has(item.id);
+    const isDownloading = downloadingId === item.id;
 
     return (
-      <Pressable
-        style={({ pressed }) => [
+      <View
+        style={[
           styles.chapterRow,
           {
             borderBottomColor: colors.border,
             borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
-            opacity: pressed && canRead ? 0.7 : 1,
             backgroundColor: canRead ? "transparent" : colors.secondary + "40",
           },
         ]}
-        onPress={canRead ? () => navigateToChapter(item) : undefined}
-        disabled={!canRead}
       >
-        <View style={[styles.chapterBadge, { backgroundColor: colors.primary + "20" }]}>
-          <Text style={[styles.chapterBadgeText, { color: colors.primary }]}>{item.number}</Text>
+        <Pressable
+          style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10 }}
+          onPress={canRead ? () => navigateToChapter(item) : undefined}
+          disabled={!canRead}
+        >
+          <View style={[styles.chapterBadge, { backgroundColor: colors.primary + "20" }]}>
+            <Text style={[styles.chapterBadgeText, { color: colors.primary }]}>{item.number}</Text>
+          </View>
+
+          <Text style={[styles.chapterTitle, { color: colors.foreground }]} numberOfLines={1}>
+            {item.title || `فصل ${item.number}`}
+          </Text>
+
+          {item.imageCount > 0 && (
+            <View style={[styles.imageCountPill, { backgroundColor: colors.secondary }]}>
+              <Feather name="image" size={10} color={colors.mutedForeground} />
+              <Text style={[styles.imageCountText, { color: colors.mutedForeground }]}>{item.imageCount}</Text>
+            </View>
+          )}
+        </Pressable>
+
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          {/* Download button for chapters with hosted images */}
+          {hasPublishedImages && !alreadyDownloaded && (
+            <Pressable
+              onPress={() => handleDownloadPublished(item)}
+              disabled={isDownloading || !!downloadingId}
+              style={({ pressed }) => [
+                styles.downloadBtn,
+                { backgroundColor: colors.secondary, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              {isDownloading ? (
+                <ActivityIndicator size={12} color={colors.primary} />
+              ) : (
+                <Feather name="download" size={12} color={colors.mutedForeground} />
+              )}
+            </Pressable>
+          )}
+
+          {alreadyDownloaded && (
+            <View style={[styles.downloadBtn, { backgroundColor: colors.primary + "20" }]}>
+              <Feather name="check" size={12} color={colors.primary} />
+            </View>
+          )}
+
+          {canRead ? (
+            <Pressable
+              style={[styles.readPill, { backgroundColor: colors.primary }]}
+              onPress={() => navigateToChapter(item)}
+            >
+              <Feather name="book-open" size={12} color="#fff" />
+              <Text style={styles.readPillText}>اقرأ</Text>
+            </Pressable>
+          ) : (
+            <View style={[styles.localPill, { backgroundColor: colors.secondary }]}>
+              <Text style={[styles.localPillText, { color: colors.mutedForeground }]}>محلي</Text>
+            </View>
+          )}
         </View>
-
-        <Text style={[styles.chapterTitle, { color: colors.foreground }]} numberOfLines={1}>
-          {item.title || `فصل ${item.number}`}
-        </Text>
-
-        {item.imageCount > 0 && (
-          <View style={[styles.imageCountPill, { backgroundColor: colors.secondary }]}>
-            <Feather name="image" size={10} color={colors.mutedForeground} />
-            <Text style={[styles.imageCountText, { color: colors.mutedForeground }]}>{item.imageCount}</Text>
-          </View>
-        )}
-
-        {canRead ? (
-          <View style={[styles.readPill, { backgroundColor: colors.primary }]}>
-            <Feather name="book-open" size={12} color="#fff" />
-            <Text style={styles.readPillText}>اقرأ</Text>
-          </View>
-        ) : (
-          <View style={[styles.localPill, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.localPillText, { color: colors.mutedForeground }]}>محلي</Text>
-          </View>
-        )}
-      </Pressable>
+      </View>
     );
   };
 
@@ -460,6 +545,7 @@ const styles = StyleSheet.create({
   readPillText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   localPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5 },
   localPillText: { fontSize: 11, fontWeight: "600" },
+  downloadBtn: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
 
   emptyChapters: { alignItems: "center", gap: 10, paddingVertical: 40 },
   emptyText: { fontSize: 14, textAlign: "center" },
