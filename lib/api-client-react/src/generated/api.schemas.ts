@@ -25,6 +25,7 @@ export interface RorymManga {
   teamId?: string;
   teamName?: string;
   isMostRead: boolean;
+  genres: string[];
   latestChapters: RorymMangaLatestChaptersItem[];
 }
 
@@ -48,6 +49,11 @@ export type GetRorymHome200 = {
 };
 
 export type GetRorymMostRead200 = {
+  manga: RorymManga[];
+};
+
+export type GetRorymMangaByGenre200 = {
+  genre: string;
   manga: RorymManga[];
 };
 

@@ -32,6 +32,7 @@ function navigateToManga(
   const coverE = encodeURIComponent(manga.coverUrl);
   const ratingE = encodeURIComponent(manga.rating ?? "");
   const latestE = encodeURIComponent(manga.latestChapterNum ?? "");
+  const genresE = encodeURIComponent(manga.genres.join(","));
 
   router.push({
     pathname: "/starz/[slug]" as any,
@@ -41,6 +42,7 @@ function navigateToManga(
       coverUrl: coverE,
       rating: ratingE,
       latestChapter: latestE,
+      genres: genresE,
       src: manga.sourceId,
     },
   });
@@ -56,6 +58,7 @@ function toStarzMangaShape(manga: UnifiedManga) {
     latestChapters: manga.latestChapterNum
       ? [{ number: manga.latestChapterNum, url: manga.latestChapterUrl ?? "" }]
       : [],
+    genres: manga.genres,
   };
 }
 

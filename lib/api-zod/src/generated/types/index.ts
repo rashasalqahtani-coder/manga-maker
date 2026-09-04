@@ -9,6 +9,7 @@
 export * from './getRorymChapters200';
 export * from './getRorymHome200';
 export * from './getRorymManga200';
+export * from './getRorymMangaByGenre200';
 export * from './getRorymMostRead200';
 export * from './healthStatus';
 export * from './rorymChapter';

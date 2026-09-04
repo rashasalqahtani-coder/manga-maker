@@ -17,6 +17,7 @@ interface RorymManga {
   team_id: string;
   team_name: string;
   is_most_read: boolean;
+  genres: string[];
   created_at: string;
 }
 
@@ -41,6 +42,7 @@ function toUnified(row: RorymManga, latestChapter?: RorymChapter) {
     teamId: row.team_id,
     teamName: row.team_name,
     isMostRead: row.is_most_read,
+    genres: Array.isArray(row.genres) ? row.genres : [],
     latestChapters: latestChapter
       ? [{ number: latestChapter.chapter_num, url: "" }]
       : [],
@@ -121,6 +123,24 @@ router.get("/rorym/most-read", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/rorym/genres/:genre", async (req: Request, res: Response) => {
+  const genre = decodeURIComponent(String(req.params["genre"] ?? "")).trim();
+  if (!genre) {
+    res.status(400).json({ error: "genre required" }); return;
+  }
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query<RorymManga>(
+      `SELECT * FROM rorym_manga WHERE $1 = ANY(genres) ORDER BY created_at DESC LIMIT 40`,
+      [genre]
+    );
+    res.json({ genre, manga: rows.map((row) => toUnified(row)) });
+  } catch (err) {
+    req.log.error(err, "rorym: genre error");
+    res.status(500).json({ error: "genre error" });
+  }
+});
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 
 router.get("/rorym/search", async (req: Request, res: Response) => {
@@ -159,8 +179,8 @@ router.get("/rorym/manga/:slug", async (req: Request, res: Response) => {
 // ─── Create manga ─────────────────────────────────────────────────────────────
 
 router.post("/rorym/manga", async (req: Request, res: Response) => {
-  const { title, coverUrl, summary, teamId, teamName, isMostRead } = req.body as {
-    title: string; coverUrl: string; summary?: string; teamId: string; teamName: string; isMostRead?: boolean;
+  const { title, coverUrl, summary, teamId, teamName, isMostRead, genres } = req.body as {
+    title: string; coverUrl: string; summary?: string; teamId: string; teamName: string; isMostRead?: boolean; genres?: string[];
   };
   if (!title?.trim() || !teamId?.trim()) {
     res.status(400).json({ error: "title and teamId required" }); return;
@@ -174,10 +194,13 @@ router.post("/rorym/manga", async (req: Request, res: Response) => {
 
   try {
     const pool = getPool();
+    const normalizedGenres = Array.isArray(genres)
+      ? [...new Set(genres.map((genre) => String(genre).trim()).filter(Boolean))].slice(0, 12)
+      : [];
     const { rows } = await pool.query<RorymManga>(
-      `INSERT INTO rorym_manga (slug, title, cover_url, summary, team_id, team_name, is_most_read)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [slug, title.trim(), coverUrl ?? "", summary ?? "", teamId, teamName ?? "", isMostRead === true]
+      `INSERT INTO rorym_manga (slug, title, cover_url, summary, team_id, team_name, is_most_read, genres)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [slug, title.trim(), coverUrl ?? "", summary ?? "", teamId, teamName ?? "", isMostRead === true, normalizedGenres]
     );
     res.status(201).json({ manga: toUnified(rows[0]!) });
   } catch (err) {

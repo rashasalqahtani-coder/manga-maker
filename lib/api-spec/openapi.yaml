@@ -65,6 +65,33 @@ paths:
                     items:
                       $ref: "#/components/schemas/RorymManga"
 
+  /rorym/genres/{genre}:
+    get:
+      operationId: getRorymMangaByGenre
+      tags: [rorym]
+      summary: Get manga that share a genre
+      parameters:
+        - name: genre
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Manga in the selected genre
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [genre, manga]
+                properties:
+                  genre:
+                    type: string
+                  manga:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RorymManga"
+
   /rorym/search:
     get:
       operationId: searchRorym
@@ -177,7 +204,7 @@ components:
 
     RorymManga:
       type: object
-      required: [id, slug, title, coverUrl, url, sourceId, isMostRead, latestChapters]
+      required: [id, slug, title, coverUrl, url, sourceId, isMostRead, genres, latestChapters]
       properties:
         id:
           type: string
@@ -199,6 +226,10 @@ components:
           type: string
         isMostRead:
           type: boolean
+        genres:
+          type: array
+          items:
+            type: string
         latestChapters:
           type: array
           items:

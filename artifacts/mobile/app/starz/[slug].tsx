@@ -290,9 +290,21 @@ export default function StarzMangaDetailScreen() {
               {genreList.length > 0 && (
                 <View style={styles.genreRow}>
                   {genreList.slice(0, 3).map((g) => (
-                    <View key={g} style={styles.genreBadge}>
+                    <Pressable
+                      key={g}
+                      style={({ pressed }) => [
+                        styles.genreBadge,
+                        { opacity: pressed ? 0.7 : 1 },
+                      ]}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/genre/[name]" as any,
+                          params: { name: encodeURIComponent(g) },
+                        })
+                      }
+                    >
                       <Text style={styles.genreText}>{g}</Text>
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
               )}

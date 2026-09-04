@@ -14,6 +14,7 @@ export interface UnifiedManga {
   latestChapterNum?: string;
   latestChapterUrl?: string;
   isMostRead?: boolean;
+  genres?: string[];
 }
 
 // Adjust API base properly based on the environment
@@ -23,6 +24,12 @@ function mapRorymItem(item: Record<string, unknown>): UnifiedManga {
   const slug = String(item['slug'] ?? item['id'] ?? '');
   const latestChs = item['latestChapters'] as { number: string; url: string }[] | undefined;
   const latest = latestChs?.[0];
+  
+  let genres: string[] = [];
+  if (Array.isArray(item['genres'])) {
+    genres = item['genres'].map(g => String(g));
+  }
+
   return {
     id: slug,
     slug,
@@ -34,6 +41,8 @@ function mapRorymItem(item: Record<string, unknown>): UnifiedManga {
     isMostRead: item['isMostRead'] === true,
     latestChapterNum: latest?.number,
     latestChapterUrl: latest?.url,
+    summary: item['summary'] ? String(item['summary']) : undefined,
+    genres,
   };
 }
 

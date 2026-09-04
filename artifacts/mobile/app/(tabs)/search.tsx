@@ -233,6 +233,7 @@ export default function SearchScreen() {
         title: encodeURIComponent(manga.title),
         coverUrl: encodeURIComponent(manga.coverUrl),
         latestChapter: encodeURIComponent(manga.latestChapterNum ?? ""),
+        genres: encodeURIComponent(manga.genres.join(",")),
         src: srcId,
       },
     });

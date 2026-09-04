@@ -17,6 +17,7 @@ export interface UnifiedManga {
   latestChapterNum?: string;
   latestChapterUrl?: string;
   isMostRead?: boolean;
+  genres: string[];
 }
 
 function mapRorymItem(item: Record<string, unknown>): UnifiedManga {
@@ -32,9 +33,17 @@ function mapRorymItem(item: Record<string, unknown>): UnifiedManga {
     sourceId: "rorym",
     rating: item["rating"] ? String(item["rating"]) : undefined,
     isMostRead: item["isMostRead"] === true,
+    genres: Array.isArray(item["genres"]) ? item["genres"].map(String) : [],
     latestChapterNum: latest?.number,
     latestChapterUrl: latest?.url,
   };
+}
+
+export async function fetchMangasByGenre(genre: string): Promise<UnifiedManga[]> {
+  const res = await fetch(`${API_BASE}/rorym/genres/${encodeURIComponent(genre)}`);
+  if (!res.ok) throw new Error(`genre fetch failed: ${res.status}`);
+  const data = (await res.json()) as { manga: Record<string, unknown>[] };
+  return (data.manga ?? []).map(mapRorymItem);
 }
 
 export async function fetchMostReadMangas(): Promise<UnifiedManga[]> {

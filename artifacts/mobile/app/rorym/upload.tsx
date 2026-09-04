@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { useTeam } from "@/context/TeamContext";
+import { MANGA_GENRES } from "@/lib/genres";
 
 const API_BASE =
   typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
@@ -69,6 +70,7 @@ export default function RorymUploadScreen() {
   const [coverUri, setCoverUri] = useState<string | null>(null);
   const [summary, setSummary] = useState("");
   const [isMostRead, setIsMostRead] = useState(false);
+  const [genres, setGenres] = useState<string[]>([]);
 
   // Chapter fields
   const [chapterNum, setChapterNum] = useState("");
@@ -133,6 +135,7 @@ export default function RorymUploadScreen() {
           teamId: String(team.createdAt),
           teamName: team.name,
           isMostRead,
+          genres,
         }),
       });
       if (!mangaRes.ok) throw new Error("create manga failed");
@@ -212,6 +215,39 @@ export default function RorymUploadScreen() {
             textAlign="right"
             textAlignVertical="top"
           />
+
+          <Text style={[styles.label, { color: colors.mutedForeground }]}>التصنيفات</Text>
+          <Text style={[styles.genreHint, { color: colors.mutedForeground }]}>
+            اختر كل التصنيفات التي تصف المانجا
+          </Text>
+          <View style={styles.genreGrid}>
+            {MANGA_GENRES.map((genre) => {
+              const selected = genres.includes(genre);
+              return (
+                <Pressable
+                  key={genre}
+                  style={[
+                    styles.genreButton,
+                    {
+                      backgroundColor: selected ? colors.primary : colors.background,
+                      borderColor: selected ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() =>
+                    setGenres((current) =>
+                      current.includes(genre)
+                        ? current.filter((item) => item !== genre)
+                        : [...current, genre]
+                    )
+                  }
+                >
+                  <Text style={[styles.genreButtonText, { color: selected ? "#fff" : colors.foreground }]}>
+                    {genre}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           <Text style={[styles.label, { color: colors.mutedForeground }]}>غلاف المانجا</Text>
           <Pressable
@@ -358,6 +394,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   textArea: { height: 72, paddingTop: 10 },
+  genreHint: { fontSize: 11, textAlign: "right" },
+  genreGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  genreButton: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  genreButtonText: { fontSize: 12, fontWeight: "600" },
   coverPicker: {
     height: 140,
     borderWidth: 1,

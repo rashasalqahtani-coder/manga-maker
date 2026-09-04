@@ -23,6 +23,7 @@ import type {
   GetRorymChapters200,
   GetRorymHome200,
   GetRorymManga200,
+  GetRorymMangaByGenre200,
   GetRorymMostRead200,
   HealthStatus,
   RorymPlacementInput,
@@ -263,6 +264,83 @@ export function useGetRorymMostRead<TData = Awaited<ReturnType<typeof getRorymMo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetRorymMostReadQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetRorymMangaByGenreUrl = (genre: string,) => {
+
+
+
+
+  return `/api/rorym/genres/${genre}`
+}
+
+/**
+ * @summary Get manga that share a genre
+ */
+export const getRorymMangaByGenre = async (genre: string, options?: RequestInit): Promise<GetRorymMangaByGenre200> => {
+
+  return customFetch<GetRorymMangaByGenre200>(getGetRorymMangaByGenreUrl(genre),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRorymMangaByGenreQueryKey = (genre: string,) => {
+    return [
+    `/api/rorym/genres/${genre}`
+    ] as const;
+    }
+
+
+export const getGetRorymMangaByGenreQueryOptions = <TData = Awaited<ReturnType<typeof getRorymMangaByGenre>>, TError = ErrorType<unknown>>(genre: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRorymMangaByGenre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRorymMangaByGenreQueryKey(genre);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRorymMangaByGenre>>> = ({ signal }) => getRorymMangaByGenre(genre, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(genre), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRorymMangaByGenre>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRorymMangaByGenreQueryResult = NonNullable<Awaited<ReturnType<typeof getRorymMangaByGenre>>>
+export type GetRorymMangaByGenreQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get manga that share a genre
+ */
+
+export function useGetRorymMangaByGenre<TData = Awaited<ReturnType<typeof getRorymMangaByGenre>>, TError = ErrorType<unknown>>(
+ genre: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRorymMangaByGenre>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRorymMangaByGenreQueryOptions(genre,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
