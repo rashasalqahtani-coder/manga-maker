@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "rory m",
-    "slug": "rorym",
+    "name": "nebola",
+    "slug": "nebola",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "rorym",
+    "scheme": "nebola",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -15,11 +15,11 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.rorym.app"
+      "bundleIdentifier": "com.nebola.app"
     },
     "android": {
       "backgroundColor": "#0F0F0F",
-      "package": "com.rorym.app"
+      "package": "com.nebola.app"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
