@@ -46,6 +46,25 @@ paths:
                     items:
                       $ref: "#/components/schemas/RorymManga"
 
+  /rorym/most-read:
+    get:
+      operationId: getRorymMostRead
+      tags: [rorym]
+      summary: Get manga selected by translation teams for the most-read section
+      responses:
+        "200":
+          description: Most-read manga list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [manga]
+                properties:
+                  manga:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RorymManga"
+
   /rorym/search:
     get:
       operationId: searchRorym
@@ -93,6 +112,33 @@ paths:
                 properties:
                   manga:
                     $ref: "#/components/schemas/RorymManga"
+    patch:
+      operationId: updateRorymMangaPlacement
+      tags: [rorym]
+      summary: Let the owning translation team control most-read placement
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RorymPlacementInput"
+      responses:
+        "200":
+          description: Updated manga
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [manga]
+                properties:
+                  manga:
+                    $ref: "#/components/schemas/RorymManga"
 
   /rorym/manga/{slug}/chapters:
     get:
@@ -131,7 +177,7 @@ components:
 
     RorymManga:
       type: object
-      required: [id, slug, title, coverUrl, url, sourceId, latestChapters]
+      required: [id, slug, title, coverUrl, url, sourceId, isMostRead, latestChapters]
       properties:
         id:
           type: string
@@ -151,6 +197,8 @@ components:
           type: string
         teamName:
           type: string
+        isMostRead:
+          type: boolean
         latestChapters:
           type: array
           items:
@@ -161,6 +209,16 @@ components:
                 type: string
               url:
                 type: string
+
+    RorymPlacementInput:
+      type: object
+      required: [teamId, isMostRead]
+      properties:
+        teamId:
+          type: string
+          minLength: 1
+        isMostRead:
+          type: boolean
 
     RorymChapter:
       type: object

@@ -12,6 +12,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -67,6 +68,7 @@ export default function RorymUploadScreen() {
   const [mangaTitle, setMangaTitle] = useState("");
   const [coverUri, setCoverUri] = useState<string | null>(null);
   const [summary, setSummary] = useState("");
+  const [isMostRead, setIsMostRead] = useState(false);
 
   // Chapter fields
   const [chapterNum, setChapterNum] = useState("");
@@ -130,6 +132,7 @@ export default function RorymUploadScreen() {
           summary: summary.trim(),
           teamId: String(team.createdAt),
           teamName: team.name,
+          isMostRead,
         }),
       });
       if (!mangaRes.ok) throw new Error("create manga failed");
@@ -224,6 +227,23 @@ export default function RorymUploadScreen() {
               </View>
             )}
           </Pressable>
+
+          <View style={[styles.placementRow, { borderColor: colors.border }]}>
+            <View style={styles.placementCopy}>
+              <Text style={[styles.placementTitle, { color: colors.foreground }]}>
+                إظهار في الأكثر قراءة
+              </Text>
+              <Text style={[styles.placementDescription, { color: colors.mutedForeground }]}>
+                أضف هذا العمل إلى القسم المميز في الصفحة الرئيسية
+              </Text>
+            </View>
+            <Switch
+              value={isMostRead}
+              onValueChange={setIsMostRead}
+              trackColor={{ false: colors.muted, true: colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
         </View>
 
         {/* Section: Chapter info */}
@@ -350,6 +370,17 @@ const styles = StyleSheet.create({
   coverPreview: { width: "100%", height: "100%" },
   coverPlaceholder: { alignItems: "center", gap: 6 },
   coverPickerText: { fontSize: 13 },
+  placementRow: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  placementCopy: { flex: 1 },
+  placementTitle: { fontSize: 14, fontWeight: "700", textAlign: "right" },
+  placementDescription: { fontSize: 11, marginTop: 3, textAlign: "right" },
   pagesPicker: {
     borderWidth: 1,
     borderRadius: 8,

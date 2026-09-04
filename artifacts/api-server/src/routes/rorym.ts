@@ -16,6 +16,7 @@ interface RorymManga {
   summary: string;
   team_id: string;
   team_name: string;
+  is_most_read: boolean;
   created_at: string;
 }
 
@@ -39,6 +40,7 @@ function toUnified(row: RorymManga, latestChapter?: RorymChapter) {
     summary: row.summary,
     teamId: row.team_id,
     teamName: row.team_name,
+    isMostRead: row.is_most_read,
     latestChapters: latestChapter
       ? [{ number: latestChapter.chapter_num, url: "" }]
       : [],
@@ -106,6 +108,19 @@ router.get("/rorym/home", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/rorym/most-read", async (req: Request, res: Response) => {
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query<RorymManga>(
+      `SELECT * FROM rorym_manga WHERE is_most_read=TRUE ORDER BY created_at DESC LIMIT 20`
+    );
+    res.json({ manga: rows.map((row) => toUnified(row)) });
+  } catch (err) {
+    req.log.error(err, "rorym: most-read error");
+    res.status(500).json({ error: "most-read error" });
+  }
+});
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 
 router.get("/rorym/search", async (req: Request, res: Response) => {
@@ -144,8 +159,8 @@ router.get("/rorym/manga/:slug", async (req: Request, res: Response) => {
 // ─── Create manga ─────────────────────────────────────────────────────────────
 
 router.post("/rorym/manga", async (req: Request, res: Response) => {
-  const { title, coverUrl, summary, teamId, teamName } = req.body as {
-    title: string; coverUrl: string; summary?: string; teamId: string; teamName: string;
+  const { title, coverUrl, summary, teamId, teamName, isMostRead } = req.body as {
+    title: string; coverUrl: string; summary?: string; teamId: string; teamName: string; isMostRead?: boolean;
   };
   if (!title?.trim() || !teamId?.trim()) {
     res.status(400).json({ error: "title and teamId required" }); return;
@@ -160,14 +175,33 @@ router.post("/rorym/manga", async (req: Request, res: Response) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query<RorymManga>(
-      `INSERT INTO rorym_manga (slug, title, cover_url, summary, team_id, team_name)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [slug, title.trim(), coverUrl ?? "", summary ?? "", teamId, teamName ?? ""]
+      `INSERT INTO rorym_manga (slug, title, cover_url, summary, team_id, team_name, is_most_read)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [slug, title.trim(), coverUrl ?? "", summary ?? "", teamId, teamName ?? "", isMostRead === true]
     );
     res.status(201).json({ manga: toUnified(rows[0]!) });
   } catch (err) {
     req.log.error(err, "rorym: create manga error");
     res.status(500).json({ error: "create error" });
+  }
+});
+
+router.patch("/rorym/manga/:slug", async (req: Request, res: Response) => {
+  const { teamId, isMostRead } = req.body as { teamId?: string; isMostRead?: boolean };
+  if (!teamId?.trim() || typeof isMostRead !== "boolean") {
+    res.status(400).json({ error: "teamId and isMostRead required" }); return;
+  }
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query<RorymManga>(
+      `UPDATE rorym_manga SET is_most_read=$1 WHERE slug=$2 AND team_id=$3 RETURNING *`,
+      [isMostRead, req.params["slug"], teamId]
+    );
+    if (!rows[0]) { res.status(404).json({ error: "not found or not authorized" }); return; }
+    res.json({ manga: toUnified(rows[0]) });
+  } catch (err) {
+    req.log.error(err, "rorym: placement update error");
+    res.status(500).json({ error: "placement update error" });
   }
 });
 

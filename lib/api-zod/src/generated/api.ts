@@ -31,6 +31,30 @@ export const GetRorymHomeResponse = zod.object({
   "summary": zod.string().optional(),
   "teamId": zod.string().optional(),
   "teamName": zod.string().optional(),
+  "isMostRead": zod.boolean(),
+  "latestChapters": zod.array(zod.object({
+  "number": zod.string(),
+  "url": zod.string()
+}))
+}))
+})
+
+
+/**
+ * @summary Get manga selected by translation teams for the most-read section
+ */
+export const GetRorymMostReadResponse = zod.object({
+  "manga": zod.array(zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "coverUrl": zod.string(),
+  "url": zod.string(),
+  "sourceId": zod.string(),
+  "summary": zod.string().optional(),
+  "teamId": zod.string().optional(),
+  "teamName": zod.string().optional(),
+  "isMostRead": zod.boolean(),
   "latestChapters": zod.array(zod.object({
   "number": zod.string(),
   "url": zod.string()
@@ -57,6 +81,7 @@ export const SearchRorymResponse = zod.object({
   "summary": zod.string().optional(),
   "teamId": zod.string().optional(),
   "teamName": zod.string().optional(),
+  "isMostRead": zod.boolean(),
   "latestChapters": zod.array(zod.object({
   "number": zod.string(),
   "url": zod.string()
@@ -83,6 +108,42 @@ export const GetRorymMangaResponse = zod.object({
   "summary": zod.string().optional(),
   "teamId": zod.string().optional(),
   "teamName": zod.string().optional(),
+  "isMostRead": zod.boolean(),
+  "latestChapters": zod.array(zod.object({
+  "number": zod.string(),
+  "url": zod.string()
+}))
+})
+})
+
+
+/**
+ * @summary Let the owning translation team control most-read placement
+ */
+export const UpdateRorymMangaPlacementParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+
+
+
+export const UpdateRorymMangaPlacementBody = zod.object({
+  "teamId": zod.string().min(1),
+  "isMostRead": zod.boolean()
+})
+
+export const UpdateRorymMangaPlacementResponse = zod.object({
+  "manga": zod.object({
+  "id": zod.string(),
+  "slug": zod.string(),
+  "title": zod.string(),
+  "coverUrl": zod.string(),
+  "url": zod.string(),
+  "sourceId": zod.string(),
+  "summary": zod.string().optional(),
+  "teamId": zod.string().optional(),
+  "teamName": zod.string().optional(),
+  "isMostRead": zod.boolean(),
   "latestChapters": zod.array(zod.object({
   "number": zod.string(),
   "url": zod.string()

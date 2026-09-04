@@ -24,7 +24,14 @@ export interface RorymManga {
   summary?: string;
   teamId?: string;
   teamName?: string;
+  isMostRead: boolean;
   latestChapters: RorymMangaLatestChaptersItem[];
+}
+
+export interface RorymPlacementInput {
+  /** @minLength 1 */
+  teamId: string;
+  isMostRead: boolean;
 }
 
 export interface RorymChapter {
@@ -40,6 +47,10 @@ export type GetRorymHome200 = {
   manga: RorymManga[];
 };
 
+export type GetRorymMostRead200 = {
+  manga: RorymManga[];
+};
+
 export type SearchRorymParams = {
 q: string;
 };
@@ -49,6 +60,10 @@ export type SearchRorym200 = {
 };
 
 export type GetRorymManga200 = {
+  manga: RorymManga;
+};
+
+export type UpdateRorymMangaPlacement200 = {
   manga: RorymManga;
 };
 

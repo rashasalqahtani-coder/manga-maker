@@ -6,11 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
@@ -19,13 +23,16 @@ import type {
   GetRorymChapters200,
   GetRorymHome200,
   GetRorymManga200,
+  GetRorymMostRead200,
   HealthStatus,
+  RorymPlacementInput,
   SearchRorym200,
-  SearchRorymParams
+  SearchRorymParams,
+  UpdateRorymMangaPlacement200
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
-import type { ErrorType } from '../custom-fetch';
+import type { ErrorType , BodyType } from '../custom-fetch';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -179,6 +186,83 @@ export function useGetRorymHome<TData = Awaited<ReturnType<typeof getRorymHome>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetRorymHomeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetRorymMostReadUrl = () => {
+
+
+
+
+  return `/api/rorym/most-read`
+}
+
+/**
+ * @summary Get manga selected by translation teams for the most-read section
+ */
+export const getRorymMostRead = async ( options?: RequestInit): Promise<GetRorymMostRead200> => {
+
+  return customFetch<GetRorymMostRead200>(getGetRorymMostReadUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRorymMostReadQueryKey = () => {
+    return [
+    `/api/rorym/most-read`
+    ] as const;
+    }
+
+
+export const getGetRorymMostReadQueryOptions = <TData = Awaited<ReturnType<typeof getRorymMostRead>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRorymMostRead>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRorymMostReadQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRorymMostRead>>> = ({ signal }) => getRorymMostRead({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRorymMostRead>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRorymMostReadQueryResult = NonNullable<Awaited<ReturnType<typeof getRorymMostRead>>>
+export type GetRorymMostReadQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get manga selected by translation teams for the most-read section
+ */
+
+export function useGetRorymMostRead<TData = Awaited<ReturnType<typeof getRorymMostRead>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRorymMostRead>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRorymMostReadQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -351,6 +435,78 @@ export function useGetRorymManga<TData = Awaited<ReturnType<typeof getRorymManga
 
 
 
+
+export const getUpdateRorymMangaPlacementUrl = (slug: string,) => {
+
+
+
+
+  return `/api/rorym/manga/${slug}`
+}
+
+/**
+ * @summary Let the owning translation team control most-read placement
+ */
+export const updateRorymMangaPlacement = async (slug: string,
+    rorymPlacementInput: RorymPlacementInput, options?: RequestInit): Promise<UpdateRorymMangaPlacement200> => {
+
+  return customFetch<UpdateRorymMangaPlacement200>(getUpdateRorymMangaPlacementUrl(slug),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      rorymPlacementInput,)
+  }
+);}
+
+
+
+
+export const getUpdateRorymMangaPlacementMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRorymMangaPlacement>>, TError,{slug: string;data: BodyType<RorymPlacementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRorymMangaPlacement>>, TError,{slug: string;data: BodyType<RorymPlacementInput>}, TContext> => {
+
+const mutationKey = ['updateRorymMangaPlacement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRorymMangaPlacement>>, {slug: string;data: BodyType<RorymPlacementInput>}> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  updateRorymMangaPlacement(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRorymMangaPlacementMutationResult = NonNullable<Awaited<ReturnType<typeof updateRorymMangaPlacement>>>
+    export type UpdateRorymMangaPlacementMutationBody = BodyType<RorymPlacementInput>
+    export type UpdateRorymMangaPlacementMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Let the owning translation team control most-read placement
+ */
+export const useUpdateRorymMangaPlacement = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRorymMangaPlacement>>, TError,{slug: string;data: BodyType<RorymPlacementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRorymMangaPlacement>>,
+        TError,
+        {slug: string;data: BodyType<RorymPlacementInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateRorymMangaPlacementMutationOptions(options));
+    }
 
 export const getGetRorymChaptersUrl = (slug: string,) => {
 
