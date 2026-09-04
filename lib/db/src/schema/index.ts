@@ -20,3 +20,4 @@
 export * from "./teams";
 export * from "./comments";
 export * from "./suggestions";
+export * from "./rorym";
