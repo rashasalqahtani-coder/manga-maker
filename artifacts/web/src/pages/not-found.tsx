@@ -1,23 +1,28 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
+import { Link } from "wouter";
+import { ArrowRight } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">
-              404 Page Not Found
-            </h1>
-          </div>
-
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
+    <div className="min-h-screen w-full flex items-center justify-center bg-background">
+      <div className="text-center p-8 max-w-sm w-full mx-auto space-y-6">
+        <div className="text-8xl font-black text-primary/20 select-none">
+          404
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">
+            الصفحة غير موجودة
+          </h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+        <Link href="/">
+          <div className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground h-11 px-8 rounded-full font-bold hover:bg-primary/90 transition-colors cursor-pointer w-full shadow-lg shadow-primary/20">
+            <ArrowRight className="h-5 w-5" />
+            العودة للرئيسية
+          </div>
+        </Link>
+      </div>
     </div>
   );
 }
