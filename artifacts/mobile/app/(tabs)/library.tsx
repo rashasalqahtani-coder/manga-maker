@@ -108,14 +108,14 @@ export default function LibraryScreen() {
         </View>
       )}
 
-      {/* ── MangaDex library ── */}
+      {/* ── Legacy saved library ── */}
       {library.length > 0 && (
         <View style={styles.section}>
           {localLibrary.length > 0 && (
             <View style={styles.sectionHeader}>
               <Feather name="globe" size={15} color={colors.mutedForeground} />
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-                MangaDex
+                محفوظات سابقة
               </Text>
               <Text style={[styles.sectionCount, { color: colors.mutedForeground }]}>
                 {library.length}

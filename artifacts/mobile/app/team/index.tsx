@@ -23,12 +23,9 @@ import { useLibrary } from "@/context/LibraryContext";
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import { downloadTeamChapter, isChapterDownloaded, deleteTeamData } from "@/lib/download";
-import { searchManga, getCoverUrl, getMangaTitle } from "@/lib/mangadex";
 import { publishTeam, unpublishTeam, uploadTeamImage } from "@/lib/teams";
 
 type Tab = "manga" | "members";
-type AddMode = "search" | "manual";
-
 // ─── MangaCard ──────────────────────────────────────────────────────────────
 function MangaCard({ manga }: { manga: TeamManga }) {
   const colors = useColors();
@@ -410,11 +407,7 @@ export default function TeamScreen() {
   const [tab, setTab] = useState<Tab>("manga");
 
   // Add-manga panel
-  const [addMode, setAddMode] = useState<AddMode>("search");
   const [showAddPanel, setShowAddPanel] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Omit<TeamManga, "chapters">[]>([]);
-  const [searching, setSearching] = useState(false);
 
   // Manual add
   const [manualTitle, setManualTitle] = useState("");
@@ -436,12 +429,9 @@ export default function TeamScreen() {
 
   const resetAddPanel = () => {
     setShowAddPanel(false);
-    setSearchQuery("");
-    setSearchResults([]);
     setManualTitle("");
     setManualDesc("");
     setManualCoverUri(null);
-    setAddMode("search");
   };
 
   if (!team) {
@@ -484,29 +474,6 @@ export default function TeamScreen() {
       </View>
     );
   }
-
-  const handleSearch = async (q: string) => {
-    setSearchQuery(q);
-    if (q.trim().length < 2) { setSearchResults([]); return; }
-    setSearching(true);
-    try {
-      const results = await searchManga(q);
-      setSearchResults(
-        results.slice(0, 10).map((m) => ({
-          id: m.id,
-          title: getMangaTitle(m),
-          coverUrl: getCoverUrl(m, "256") || undefined,
-        }))
-      );
-    } catch { setSearchResults([]); }
-    finally { setSearching(false); }
-  };
-
-  const handleAddFromSearch = (m: Omit<TeamManga, "chapters">) => {
-    addManga(m);
-    resetAddPanel();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
 
   const handlePickImage = async () => {
     setPickingImage(true);
@@ -743,63 +710,7 @@ export default function TeamScreen() {
             {/* Add panel */}
             {showAddPanel && (
               <View style={[styles.addPanel, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
-
-                {/* Mode switcher */}
-                <View style={[styles.modeSwitcher, { backgroundColor: colors.secondary, borderRadius: 10 }]}>
-                  <Pressable
-                    style={[styles.modeBtn, addMode === "search" && { backgroundColor: colors.primary, borderRadius: 8 }]}
-                    onPress={() => setAddMode("search")}
-                  >
-                    <Feather name="search" size={13} color={addMode === "search" ? "#fff" : colors.mutedForeground} />
-                    <Text style={[styles.modeBtnText, { color: addMode === "search" ? "#fff" : colors.mutedForeground }]}>بحث</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.modeBtn, addMode === "manual" && { backgroundColor: colors.primary, borderRadius: 8 }]}
-                    onPress={() => setAddMode("manual")}
-                  >
-                    <Feather name="edit-3" size={13} color={addMode === "manual" ? "#fff" : colors.mutedForeground} />
-                    <Text style={[styles.modeBtnText, { color: addMode === "manual" ? "#fff" : colors.mutedForeground }]}>يدوي</Text>
-                  </Pressable>
-                </View>
-
-                {/* Search mode */}
-                {addMode === "search" && (
-                  <View style={{ gap: 8, marginTop: 8 }}>
-                    <View style={[styles.searchBox, { backgroundColor: colors.secondary, borderRadius: 10, borderColor: colors.border }]}>
-                      <Feather name="search" size={16} color={colors.mutedForeground} />
-                      <TextInput
-                        style={[styles.searchInput, { color: colors.foreground }]}
-                        value={searchQuery}
-                        onChangeText={handleSearch}
-                        placeholder="ابحث عن مانجا في MangaDex..."
-                        placeholderTextColor={colors.mutedForeground}
-                        textAlign="right"
-                      />
-                      {searching && <ActivityIndicator size={14} color={colors.mutedForeground} />}
-                    </View>
-                    {searchResults.map((m) => (
-                      <Pressable
-                        key={m.id}
-                        style={[styles.resultRow, { backgroundColor: colors.secondary, borderRadius: 10 }]}
-                        onPress={() => handleAddFromSearch(m)}
-                      >
-                        {m.coverUrl ? (
-                          <Image source={{ uri: m.coverUrl }} style={styles.resultCover} contentFit="cover" />
-                        ) : (
-                          <View style={[styles.resultCoverPlaceholder, { backgroundColor: colors.muted }]}>
-                            <Feather name="book" size={14} color={colors.mutedForeground} />
-                          </View>
-                        )}
-                        <Text style={[styles.resultTitle, { color: colors.foreground }]} numberOfLines={2}>{m.title}</Text>
-                        <Feather name="plus-circle" size={20} color={colors.primary} />
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-
-                {/* Manual mode */}
-                {addMode === "manual" && (
-                  <View style={{ gap: 12, marginTop: 8 }}>
+                <View style={{ gap: 12, marginTop: 8 }}>
                     {/* Cover */}
                     <View style={{ alignItems: "center", gap: 8 }}>
                       <Pressable
@@ -872,8 +783,7 @@ export default function TeamScreen() {
                       <Feather name="plus-circle" size={16} color="#fff" />
                       <Text style={styles.manualAddBtnText}>إضافة المانجا</Text>
                     </Pressable>
-                  </View>
-                )}
+                </View>
               </View>
             )}
 

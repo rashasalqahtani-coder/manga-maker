@@ -728,7 +728,7 @@ export default function SettingsScreen() {
               Haptics.selectionAsync();
               Alert.alert(
                 "مساعدة ودعم",
-                "• مصدر المحتوى: MangaDex API\n• أرسل ملاحظاتك عبر متجر التطبيقات\n• للإبلاغ عن مشكلة: تحقق من اتصالك بالإنترنت أولاً",
+                "• مصادر المحتوى العربية متاحة داخل التطبيق\n• أرسل ملاحظاتك عبر متجر التطبيقات\n• للإبلاغ عن مشكلة: تحقق من اتصالك بالإنترنت أولاً",
                 [{ text: "حسناً" }]
               );
             }}
@@ -742,13 +742,11 @@ export default function SettingsScreen() {
               Haptics.selectionAsync();
               Alert.alert(
                 "حول التطبيق",
-                "مانجا - قارئ المانجا العربي\n\nالإصدار: 1.0.0\nالمصدر: MangaDex\n\nتطبيق مجاني لقراءة المانجا باللغة العربية",
+                "مانجا - قارئ المانجا العربي\n\nالإصدار: 1.0.0\n\nتطبيق مجاني لقراءة المانجا باللغة العربية",
                 [{ text: "إغلاق" }]
               );
             }}
           />
-          <Divider />
-          <SettingRow icon="globe" label="المصدر" value="MangaDex" tint="#06B6D4" />
         </View>
       </ScrollView>
 
