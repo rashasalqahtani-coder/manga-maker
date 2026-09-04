@@ -12,10 +12,14 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { runPostDeploySignUpCheck } = require("../scripts/post-deploy-sign-up");
 
 const STATIC_ROOT = path.resolve(__dirname, "..", "static-build");
 const TEMPLATE_PATH = path.resolve(__dirname, "templates", "landing-page.html");
 const basePath = (process.env.BASE_PATH || "/").replace(/\/+$/, "");
+const smokeMarkerPath = path.join(STATIC_ROOT, ".post-deploy-sign-up-passed");
+let isReady =
+  process.env.NODE_ENV !== "production" || fs.existsSync(smokeMarkerPath);
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -116,8 +120,10 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname === "/status") {
-    res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ status: "ok" }));
+    res.writeHead(isReady ? 200 : 503, {
+      "content-type": "application/json; charset=utf-8",
+    });
+    res.end(JSON.stringify({ status: isReady ? "ok" : "checking" }));
     return;
   }
 
@@ -138,4 +144,23 @@ const server = http.createServer((req, res) => {
 const port = parseInt(process.env.PORT || "3000", 10);
 server.listen(port, "0.0.0.0", () => {
   console.log(`Serving static Expo build on port ${port}`);
+  if (isReady) return;
+
+  const domain = process.env.REPLIT_INTERNAL_APP_DOMAIN;
+  const deploymentUrl = domain
+    ? `https://${domain.replace(/^https?:\/\//, "")}`
+    : "";
+  void runPostDeploySignUpCheck({
+    env: { ...process.env, DEPLOYMENT_URL: deploymentUrl },
+    routeBaseUrl: `http://127.0.0.1:${port}`,
+  })
+    .then(() => {
+      fs.writeFileSync(smokeMarkerPath, "passed\n", { mode: 0o600 });
+      isReady = true;
+      console.log("Production sign-up readiness check passed");
+    })
+    .catch((error) => {
+      console.error(`Production sign-up readiness check failed: ${error.message}`);
+      server.close(() => process.exit(1));
+    });
 });

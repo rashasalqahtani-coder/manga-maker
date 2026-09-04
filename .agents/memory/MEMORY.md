@@ -1,2 +1,3 @@
 - [API test runner](api-test-runner.md) — API TypeScript tests use the existing esbuild dependency and Node test runner rather than assuming tsx is installed.
 - [Clerk Core status transitions](clerk-core-status-transitions.md) — custom auth flows must react to hook status changes instead of checking immediately after requests.
+- [Production Clerk smoke tests](production-clerk-smoke-tests.md) — testing tokens must come from the same Clerk environment as the deployed client; Expo Go links need native device automation.

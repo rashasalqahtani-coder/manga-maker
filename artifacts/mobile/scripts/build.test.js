@@ -80,3 +80,22 @@ test("sign-up route renders email and password fields", () => {
   assert.match(signUpScreen, /testID="sign-up-password"/);
   assert.match(signUpScreen, /testID="sign-up-submit"/);
 });
+
+test("package exposes the production sign-up smoke check", () => {
+  const packageJson = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf-8"),
+  );
+  assert.equal(
+    packageJson.scripts["test:post-deploy-sign-up"],
+    "node scripts/post-deploy-sign-up.js",
+  );
+  assert.equal(packageJson.scripts["test:build"], "node --test scripts/*.test.js");
+
+  const productionServer = fs.readFileSync(
+    path.join(__dirname, "..", "server", "serve.js"),
+    "utf-8",
+  );
+  assert.match(productionServer, /runPostDeploySignUpCheck/);
+  assert.match(productionServer, /isReady \? 200 : 503/);
+  assert.match(productionServer, /REPLIT_INTERNAL_APP_DOMAIN/);
+});
