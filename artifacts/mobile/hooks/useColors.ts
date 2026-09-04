@@ -10,6 +10,7 @@ import { useTheme } from "@/context/ThemeContext";
 export function useColors() {
   useColorScheme(); // subscribe to system scheme changes (keeps hook count stable)
   const { accent, bg, radiusPreset } = useTheme();
+  const isLight = bg.id === "white";
 
   return {
     // Accent / primary
@@ -22,17 +23,17 @@ export function useColors() {
     // Background family (from chosen bg preset)
     background:           bg.background,
     card:                 bg.card,
-    cardForeground:       "#FFFFFF",
+    cardForeground:       isLight ? "#111111" : "#FFFFFF",
     secondary:            bg.secondary,
-    secondaryForeground:  "#EBEBF5",
+    secondaryForeground:  isLight ? "#2C2C2E" : "#EBEBF5",
     muted:                bg.secondary,
     border:               bg.border,
     input:                bg.border,
 
     // Text
-    text:             "#FFFFFF",
-    foreground:       "#FFFFFF",
-    mutedForeground:  "#8E8E93",
+    text:             isLight ? "#111111" : "#FFFFFF",
+    foreground:       isLight ? "#111111" : "#FFFFFF",
+    mutedForeground:  isLight ? "#636366" : "#8E8E93",
 
     // Destructive
     destructive:            staticColors.dark.destructive,

@@ -39,6 +39,7 @@ export const BG_PRESETS: BgPreset[] = [
   { id: "amoled",   label: "أسود",   background: "#000000", card: "#0D0D0D", secondary: "#1A1A1A", border: "#1A1A1A" },
   { id: "charcoal", label: "فحمي",   background: "#141414", card: "#1F1F1F", secondary: "#2A2A2A", border: "#2A2A2A" },
   { id: "gray",     label: "رمادي",  background: "#1A1A1A", card: "#252525", secondary: "#303030", border: "#303030" },
+  { id: "white",    label: "أبيض",   background: "#FFFFFF", card: "#F7F7F8", secondary: "#ECECEF", border: "#D1D1D6" },
 ];
 
 // ──────────────────────────────────────────────
