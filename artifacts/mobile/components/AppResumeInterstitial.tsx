@@ -1,12 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { useGlobalSearchParams, usePathname } from "expo-router";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
 import type { InterstitialAd } from "react-native-google-mobile-ads";
+import {
+  advanceChapterCount,
+  selectAdUnitId,
+} from "./appResumeInterstitialPolicy";
 
 const AD_UNIT_ID = "ca-app-pub-9653661950159959/4261913243";
-const CHAPTERS_PER_AD = 3;
 const STORAGE_PREFIX = "admob_interstitial_v1";
 const COUNT_KEY = `${STORAGE_PREFIX}:chapter_count`;
 const PENDING_KEY = `${STORAGE_PREFIX}:pending`;
@@ -30,8 +33,8 @@ function getChapterKey(
 export function AppResumeInterstitial() {
   const pathname = usePathname();
   const params = useGlobalSearchParams();
+  const [storageReady, setStorageReady] = useState(false);
   const appStateRef = useRef(AppState.currentState);
-  const storageReadyRef = useRef(false);
   const chapterCountRef = useRef(0);
   const pendingRef = useRef(false);
   const lastChapterRef = useRef<string | null>(null);
@@ -50,7 +53,7 @@ export function AppResumeInterstitial() {
       chapterCountRef.current = Number.parseInt(count ?? "0", 10) || 0;
       pendingRef.current = pending === "true";
       lastChapterRef.current = lastChapter;
-      storageReadyRef.current = true;
+      setStorageReady(true);
     });
   }, []);
 
@@ -68,7 +71,11 @@ export function AppResumeInterstitial() {
       await ads.default().initialize();
       if (!active) return;
 
-      const unitId = __DEV__ ? ads.TestIds.INTERSTITIAL : AD_UNIT_ID;
+      const unitId = selectAdUnitId(
+        __DEV__,
+        ads.TestIds.INTERSTITIAL,
+        AD_UNIT_ID,
+      );
       const interstitial = ads.InterstitialAd.createForAdRequest(unitId, {
         requestNonPersonalizedAdsOnly: true,
       });
@@ -99,7 +106,7 @@ export function AppResumeInterstitial() {
   }, []);
 
   useEffect(() => {
-    if (!storageReadyRef.current || Platform.OS !== "android") return;
+    if (!storageReady || Platform.OS !== "android") return;
 
     const chapterKey = getChapterKey(
       pathname,
@@ -110,21 +117,17 @@ export function AppResumeInterstitial() {
     lastChapterRef.current = chapterKey;
     void AsyncStorage.setItem(LAST_CHAPTER_KEY, chapterKey);
 
-    if (pendingRef.current) return;
-
-    chapterCountRef.current += 1;
-    if (chapterCountRef.current >= CHAPTERS_PER_AD) {
-      chapterCountRef.current = 0;
-      pendingRef.current = true;
-      void AsyncStorage.multiSet([
-        [COUNT_KEY, "0"],
-        [PENDING_KEY, "true"],
-      ]);
-      return;
-    }
-
-    void AsyncStorage.setItem(COUNT_KEY, String(chapterCountRef.current));
-  }, [pathname, params]);
+    const next = advanceChapterCount(
+      chapterCountRef.current,
+      pendingRef.current,
+    );
+    chapterCountRef.current = next.chapterCount;
+    pendingRef.current = next.pending;
+    void AsyncStorage.multiSet([
+      [COUNT_KEY, String(next.chapterCount)],
+      [PENDING_KEY, String(next.pending)],
+    ]);
+  }, [pathname, params, storageReady]);
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
