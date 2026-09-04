@@ -186,10 +186,21 @@ export default function SearchScreen() {
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) {
-      setResults({ rorym: [], teams: [] });
-      setLoadingMap({});
+      const id = ++searchIdRef.current;
+      setSearched(true);
       setActiveManga(null);
-      setSearched(false);
+      setLoadingMap({ rorym: true, teams: false });
+      setResults({ rorym: [], teams: [] });
+      searchMangas("rorym", "")
+        .then((rorym) => {
+          if (searchIdRef.current !== id) return;
+          setResults({ rorym, teams: [] });
+          setLoadingMap({ rorym: false, teams: false });
+        })
+        .catch(() => {
+          if (searchIdRef.current !== id) return;
+          setLoadingMap({ rorym: false, teams: false });
+        });
       return;
     }
 
@@ -401,25 +412,21 @@ export default function SearchScreen() {
       </View>
 
       {/* ── Body ── */}
-      {!searched ? (
-        <View style={styles.center}>
-          <Feather name="search" size={44} color={colors.muted} />
-          <Text style={[styles.hint, { color: colors.mutedForeground }]}>ابحث في روري م</Text>
-          <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
-            روري م · فرق الترجمة
-          </Text>
-        </View>
-      ) : isAnyLoading && totalCount === 0 ? (
+      {isAnyLoading && totalCount === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={[styles.hint, { color: colors.mutedForeground }]}>جارٍ البحث...</Text>
+          <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+            {query.trim() ? "جارٍ البحث..." : "جارٍ تحميل جميع المانجا..."}
+          </Text>
         </View>
       ) : !isAnyLoading && totalCount === 0 ? (
         <View style={styles.center}>
           <Feather name="frown" size={36} color={colors.mutedForeground} />
-          <Text style={[styles.hint, { color: colors.mutedForeground }]}>لا توجد نتائج</Text>
+          <Text style={[styles.hint, { color: colors.mutedForeground }]}>
+            {query.trim() ? "لا توجد نتائج" : "لا توجد مانجا مضافة حالياً"}
+          </Text>
           <Text style={[styles.hintSub, { color: colors.mutedForeground }]}>
-            جرّب البحث بعنوان مختلف
+            {query.trim() ? "جرّب البحث بعنوان مختلف" : "ستظهر الأعمال هنا بعد إضافتها"}
           </Text>
         </View>
       ) : (

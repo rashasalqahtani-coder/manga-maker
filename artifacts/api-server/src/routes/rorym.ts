@@ -148,7 +148,7 @@ router.get("/rorym/search", async (req: Request, res: Response) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query<RorymManga>(
-      `SELECT * FROM rorym_manga WHERE title ILIKE $1 ORDER BY created_at DESC LIMIT 20`,
+      `SELECT * FROM rorym_manga WHERE title ILIKE $1 ORDER BY created_at DESC LIMIT 200`,
       [`%${q}%`]
     );
     const results = rows.map((r) => toUnified(r));

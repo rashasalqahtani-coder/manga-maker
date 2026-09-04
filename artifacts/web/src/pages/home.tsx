@@ -25,11 +25,10 @@ function SearchSection() {
         />
       </div>
 
-      {query.length > 1 && (
-        <div className="space-y-4">
+      <div className="space-y-4">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Search className="h-5 w-5 text-primary" />
-            نتائج البحث
+            {debouncedQuery.trim() ? 'نتائج البحث' : 'جميع المانجا'}
           </h2>
           {isLoading ? (
             <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -44,11 +43,14 @@ function SearchSection() {
           ) : (
             <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center bg-card rounded-2xl border border-border">
               <Compass className="h-12 w-12 mb-4 text-muted-foreground/50" />
-              <p>لم يتم العثور على نتائج لـ "{query}"</p>
+              <p>
+                {debouncedQuery.trim()
+                  ? `لم يتم العثور على نتائج لـ "${query}"`
+                  : 'لا توجد مانجا مضافة حالياً'}
+              </p>
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }

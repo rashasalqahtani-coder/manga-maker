@@ -86,6 +86,5 @@ export function useSearchMangas(query: string) {
   return useQuery({
     queryKey: ['manga', 'search', query],
     queryFn: () => searchMangas(query),
-    enabled: query.length > 1,
   });
 }
