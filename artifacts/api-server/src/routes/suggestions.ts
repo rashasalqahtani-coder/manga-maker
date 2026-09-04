@@ -23,6 +23,18 @@ export interface SuggestionsRepository {
   setSuggestionStatus(id: string, status: "hidden" | "visible"): Promise<boolean>;
 }
 
+export async function findReportableSuggestion(
+  id: string,
+  database: Pick<typeof db, "select"> = db,
+): Promise<{ id: string; userId: string } | undefined> {
+  const [suggestion] = await database
+    .select({ id: suggestionsTable.id, userId: suggestionsTable.userId })
+    .from(suggestionsTable)
+    .where(and(eq(suggestionsTable.id, id), ne(suggestionsTable.status, "deleted")))
+    .limit(1);
+  return suggestion;
+}
+
 function hasAdminClaim(sessionClaims: unknown): boolean {
   if (!sessionClaims || typeof sessionClaims !== "object") return false;
   const claims = sessionClaims as Record<string, unknown>;
@@ -43,12 +55,7 @@ async function isAdmin(userId: string, sessionClaims: unknown): Promise<boolean>
 
 const repository: SuggestionsRepository = {
   async findReportableSuggestion(id) {
-    const [suggestion] = await db
-      .select({ id: suggestionsTable.id, userId: suggestionsTable.userId })
-      .from(suggestionsTable)
-      .where(and(eq(suggestionsTable.id, id), ne(suggestionsTable.status, "deleted")))
-      .limit(1);
-    return suggestion;
+    return findReportableSuggestion(id);
   },
   async createReport(input) {
     await db.insert(suggestionReportsTable).values(input).onConflictDoNothing();

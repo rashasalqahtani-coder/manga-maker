@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import express from "express";
 import type { Server } from "node:http";
-import { createSuggestionsRouter, type SuggestionsRepository } from "./suggestions";
+import { PgDialect } from "drizzle-orm/pg-core";
+import { createSuggestionsRouter, findReportableSuggestion, type SuggestionsRepository } from "./suggestions";
 
 type StoredSuggestion = {
   id: string;
   userId: string;
-  status: "visible" | "hidden";
+  status: "visible" | "hidden" | "deleted";
 };
 
 class MemorySuggestionsRepository implements SuggestionsRepository {
@@ -16,7 +17,9 @@ class MemorySuggestionsRepository implements SuggestionsRepository {
 
   async findReportableSuggestion(id: string) {
     const suggestion = this.suggestions.get(id);
-    return suggestion ? { id: suggestion.id, userId: suggestion.userId } : undefined;
+    return suggestion && suggestion.status !== "deleted"
+      ? { id: suggestion.id, userId: suggestion.userId }
+      : undefined;
   }
 
   async createReport(input: { id: string; suggestionId: string; reporterUserId: string; reason: string }) {
@@ -130,6 +133,51 @@ describe("suggestion authorization routes", () => {
     assert.equal(repository.reports.size, 1);
   });
 
+  test("the owner cannot report their own suggestion", async () => {
+    const response = await request("/suggestions/suggestion-1/reports", {
+      method: "POST",
+      userId: "owner",
+      body: JSON.stringify({ reason: "spam" }),
+    });
+
+    assert.equal(response.status, 403);
+    assert.equal(repository.reports.size, 0);
+  });
+
+  test("an unauthenticated reader cannot report a suggestion", async () => {
+    const response = await request("/suggestions/suggestion-1/reports", {
+      method: "POST",
+      body: JSON.stringify({ reason: "spam" }),
+    });
+
+    assert.equal(response.status, 401);
+    assert.equal(repository.reports.size, 0);
+  });
+
+  test("a reader cannot report a deleted suggestion", async () => {
+    repository.suggestions.get("suggestion-1")!.status = "deleted";
+
+    const response = await request("/suggestions/suggestion-1/reports", {
+      method: "POST",
+      userId: "other-reader",
+      body: JSON.stringify({ reason: "spam" }),
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal(repository.reports.size, 0);
+  });
+
+  test("a reader cannot report a suggestion that does not exist", async () => {
+    const response = await request("/suggestions/missing-suggestion/reports", {
+      method: "POST",
+      userId: "other-reader",
+      body: JSON.stringify({ reason: "spam" }),
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal(repository.reports.size, 0);
+  });
+
   test("review and moderation routes reject readers and accept admins", async () => {
     const readerReview = await request("/admin/suggestion-reports", { userId: "other-reader" });
     const readerHide = await request("/admin/suggestions/suggestion-1", {
@@ -185,4 +233,31 @@ describe("suggestion authorization routes", () => {
     );
     assert.equal(repository.suggestions.has("suggestion-1"), false);
   });
+});
+
+test("the production query excludes deleted suggestions", async () => {
+  let whereClause: Parameters<PgDialect["sqlToQuery"]>[0] | undefined;
+  const database = {
+    select: () => ({
+      from: () => ({
+        where: (condition: Parameters<PgDialect["sqlToQuery"]>[0]) => {
+          whereClause = condition;
+          return { limit: async () => [] };
+        },
+      }),
+    }),
+  };
+
+  assert.equal(
+    await findReportableSuggestion(
+      "suggestion-1",
+      database as unknown as Parameters<typeof findReportableSuggestion>[1],
+    ),
+    undefined,
+  );
+  assert(whereClause);
+
+  const query = new PgDialect().sqlToQuery(whereClause);
+  assert.match(query.sql, /"manga_suggestions"\."status" <> \$/);
+  assert(query.params.includes("deleted"));
 });
