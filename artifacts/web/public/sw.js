@@ -35,20 +35,21 @@ self.addEventListener('fetch', (event) => {
   // Ignore chrome extensions and other non-http
   if (!event.request.url.startsWith('http')) return;
   
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request).then((fetchResponse) => {
-        return caches.open(CACHE_NAME).then((cache) => {
-          if (fetchResponse.status === 200 && fetchResponse.type === 'basic') {
-            cache.put(event.request, fetchResponse.clone());
-          }
-          return fetchResponse;
-        });
-      });
-    }).catch(() => {
-      if (event.request.mode === 'navigate') {
-        return caches.match('./index.html');
-      }
-    })
+    caches.match(event.request).then((response) =>
+      response || fetch(event.request).then((fetchResponse) => {
+        if (fetchResponse.status === 200 && fetchResponse.type === 'basic') {
+          void caches.open(CACHE_NAME).then((cache) => cache.put(event.request, fetchResponse.clone()));
+        }
+        return fetchResponse;
+      })
+    )
   );
 });

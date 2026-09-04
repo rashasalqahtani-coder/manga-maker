@@ -9,12 +9,17 @@ interface MangaCardProps {
 
 export function MangaCard({ manga }: MangaCardProps) {
   return (
-    <Link href={`/manga/${manga.id}`} className="group block w-full space-y-2" data-testid={`card-manga-${manga.id}`}>
+    <Link
+      href={`/manga/${encodeURIComponent(manga.id)}`}
+      className="group block w-full space-y-2"
+      data-testid={`link-manga-${manga.id}`}
+    >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-muted shadow-sm transition-transform duration-300 group-hover:-translate-y-1 group-hover:shadow-md">
         <img
           src={manga.coverUrl}
           alt={manga.title}
           loading="lazy"
+          data-testid={`img-cover-${manga.id}`}
           className="h-full w-full object-cover transition-opacity duration-300"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMzMzMiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZmlsbD0iIzY2NiIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPk5vIENvdmVyPC90ZXh0Pjwvc3ZnPg==';

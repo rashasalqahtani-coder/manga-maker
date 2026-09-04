@@ -7,6 +7,7 @@ import Home from '@/pages/home';
 import MangaDetail from '@/pages/manga-detail';
 import GenreView from '@/pages/genre-view';
 import { PWAInstallPrompt } from '@/components/install-prompt';
+import ChapterReader from '@/pages/chapter-reader';
 
 const queryClient = new QueryClient();
 
@@ -15,6 +16,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/manga/:id" component={MangaDetail} />
+      <Route path="/manga/:id/chapter/:chapterNumber" component={ChapterReader} />
       <Route path="/genre/:genre" component={GenreView} />
       <Route component={NotFound} />
     </Switch>

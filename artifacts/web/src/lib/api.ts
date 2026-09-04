@@ -15,9 +15,16 @@ export interface UnifiedManga {
   latestChapterUrl?: string;
   isMostRead?: boolean;
   genres?: string[];
+  teamName?: string;
 }
 
-// Adjust API base properly based on the environment
+export interface MangaChapter {
+  id: string;
+  number: string;
+  title: string;
+  pages: string[];
+  uploadDate?: string;
+}
 const API_BASE = '/api';
 
 function mapRorymItem(item: Record<string, unknown>): UnifiedManga {
@@ -38,14 +45,24 @@ function mapRorymItem(item: Record<string, unknown>): UnifiedManga {
     url: String(item['url'] ?? ''),
     sourceId: 'rorym',
     rating: item['rating'] ? String(item['rating']) : undefined,
+    summary: item['summary'] ? String(item['summary']) : undefined,
+    teamName: item['teamName'] ? String(item['teamName']) : undefined,
     isMostRead: item['isMostRead'] === true,
     latestChapterNum: latest?.number,
     latestChapterUrl: latest?.url,
-    summary: item['summary'] ? String(item['summary']) : undefined,
     genres,
   };
 }
 
+async function apiRequest<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) {
+    const error = new Error(`request failed: ${res.status}`);
+    error.name = res.status === 404 ? 'NotFoundError' : 'ApiError';
+    throw error;
+  }
+  return res.json() as Promise<T>;
+}
 export async function fetchMostReadMangas(): Promise<UnifiedManga[]> {
   const res = await fetch(`${API_BASE}/rorym/most-read`);
   if (!res.ok) throw new Error(`most-read fetch failed: ${res.status}`);
@@ -86,5 +103,37 @@ export function useSearchMangas(query: string) {
   return useQuery({
     queryKey: ['manga', 'search', query],
     queryFn: () => searchMangas(query),
+  });
+}
+
+export function useManga(slug: string) {
+  return useQuery({
+    queryKey: ['manga', 'detail', slug],
+    queryFn: () => fetchManga(slug),
+    enabled: Boolean(slug),
+    retry: (failureCount, error) => error.name !== 'NotFoundError' && failureCount < 1,
+  });
+}
+
+export async function fetchManga(slug: string): Promise<UnifiedManga> {
+  const data = await apiRequest<{ manga: Record<string, unknown> }>(
+    `/rorym/manga/${encodeURIComponent(slug)}`,
+  );
+  return mapRorymItem(data.manga);
+}
+
+export async function fetchMangaChapters(slug: string): Promise<MangaChapter[]> {
+  const data = await apiRequest<{ chapters: MangaChapter[] }>(
+    `/rorym/manga/${encodeURIComponent(slug)}/chapters`,
+  );
+  return data.chapters ?? [];
+}
+
+export function useMangaChapters(slug: string) {
+  return useQuery({
+    queryKey: ['manga', 'chapters', slug],
+    queryFn: () => fetchMangaChapters(slug),
+    enabled: Boolean(slug),
+    retry: (failureCount, error) => error.name !== 'NotFoundError' && failureCount < 1,
   });
 }
