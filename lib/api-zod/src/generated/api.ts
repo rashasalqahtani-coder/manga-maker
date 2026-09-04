@@ -205,3 +205,54 @@ export const GetRorymChaptersResponse = zod.object({
 })
 
 
+/**
+ * @summary List reader manga suggestions
+ */
+export const getMangaSuggestionsResponseSuggestionsItemOneUserNameMax = 60;
+
+export const getMangaSuggestionsResponseSuggestionsItemOneReasonMin = 10;
+export const getMangaSuggestionsResponseSuggestionsItemOneReasonMax = 700;
+
+
+
+export const GetMangaSuggestionsResponse = zod.object({
+  "suggestions": zod.array(zod.object({
+  "userName": zod.string().min(1).max(getMangaSuggestionsResponseSuggestionsItemOneUserNameMax),
+  "userAvatar": zod.string().url().optional(),
+  "sourceSlug": zod.string(),
+  "sourceTitle": zod.string(),
+  "sourceCoverUrl": zod.string().optional(),
+  "suggestedSlug": zod.string(),
+  "suggestedTitle": zod.string(),
+  "suggestedCoverUrl": zod.string().optional(),
+  "reason": zod.string().min(getMangaSuggestionsResponseSuggestionsItemOneReasonMin).max(getMangaSuggestionsResponseSuggestionsItemOneReasonMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "createdAt": zod.coerce.date()
+})))
+})
+
+
+/**
+ * @summary Create an authenticated reader suggestion
+ */
+export const createMangaSuggestionBodyUserNameMax = 60;
+
+export const createMangaSuggestionBodyReasonMin = 10;
+export const createMangaSuggestionBodyReasonMax = 700;
+
+
+
+export const CreateMangaSuggestionBody = zod.object({
+  "userName": zod.string().min(1).max(createMangaSuggestionBodyUserNameMax),
+  "userAvatar": zod.string().url().optional(),
+  "sourceSlug": zod.string(),
+  "sourceTitle": zod.string(),
+  "sourceCoverUrl": zod.string().optional(),
+  "suggestedSlug": zod.string(),
+  "suggestedTitle": zod.string(),
+  "suggestedCoverUrl": zod.string().optional(),
+  "reason": zod.string().min(createMangaSuggestionBodyReasonMin).max(createMangaSuggestionBodyReasonMax)
+})
+
+

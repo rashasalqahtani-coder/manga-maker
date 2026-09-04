@@ -19,3 +19,4 @@
 
 export * from "./teams";
 export * from "./comments";
+export * from "./suggestions";

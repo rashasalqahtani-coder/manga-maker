@@ -6,6 +6,7 @@ import teamsRouter from "./teams";
 import commentsRouter from "./comments";
 import teamImagesRouter from "./teamImages";
 import rorymRouter from "./rorym";
+import suggestionsRouter from "./suggestions";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(teamsRouter);
 router.use(commentsRouter);
 router.use(teamImagesRouter);
 router.use(rorymRouter);
+router.use(suggestionsRouter);
 
 export default router;

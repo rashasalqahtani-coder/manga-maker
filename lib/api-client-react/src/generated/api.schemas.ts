@@ -44,6 +44,31 @@ export interface RorymChapter {
   uploadDate?: string;
 }
 
+export interface CreateMangaSuggestionInput {
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  userName: string;
+  userAvatar?: string;
+  sourceSlug: string;
+  sourceTitle: string;
+  sourceCoverUrl?: string;
+  suggestedSlug: string;
+  suggestedTitle: string;
+  suggestedCoverUrl?: string;
+  /**
+     * @minLength 10
+     * @maxLength 700
+     */
+  reason: string;
+}
+
+export type MangaSuggestion = CreateMangaSuggestionInput & {
+  id: string;
+  createdAt: string;
+};
+
 export type GetRorymHome200 = {
   manga: RorymManga[];
 };
@@ -75,5 +100,13 @@ export type UpdateRorymMangaPlacement200 = {
 
 export type GetRorymChapters200 = {
   chapters: RorymChapter[];
+};
+
+export type GetMangaSuggestions200 = {
+  suggestions: MangaSuggestion[];
+};
+
+export type CreateMangaSuggestion201 = {
+  suggestion: MangaSuggestion;
 };
 

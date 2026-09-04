@@ -20,6 +20,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  CreateMangaSuggestion201,
+  CreateMangaSuggestionInput,
+  GetMangaSuggestions200,
   GetRorymChapters200,
   GetRorymHome200,
   GetRorymManga200,
@@ -662,4 +665,152 @@ export function useGetRorymChapters<TData = Awaited<ReturnType<typeof getRorymCh
 
 
 
+
+export const getGetMangaSuggestionsUrl = () => {
+
+
+
+
+  return `/api/suggestions`
+}
+
+/**
+ * @summary List reader manga suggestions
+ */
+export const getMangaSuggestions = async ( options?: RequestInit): Promise<GetMangaSuggestions200> => {
+
+  return customFetch<GetMangaSuggestions200>(getGetMangaSuggestionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMangaSuggestionsQueryKey = () => {
+    return [
+    `/api/suggestions`
+    ] as const;
+    }
+
+
+export const getGetMangaSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof getMangaSuggestions>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMangaSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMangaSuggestionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMangaSuggestions>>> = ({ signal }) => getMangaSuggestions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMangaSuggestions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMangaSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof getMangaSuggestions>>>
+export type GetMangaSuggestionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List reader manga suggestions
+ */
+
+export function useGetMangaSuggestions<TData = Awaited<ReturnType<typeof getMangaSuggestions>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMangaSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMangaSuggestionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateMangaSuggestionUrl = () => {
+
+
+
+
+  return `/api/suggestions`
+}
+
+/**
+ * @summary Create an authenticated reader suggestion
+ */
+export const createMangaSuggestion = async (createMangaSuggestionInput: CreateMangaSuggestionInput, options?: RequestInit): Promise<CreateMangaSuggestion201> => {
+
+  return customFetch<CreateMangaSuggestion201>(getCreateMangaSuggestionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createMangaSuggestionInput,)
+  }
+);}
+
+
+
+
+export const getCreateMangaSuggestionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMangaSuggestion>>, TError,{data: BodyType<CreateMangaSuggestionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMangaSuggestion>>, TError,{data: BodyType<CreateMangaSuggestionInput>}, TContext> => {
+
+const mutationKey = ['createMangaSuggestion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMangaSuggestion>>, {data: BodyType<CreateMangaSuggestionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMangaSuggestion(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMangaSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof createMangaSuggestion>>>
+    export type CreateMangaSuggestionMutationBody = BodyType<CreateMangaSuggestionInput>
+    export type CreateMangaSuggestionMutationError = ErrorType<void>
+
+    /**
+ * @summary Create an authenticated reader suggestion
+ */
+export const useCreateMangaSuggestion = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMangaSuggestion>>, TError,{data: BodyType<CreateMangaSuggestionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMangaSuggestion>>,
+        TError,
+        {data: BodyType<CreateMangaSuggestionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateMangaSuggestionMutationOptions(options));
+    }
 

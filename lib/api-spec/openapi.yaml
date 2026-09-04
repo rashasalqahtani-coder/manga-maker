@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: rorym
     description: Rorym local manga source
+  - name: suggestions
+    description: Reader manga recommendations
 paths:
   /healthz:
     get:
@@ -192,6 +194,50 @@ paths:
                     items:
                       $ref: "#/components/schemas/RorymChapter"
 
+  /suggestions:
+    get:
+      operationId: getMangaSuggestions
+      tags: [suggestions]
+      summary: List reader manga suggestions
+      responses:
+        "200":
+          description: Suggestions ordered newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [suggestions]
+                properties:
+                  suggestions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MangaSuggestion"
+    post:
+      operationId: createMangaSuggestion
+      tags: [suggestions]
+      summary: Create an authenticated reader suggestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMangaSuggestionInput"
+      responses:
+        "201":
+          description: Suggestion created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [suggestion]
+                properties:
+                  suggestion:
+                    $ref: "#/components/schemas/MangaSuggestion"
+        "400":
+          description: Invalid suggestion
+        "401":
+          description: Authentication required
+
 components:
   schemas:
     HealthStatus:
@@ -269,3 +315,43 @@ components:
             type: string
         uploadDate:
           type: string
+
+    CreateMangaSuggestionInput:
+      type: object
+      required: [userName, sourceSlug, sourceTitle, suggestedSlug, suggestedTitle, reason]
+      properties:
+        userName:
+          type: string
+          minLength: 1
+          maxLength: 60
+        userAvatar:
+          type: string
+          format: uri
+        sourceSlug:
+          type: string
+        sourceTitle:
+          type: string
+        sourceCoverUrl:
+          type: string
+        suggestedSlug:
+          type: string
+        suggestedTitle:
+          type: string
+        suggestedCoverUrl:
+          type: string
+        reason:
+          type: string
+          minLength: 10
+          maxLength: 700
+
+    MangaSuggestion:
+      allOf:
+        - $ref: "#/components/schemas/CreateMangaSuggestionInput"
+        - type: object
+          required: [id, createdAt]
+          properties:
+            id:
+              type: string
+            createdAt:
+              type: string
+              format: date-time

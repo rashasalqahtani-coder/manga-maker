@@ -6,12 +6,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './createMangaSuggestion201';
+export * from './createMangaSuggestionInput';
+export * from './getMangaSuggestions200';
 export * from './getRorymChapters200';
 export * from './getRorymHome200';
 export * from './getRorymManga200';
 export * from './getRorymMangaByGenre200';
 export * from './getRorymMostRead200';
 export * from './healthStatus';
+export * from './mangaSuggestion';
 export * from './rorymChapter';
 export * from './rorymManga';
 export * from './rorymMangaLatestChaptersItem';

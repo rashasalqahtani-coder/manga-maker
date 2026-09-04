@@ -696,6 +696,17 @@ export default function SettingsScreen() {
         <SectionHeader title="المزيد" />
         <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
           <SettingRow
+            icon="compass"
+            label="الاقتراحات"
+            value="اقترح مانجا مشابهة"
+            tint="#8B5CF6"
+            onPress={() => {
+              Haptics.selectionAsync();
+              router.push("/suggestions" as any);
+            }}
+          />
+          <Divider />
+          <SettingRow
             icon="share-2"
             label="مشاركة التطبيق"
             tint="#10B981"
