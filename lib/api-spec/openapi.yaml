@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: rorym
+    description: Rorym local manga source
 paths:
   /healthz:
     get:
@@ -24,6 +26,99 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /rorym/home:
+    get:
+      operationId: getRorymHome
+      tags: [rorym]
+      summary: Get all manga from Rorym
+      responses:
+        "200":
+          description: List of manga
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [manga]
+                properties:
+                  manga:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RorymManga"
+
+  /rorym/search:
+    get:
+      operationId: searchRorym
+      tags: [rorym]
+      summary: Search manga by title
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RorymManga"
+
+  /rorym/manga/{slug}:
+    get:
+      operationId: getRorymManga
+      tags: [rorym]
+      summary: Get single manga detail
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Manga detail
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [manga]
+                properties:
+                  manga:
+                    $ref: "#/components/schemas/RorymManga"
+
+  /rorym/manga/{slug}/chapters:
+    get:
+      operationId: getRorymChapters
+      tags: [rorym]
+      summary: Get chapters for a manga
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chapter list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [chapters]
+                properties:
+                  chapters:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RorymChapter"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +129,54 @@ components:
       required:
         - status
 
+    RorymManga:
+      type: object
+      required: [id, slug, title, coverUrl, url, sourceId, latestChapters]
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        title:
+          type: string
+        coverUrl:
+          type: string
+        url:
+          type: string
+        sourceId:
+          type: string
+        summary:
+          type: string
+        teamId:
+          type: string
+        teamName:
+          type: string
+        latestChapters:
+          type: array
+          items:
+            type: object
+            required: [number, url]
+            properties:
+              number:
+                type: string
+              url:
+                type: string
+
+    RorymChapter:
+      type: object
+      required: [id, number, title, url, pages]
+      properties:
+        id:
+          type: string
+        number:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+        pages:
+          type: array
+          items:
+            type: string
+        uploadDate:
+          type: string
