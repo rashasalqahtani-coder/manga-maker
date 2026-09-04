@@ -321,6 +321,45 @@ export default function HomeScreen() {
           }}
         />
 
+        {/* ── Most read (data will be connected later) ── */}
+        <View style={styles.mostReadSection}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+            الأكثر قراءة
+          </Text>
+          <View
+            style={[
+              styles.comingSoonCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                borderRadius: colors.radius,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.comingSoonIcon,
+                { backgroundColor: colors.primary + "18" },
+              ]}
+            >
+              <Feather name="bar-chart-2" size={20} color={colors.primary} />
+            </View>
+            <View style={styles.comingSoonText}>
+              <Text style={[styles.comingSoonTitle, { color: colors.foreground }]}>
+                قريباً
+              </Text>
+              <Text
+                style={[
+                  styles.comingSoonDescription,
+                  { color: colors.mutedForeground },
+                ]}
+              >
+                ستظهر هنا المانجا الأكثر قراءة
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* ── Recently updated ── */}
         {recent.length > 0 && (
           <StarzMangaRow
@@ -372,6 +411,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
+  },
+  mostReadSection: {
+    marginBottom: 28,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 12,
+    textAlign: "right",
+  },
+  comingSoonCard: {
+    minHeight: 92,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  comingSoonIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  comingSoonText: {
+    flex: 1,
+    alignItems: "flex-start",
+  },
+  comingSoonTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  comingSoonDescription: {
+    fontSize: 12,
+    marginTop: 3,
   },
   sourceBanner: {
     flexDirection: "row",
