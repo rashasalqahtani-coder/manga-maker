@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,8 +21,14 @@ import { useColors } from "@/hooks/useColors";
 import { searchMangas, type UnifiedManga } from "@/lib/sources";
 import {
   createSuggestion,
+  deleteSuggestion,
   fetchSuggestions,
+  fetchSuggestionReports,
+  moderateSuggestion,
+  reportSuggestion,
   type MangaSuggestion,
+  type SuggestionReportReason,
+  type SuggestionReportSummary,
 } from "@/lib/suggestions";
 
 function MangaPicker({
@@ -100,7 +107,17 @@ function MangaPicker({
   );
 }
 
-function SuggestionCard({ item }: { item: MangaSuggestion }) {
+function SuggestionCard({
+  item,
+  isOwner,
+  onReport,
+  onDelete,
+}: {
+  item: MangaSuggestion;
+  isOwner: boolean;
+  onReport: () => void;
+  onDelete: () => void;
+}) {
   const colors = useColors();
   const router = useRouter();
   const openManga = (slug: string, title: string, coverUrl?: string | null) =>
@@ -135,7 +152,20 @@ function SuggestionCard({ item }: { item: MangaSuggestion }) {
         <Text style={[styles.reasonLabel, { color: colors.primary }]}>لماذا هذا الاقتراح؟</Text>
         <Text style={[styles.reason, { color: colors.foreground }]}>{item.reason}</Text>
       </View>
-      <Text style={[styles.author, { color: colors.mutedForeground }]}>اقتراح من {item.userName}</Text>
+      <View style={styles.cardFooter}>
+        <Text style={[styles.author, { color: colors.mutedForeground }]}>اقتراح من {item.userName}</Text>
+        {isOwner ? (
+          <Pressable onPress={onDelete} style={styles.smallAction}>
+            <Feather name="trash-2" size={14} color={colors.destructive} />
+            <Text style={[styles.smallActionText, { color: colors.destructive }]}>حذف</Text>
+          </Pressable>
+        ) : (
+          <Pressable onPress={onReport} style={styles.smallAction}>
+            <Feather name="flag" size={14} color={colors.mutedForeground} />
+            <Text style={[styles.smallActionText, { color: colors.mutedForeground }]}>إبلاغ</Text>
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
@@ -148,11 +178,14 @@ export default function SuggestionsScreen() {
   const { user } = useUser();
   const [manga, setManga] = useState<UnifiedManga[]>([]);
   const [suggestions, setSuggestions] = useState<MangaSuggestion[]>([]);
+  const [reports, setReports] = useState<SuggestionReportSummary[]>([]);
+  const [reportingId, setReportingId] = useState<string | null>(null);
   const [source, setSource] = useState<UnifiedManga | null>(null);
   const [suggested, setSuggested] = useState<UnifiedManga | null>(null);
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const isAdmin = user?.publicMetadata?.role === "admin";
 
   useEffect(() => {
     Promise.all([searchMangas("rorym", ""), fetchSuggestions()])
@@ -163,6 +196,82 @@ export default function SuggestionsScreen() {
       .catch(() => Alert.alert("تعذر التحميل", "تحقق من اتصالك بالإنترنت ثم حاول مجدداً"))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin || !isSignedIn) return;
+    getToken()
+      .then((token) => {
+        if (token) return fetchSuggestionReports(token).then(setReports);
+      })
+      .catch(() => {});
+  }, [getToken, isAdmin, isSignedIn]);
+
+  const sendReport = async (reportReason: SuggestionReportReason) => {
+    if (!reportingId) return;
+    if (!isSignedIn) {
+      setReportingId(null);
+      router.push("/(auth)/sign-in");
+      return;
+    }
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await reportSuggestion(reportingId, reportReason, token);
+      Alert.alert("تم استلام البلاغ", "ستراجعه الإدارة قريباً");
+    } catch (error) {
+      Alert.alert("تعذر الإبلاغ", error instanceof Error ? error.message : "حاول مرة أخرى");
+    } finally {
+      setReportingId(null);
+    }
+  };
+
+  const removeSuggestion = (id: string) => {
+    Alert.alert("حذف الاقتراح", "هل تريد حذف هذا الاقتراح نهائياً؟", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "حذف",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const token = await getToken();
+            if (!token) return;
+            await deleteSuggestion(id, token);
+            setSuggestions((current) => current.filter((item) => item.id !== id));
+            setReports((current) => current.filter((item) => item.suggestion.id !== id));
+          } catch (error) {
+            Alert.alert("تعذر الحذف", error instanceof Error ? error.message : "حاول مرة أخرى");
+          }
+        },
+      },
+    ]);
+  };
+
+  const moderate = async (id: string, action: "hide" | "restore" | "delete") => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await moderateSuggestion(id, action, token);
+      if (action === "delete") {
+        setSuggestions((current) => current.filter((item) => item.id !== id));
+        setReports((current) => current.filter((item) => item.suggestion.id !== id));
+      } else {
+        setReports((current) =>
+          current.map((item) =>
+            item.suggestion.id === id
+              ? { ...item, suggestion: { ...item.suggestion, status: action === "hide" ? "hidden" : "visible" } }
+              : item,
+          ),
+        );
+        setSuggestions((current) =>
+          action === "hide"
+            ? current.filter((item) => item.id !== id)
+            : current,
+        );
+      }
+    } catch (error) {
+      Alert.alert("تعذر تنفيذ الإجراء", error instanceof Error ? error.message : "حاول مرة أخرى");
+    }
+  };
 
   const submit = async () => {
     if (!isSignedIn) {
@@ -220,9 +329,42 @@ export default function SuggestionsScreen() {
         <FlatList
           data={suggestions}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <SuggestionCard item={item} />}
+          renderItem={({ item }) => (
+            <SuggestionCard
+              item={item}
+              isOwner={item.userId === user?.id}
+              onReport={() => setReportingId(item.id)}
+              onDelete={() => removeSuggestion(item.id)}
+            />
+          )}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
           ListHeaderComponent={
+            <>
+            {isAdmin && (
+              <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.formTitle, { color: colors.foreground }]}>بلاغات الاقتراحات</Text>
+                {reports.length === 0 ? (
+                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>لا توجد بلاغات للمراجعة</Text>
+                ) : reports.map((report) => (
+                  <View key={report.suggestion.id} style={[styles.reportRow, { borderTopColor: colors.border }]}>
+                    <Text style={[styles.reportTitle, { color: colors.foreground }]} numberOfLines={2}>
+                      {report.suggestion.sourceTitle} ← {report.suggestion.suggestedTitle}
+                    </Text>
+                    <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                      {report.reportCount} بلاغات · {report.reasons.join("، ")}
+                    </Text>
+                    <View style={styles.reportActions}>
+                      <Pressable style={[styles.adminButton, { backgroundColor: colors.secondary }]} onPress={() => moderate(report.suggestion.id, report.suggestion.status === "hidden" ? "restore" : "hide")}>
+                        <Text style={[styles.adminButtonText, { color: colors.foreground }]}>{report.suggestion.status === "hidden" ? "إظهار" : "إخفاء"}</Text>
+                      </Pressable>
+                      <Pressable style={[styles.adminButton, { backgroundColor: colors.destructive }]} onPress={() => moderate(report.suggestion.id, "delete")}>
+                        <Text style={styles.submitText}>حذف</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
             <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.formHeading}>
                 <View style={[styles.sparkIcon, { backgroundColor: colors.primary + "18" }]}>
@@ -259,6 +401,7 @@ export default function SuggestionsScreen() {
                 <Text style={styles.submitText}>{isSignedIn ? "نشر الاقتراح" : "سجّل الدخول للنشر"}</Text>
               </Pressable>
             </View>
+            </>
           }
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -269,6 +412,23 @@ export default function SuggestionsScreen() {
           }
         />
       )}
+      <Modal visible={reportingId !== null} transparent animationType="fade" onRequestClose={() => setReportingId(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setReportingId(null)}>
+          <Pressable style={[styles.reportModal, { backgroundColor: colors.card }]} onPress={() => {}}>
+            <Text style={[styles.formTitle, { color: colors.foreground }]}>ما سبب الإبلاغ؟</Text>
+            {([
+              ["offensive", "محتوى مسيء"],
+              ["spam", "إزعاج أو تكرار"],
+              ["spoiler", "حرق للأحداث"],
+              ["other", "سبب آخر"],
+            ] as const).map(([value, label]) => (
+              <Pressable key={value} style={[styles.reasonOption, { borderColor: colors.border }]} onPress={() => sendReport(value)}>
+                <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -315,6 +475,17 @@ const styles = StyleSheet.create({
   reasonLabel: { fontSize: 11, fontWeight: "800", textAlign: "right" },
   reason: { fontSize: 13, lineHeight: 20, textAlign: "right" },
   author: { fontSize: 10, textAlign: "right" },
+  cardFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  smallAction: { flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 5 },
+  smallActionText: { fontSize: 11, fontWeight: "700" },
+  reportRow: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 6 },
+  reportTitle: { fontSize: 13, fontWeight: "700", textAlign: "right" },
+  reportActions: { flexDirection: "row", gap: 8 },
+  adminButton: { flex: 1, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  adminButtonText: { fontSize: 12, fontWeight: "800" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center", padding: 24 },
+  reportModal: { width: "100%", maxWidth: 420, borderRadius: 18, padding: 18, gap: 10 },
+  reasonOption: { minHeight: 46, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, justifyContent: "center" },
   empty: { alignItems: "center", paddingVertical: 42, gap: 7 },
   emptyTitle: { fontSize: 15, fontWeight: "800" },
   emptyText: { fontSize: 12 },

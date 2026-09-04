@@ -28,7 +28,10 @@ import type {
   GetRorymManga200,
   GetRorymMangaByGenre200,
   GetRorymMostRead200,
+  GetSuggestionReports200,
   HealthStatus,
+  ModerateSuggestionInput,
+  ReportSuggestionInput,
   RorymPlacementInput,
   SearchRorym200,
   SearchRorymParams,
@@ -812,5 +815,296 @@ export const useCreateMangaSuggestion = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateMangaSuggestionMutationOptions(options));
+    }
+
+export const getReportMangaSuggestionUrl = (id: string,) => {
+
+
+
+
+  return `/api/suggestions/${id}/reports`
+}
+
+/**
+ * @summary Report a reader suggestion
+ */
+export const reportMangaSuggestion = async (id: string,
+    reportSuggestionInput: ReportSuggestionInput, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getReportMangaSuggestionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      reportSuggestionInput,)
+  }
+);}
+
+
+
+
+export const getReportMangaSuggestionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportMangaSuggestion>>, TError,{id: string;data: BodyType<ReportSuggestionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reportMangaSuggestion>>, TError,{id: string;data: BodyType<ReportSuggestionInput>}, TContext> => {
+
+const mutationKey = ['reportMangaSuggestion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reportMangaSuggestion>>, {id: string;data: BodyType<ReportSuggestionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reportMangaSuggestion(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReportMangaSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof reportMangaSuggestion>>>
+    export type ReportMangaSuggestionMutationBody = BodyType<ReportSuggestionInput>
+    export type ReportMangaSuggestionMutationError = ErrorType<void>
+
+    /**
+ * @summary Report a reader suggestion
+ */
+export const useReportMangaSuggestion = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reportMangaSuggestion>>, TError,{id: string;data: BodyType<ReportSuggestionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reportMangaSuggestion>>,
+        TError,
+        {id: string;data: BodyType<ReportSuggestionInput>},
+        TContext
+      > => {
+      return useMutation(getReportMangaSuggestionMutationOptions(options));
+    }
+
+export const getDeleteMangaSuggestionUrl = (id: string,) => {
+
+
+
+
+  return `/api/suggestions/${id}`
+}
+
+/**
+ * @summary Delete a suggestion owned by the authenticated reader
+ */
+export const deleteMangaSuggestion = async (id: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteMangaSuggestionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteMangaSuggestionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMangaSuggestion>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMangaSuggestion>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteMangaSuggestion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMangaSuggestion>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteMangaSuggestion(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMangaSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMangaSuggestion>>>
+
+    export type DeleteMangaSuggestionMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a suggestion owned by the authenticated reader
+ */
+export const useDeleteMangaSuggestion = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMangaSuggestion>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMangaSuggestion>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteMangaSuggestionMutationOptions(options));
+    }
+
+export const getGetSuggestionReportsUrl = () => {
+
+
+
+
+  return `/api/admin/suggestion-reports`
+}
+
+/**
+ * @summary List reported suggestions for administrators
+ */
+export const getSuggestionReports = async ( options?: RequestInit): Promise<GetSuggestionReports200> => {
+
+  return customFetch<GetSuggestionReports200>(getGetSuggestionReportsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSuggestionReportsQueryKey = () => {
+    return [
+    `/api/admin/suggestion-reports`
+    ] as const;
+    }
+
+
+export const getGetSuggestionReportsQueryOptions = <TData = Awaited<ReturnType<typeof getSuggestionReports>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuggestionReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSuggestionReportsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuggestionReports>>> = ({ signal }) => getSuggestionReports({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSuggestionReports>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSuggestionReportsQueryResult = NonNullable<Awaited<ReturnType<typeof getSuggestionReports>>>
+export type GetSuggestionReportsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List reported suggestions for administrators
+ */
+
+export function useGetSuggestionReports<TData = Awaited<ReturnType<typeof getSuggestionReports>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSuggestionReports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSuggestionReportsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getModerateMangaSuggestionUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/suggestions/${id}`
+}
+
+/**
+ * @summary Hide, restore, or delete a reported suggestion
+ */
+export const moderateMangaSuggestion = async (id: string,
+    moderateSuggestionInput: ModerateSuggestionInput, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getModerateMangaSuggestionUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      moderateSuggestionInput,)
+  }
+);}
+
+
+
+
+export const getModerateMangaSuggestionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moderateMangaSuggestion>>, TError,{id: string;data: BodyType<ModerateSuggestionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof moderateMangaSuggestion>>, TError,{id: string;data: BodyType<ModerateSuggestionInput>}, TContext> => {
+
+const mutationKey = ['moderateMangaSuggestion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof moderateMangaSuggestion>>, {id: string;data: BodyType<ModerateSuggestionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  moderateMangaSuggestion(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ModerateMangaSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof moderateMangaSuggestion>>>
+    export type ModerateMangaSuggestionMutationBody = BodyType<ModerateSuggestionInput>
+    export type ModerateMangaSuggestionMutationError = ErrorType<void>
+
+    /**
+ * @summary Hide, restore, or delete a reported suggestion
+ */
+export const useModerateMangaSuggestion = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof moderateMangaSuggestion>>, TError,{id: string;data: BodyType<ModerateSuggestionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof moderateMangaSuggestion>>,
+        TError,
+        {id: string;data: BodyType<ModerateSuggestionInput>},
+        TContext
+      > => {
+      return useMutation(getModerateMangaSuggestionMutationOptions(options));
     }
 

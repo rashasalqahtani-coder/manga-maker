@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 
 export const suggestionsTable = pgTable(
@@ -15,6 +15,7 @@ export const suggestionsTable = pgTable(
     suggestedTitle: text("suggested_title").notNull(),
     suggestedCoverUrl: text("suggested_cover_url"),
     reason: text("reason").notNull(),
+    status: text("status").notNull().default("visible"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [index("manga_suggestions_created_idx").on(t.createdAt)],
@@ -36,4 +37,32 @@ export const postSuggestionBodySchema = z
     message: "source and suggested manga must differ",
   });
 
+export const suggestionReportReasons = ["offensive", "spam", "spoiler", "other"] as const;
+
+export const reportSuggestionBodySchema = z.object({
+  reason: z.enum(suggestionReportReasons),
+});
+
+export const moderateSuggestionBodySchema = z.object({
+  action: z.enum(["hide", "restore", "delete"]),
+});
+
+export const suggestionReportsTable = pgTable(
+  "manga_suggestion_reports",
+  {
+    id: text("id").primaryKey(),
+    suggestionId: text("suggestion_id")
+      .notNull()
+      .references(() => suggestionsTable.id, { onDelete: "cascade" }),
+    reporterUserId: text("reporter_user_id").notNull(),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("manga_suggestion_reports_suggestion_idx").on(t.suggestionId),
+    uniqueIndex("manga_suggestion_reports_reporter_unique").on(t.suggestionId, t.reporterUserId),
+  ],
+);
+
 export type MangaSuggestion = typeof suggestionsTable.$inferSelect;
+export type MangaSuggestionReport = typeof suggestionReportsTable.$inferSelect;

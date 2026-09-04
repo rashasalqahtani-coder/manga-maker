@@ -64,10 +64,63 @@ export interface CreateMangaSuggestionInput {
   reason: string;
 }
 
+export type MangaSuggestionStatus = typeof MangaSuggestionStatus[keyof typeof MangaSuggestionStatus];
+
+
+export const MangaSuggestionStatus = {
+  visible: 'visible',
+  hidden: 'hidden',
+} as const;
+
 export type MangaSuggestion = CreateMangaSuggestionInput & {
   id: string;
+  userId: string;
+  status: MangaSuggestionStatus;
   createdAt: string;
 };
+
+export type ReportSuggestionInputReason = typeof ReportSuggestionInputReason[keyof typeof ReportSuggestionInputReason];
+
+
+export const ReportSuggestionInputReason = {
+  offensive: 'offensive',
+  spam: 'spam',
+  spoiler: 'spoiler',
+  other: 'other',
+} as const;
+
+export interface ReportSuggestionInput {
+  reason: ReportSuggestionInputReason;
+}
+
+export type ModerateSuggestionInputAction = typeof ModerateSuggestionInputAction[keyof typeof ModerateSuggestionInputAction];
+
+
+export const ModerateSuggestionInputAction = {
+  hide: 'hide',
+  restore: 'restore',
+  delete: 'delete',
+} as const;
+
+export interface ModerateSuggestionInput {
+  action: ModerateSuggestionInputAction;
+}
+
+export type SuggestionReportSummaryReasonsItem = typeof SuggestionReportSummaryReasonsItem[keyof typeof SuggestionReportSummaryReasonsItem];
+
+
+export const SuggestionReportSummaryReasonsItem = {
+  offensive: 'offensive',
+  spam: 'spam',
+  spoiler: 'spoiler',
+  other: 'other',
+} as const;
+
+export interface SuggestionReportSummary {
+  suggestion: MangaSuggestion;
+  reportCount: number;
+  reasons: SuggestionReportSummaryReasonsItem[];
+}
 
 export type GetRorymHome200 = {
   manga: RorymManga[];
@@ -108,5 +161,9 @@ export type GetMangaSuggestions200 = {
 
 export type CreateMangaSuggestion201 = {
   suggestion: MangaSuggestion;
+};
+
+export type GetSuggestionReports200 = {
+  reports: SuggestionReportSummary[];
 };
 

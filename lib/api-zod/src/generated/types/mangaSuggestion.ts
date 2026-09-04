@@ -6,8 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CreateMangaSuggestionInput } from './createMangaSuggestionInput';
+import type { MangaSuggestionStatus } from './mangaSuggestionStatus';
 
 export type MangaSuggestion = CreateMangaSuggestionInput & {
   id: string;
+  userId: string;
+  status: MangaSuggestionStatus;
   createdAt: Date;
 };

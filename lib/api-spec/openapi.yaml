@@ -238,6 +238,94 @@ paths:
         "401":
           description: Authentication required
 
+  /suggestions/{id}/reports:
+    post:
+      operationId: reportMangaSuggestion
+      tags: [suggestions]
+      summary: Report a reader suggestion
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportSuggestionInput"
+      responses:
+        "201":
+          description: Report accepted
+        "401":
+          description: Authentication required
+        "403":
+          description: Cannot report own suggestion
+
+  /suggestions/{id}:
+    delete:
+      operationId: deleteMangaSuggestion
+      tags: [suggestions]
+      summary: Delete a suggestion owned by the authenticated reader
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Suggestion deleted
+        "401":
+          description: Authentication required
+        "404":
+          description: Suggestion not found or not owned by reader
+
+  /admin/suggestion-reports:
+    get:
+      operationId: getSuggestionReports
+      tags: [suggestions]
+      summary: List reported suggestions for administrators
+      responses:
+        "200":
+          description: Report summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reports]
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SuggestionReportSummary"
+        "403":
+          description: Administrator role required
+
+  /admin/suggestions/{id}:
+    patch:
+      operationId: moderateMangaSuggestion
+      tags: [suggestions]
+      summary: Hide, restore, or delete a reported suggestion
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerateSuggestionInput"
+      responses:
+        "200":
+          description: Moderation action completed
+        "403":
+          description: Administrator role required
+
 components:
   schemas:
     HealthStatus:
@@ -348,10 +436,45 @@ components:
       allOf:
         - $ref: "#/components/schemas/CreateMangaSuggestionInput"
         - type: object
-          required: [id, createdAt]
+          required: [id, userId, status, createdAt]
           properties:
             id:
               type: string
+            userId:
+              type: string
+            status:
+              type: string
+              enum: [visible, hidden]
             createdAt:
               type: string
               format: date-time
+
+    ReportSuggestionInput:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          enum: [offensive, spam, spoiler, other]
+
+    ModerateSuggestionInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [hide, restore, delete]
+
+    SuggestionReportSummary:
+      type: object
+      required: [suggestion, reportCount, reasons]
+      properties:
+        suggestion:
+          $ref: "#/components/schemas/MangaSuggestion"
+        reportCount:
+          type: integer
+        reasons:
+          type: array
+          items:
+            type: string
+            enum: [offensive, spam, spoiler, other]

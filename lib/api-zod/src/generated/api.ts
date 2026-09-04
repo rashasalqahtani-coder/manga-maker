@@ -228,6 +228,8 @@ export const GetMangaSuggestionsResponse = zod.object({
   "reason": zod.string().min(getMangaSuggestionsResponseSuggestionsItemOneReasonMin).max(getMangaSuggestionsResponseSuggestionsItemOneReasonMax)
 }).and(zod.object({
   "id": zod.string(),
+  "userId": zod.string(),
+  "status": zod.enum(['visible', 'hidden']),
   "createdAt": zod.coerce.date()
 })))
 })
@@ -253,6 +255,72 @@ export const CreateMangaSuggestionBody = zod.object({
   "suggestedTitle": zod.string(),
   "suggestedCoverUrl": zod.string().optional(),
   "reason": zod.string().min(createMangaSuggestionBodyReasonMin).max(createMangaSuggestionBodyReasonMax)
+})
+
+
+/**
+ * @summary Report a reader suggestion
+ */
+export const ReportMangaSuggestionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReportMangaSuggestionBody = zod.object({
+  "reason": zod.enum(['offensive', 'spam', 'spoiler', 'other'])
+})
+
+
+/**
+ * @summary Delete a suggestion owned by the authenticated reader
+ */
+export const DeleteMangaSuggestionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+/**
+ * @summary List reported suggestions for administrators
+ */
+export const getSuggestionReportsResponseReportsItemSuggestionOneUserNameMax = 60;
+
+export const getSuggestionReportsResponseReportsItemSuggestionOneReasonMin = 10;
+export const getSuggestionReportsResponseReportsItemSuggestionOneReasonMax = 700;
+
+
+
+export const GetSuggestionReportsResponse = zod.object({
+  "reports": zod.array(zod.object({
+  "suggestion": zod.object({
+  "userName": zod.string().min(1).max(getSuggestionReportsResponseReportsItemSuggestionOneUserNameMax),
+  "userAvatar": zod.string().url().optional(),
+  "sourceSlug": zod.string(),
+  "sourceTitle": zod.string(),
+  "sourceCoverUrl": zod.string().optional(),
+  "suggestedSlug": zod.string(),
+  "suggestedTitle": zod.string(),
+  "suggestedCoverUrl": zod.string().optional(),
+  "reason": zod.string().min(getSuggestionReportsResponseReportsItemSuggestionOneReasonMin).max(getSuggestionReportsResponseReportsItemSuggestionOneReasonMax)
+}).and(zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "status": zod.enum(['visible', 'hidden']),
+  "createdAt": zod.coerce.date()
+})),
+  "reportCount": zod.number(),
+  "reasons": zod.array(zod.enum(['offensive', 'spam', 'spoiler', 'other']))
+}))
+})
+
+
+/**
+ * @summary Hide, restore, or delete a reported suggestion
+ */
+export const ModerateMangaSuggestionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ModerateMangaSuggestionBody = zod.object({
+  "action": zod.enum(['hide', 'restore', 'delete'])
 })
 
 
