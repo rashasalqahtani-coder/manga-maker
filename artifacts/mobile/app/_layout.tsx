@@ -39,6 +39,7 @@ function RootLayoutNav() {
       <Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
       <Stack.Screen name="browse/[type]" options={{ headerShown: false }} />
       <Stack.Screen name="suggestions" options={{ headerShown: false }} />
+      <Stack.Screen name="genres" options={{ headerShown: false }} />
       <Stack.Screen name="team/index" options={{ headerShown: false }} />
       <Stack.Screen name="team/create" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="comick/[slug]" options={{ headerShown: false }} />

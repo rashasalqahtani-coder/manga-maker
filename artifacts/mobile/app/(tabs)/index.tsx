@@ -5,7 +5,6 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -19,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { StarzFeaturedBanner } from "@/components/StarzFeaturedBanner";
 import { StarzMangaRow } from "@/components/StarzMangaRow";
-import { SOURCES, useSource, type SourceId } from "@/context/SourceContext";
+import { useSource } from "@/context/SourceContext";
 import { useColors } from "@/hooks/useColors";
 import { fetchHomeMangas, fetchMostReadMangas, type UnifiedManga } from "@/lib/sources";
 
@@ -62,109 +61,18 @@ function toStarzMangaShape(manga: UnifiedManga) {
   };
 }
 
-function SourcePickerModal({
-  visible,
-  onClose,
-  current,
-  onSelect,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  current: SourceId;
-  onSelect: (id: SourceId) => void;
-}) {
-  "use no memo";
-  const colors = useColors();
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <View
-          style={[
-            styles.modalSheet,
-            { backgroundColor: colors.card, borderRadius: colors.radius * 1.5 },
-          ]}
-        >
-          <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-            اختر مصدر المانجا
-          </Text>
-          {SOURCES.map((src, i) => {
-            const selected = src.id === current;
-            return (
-              <React.Fragment key={src.id}>
-                {i > 0 && (
-                  <View
-                    style={[styles.modalDivider, { backgroundColor: colors.border }]}
-                  />
-                )}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.sourceOption,
-                    {
-                      backgroundColor: selected
-                        ? colors.primary + "18"
-                        : pressed
-                        ? colors.secondary
-                        : "transparent",
-                      borderRadius: colors.radius,
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    onSelect(src.id);
-                    onClose();
-                  }}
-                >
-                  <Text style={styles.sourceFlag}>{src.flag}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        styles.sourceName,
-                        {
-                          color: selected ? colors.primary : colors.foreground,
-                          fontWeight: selected ? "700" : "500",
-                        },
-                      ]}
-                    >
-                      {src.nameAr}
-                    </Text>
-                    <Text
-                      style={[styles.sourceDesc, { color: colors.mutedForeground }]}
-                      numberOfLines={1}
-                    >
-                      {src.description}
-                    </Text>
-                  </View>
-                  {selected && (
-                    <Feather name="check" size={16} color={colors.primary} />
-                  )}
-                </Pressable>
-              </React.Fragment>
-            );
-          })}
-        </View>
-      </Pressable>
-    </Modal>
-  );
-}
-
 export default function HomeScreen() {
   "use no memo";
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { source, sourceInfo, setSource } = useSource();
+  const { source } = useSource();
 
   const [manga, setManga] = useState<UnifiedManga[]>([]);
   const [mostRead, setMostRead] = useState<UnifiedManga[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [spinning, setSpinning] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
 
   const currentSource = useRef(source);
   currentSource.current = source;
@@ -209,15 +117,6 @@ export default function HomeScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatusBar barStyle="light-content" />
-      <SourcePickerModal
-        visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        current={source}
-        onSelect={(id) => {
-          setSource(id);
-        }}
-      />
-
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: topPad, paddingBottom: insets.bottom + 20 }}
@@ -279,7 +178,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Source badge (tappable) ── */}
+        {/* ── Genres shortcut ── */}
         <Pressable
           style={({ pressed }) => [
             styles.sourceBanner,
@@ -293,20 +192,20 @@ export default function HomeScreen() {
           ]}
           onPress={() => {
             Haptics.selectionAsync();
-            setPickerOpen(true);
+            router.push("/genres" as any);
           }}
         >
-          <Text style={styles.sourceFlag}>{sourceInfo.flag}</Text>
+          <Feather name="grid" size={16} color={colors.primary} />
           <Text style={[styles.sourceBannerText, { color: colors.mutedForeground }]}>
-            {"المصدر: "}
+            {"تصفّح المانجا حسب "}
             <Text style={{ color: colors.foreground, fontWeight: "700" }}>
-              {sourceInfo.nameAr}
+              التصنيفات
             </Text>
           </Text>
           <View style={[styles.arBadge, { backgroundColor: colors.primary + "22" }]}>
-            <Text style={[styles.arBadgeText, { color: colors.primary }]}>تغيير</Text>
+            <Text style={[styles.arBadgeText, { color: colors.primary }]}>عرض الكل</Text>
           </View>
-          <Feather name="chevron-down" size={12} color={colors.mutedForeground} />
+          <Feather name="chevron-left" size={12} color={colors.mutedForeground} />
         </Pressable>
 
         {/* ── Featured banner ── */}
