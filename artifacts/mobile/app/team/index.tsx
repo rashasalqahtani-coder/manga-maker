@@ -27,7 +27,15 @@ import { publishTeam, unpublishTeam, uploadTeamImage } from "@/lib/teams";
 
 type Tab = "manga" | "members";
 // ─── MangaCard ──────────────────────────────────────────────────────────────
-function MangaCard({ manga }: { manga: TeamManga }) {
+function MangaCard({
+  manga,
+  refreshing,
+  onRefresh,
+}: {
+  manga: TeamManga;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
   const colors = useColors();
   const router = useRouter();
   const { removeManga, addChapter, removeChapter } = useTeam();
@@ -135,9 +143,28 @@ function MangaCard({ manga }: { manga: TeamManga }) {
         )}
 
         <View style={styles.mangaInfo}>
-          <Text style={[styles.mangaTitle, { color: colors.foreground }]} numberOfLines={2}>
-            {manga.title}
-          </Text>
+          <View style={styles.mangaTitleRow}>
+            <Text style={[styles.mangaTitle, { color: colors.foreground }]} numberOfLines={2}>
+              {manga.title}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`تحديث فصول ${manga.title}`}
+              disabled={refreshing}
+              hitSlop={8}
+              onPress={(event) => {
+                event.stopPropagation();
+                onRefresh();
+              }}
+              style={[styles.refreshMangaButton, { backgroundColor: colors.primary + "18" }]}
+            >
+              {refreshing ? (
+                <ActivityIndicator size={14} color={colors.primary} />
+              ) : (
+                <Feather name="refresh-cw" size={14} color={colors.primary} />
+              )}
+            </Pressable>
+          </View>
           {manga.description ? (
             <Text style={[styles.mangaDesc, { color: colors.mutedForeground }]} numberOfLines={expanded ? 10 : 2}>
               {manga.description}
@@ -421,6 +448,7 @@ export default function TeamScreen() {
   // Publish
   const [publishing, setPublishing] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
+  const [refreshingMangaId, setRefreshingMangaId] = useState<string | null>(null);
 
   // Members
   const [showAddMember, setShowAddMember] = useState(false);
@@ -539,6 +567,59 @@ export default function TeamScreen() {
     );
   };
 
+  const publishCurrentTeam = async () => {
+    if (!team) return;
+    const publicManga = await Promise.all(team.manga.map(async (m) => {
+      const chapters = await Promise.all((m.chapters ?? []).map(async (ch) => {
+        let imageUrls: string[] | undefined;
+        if (ch.imageUris && ch.imageUris.length > 0) {
+          try {
+            imageUrls = await Promise.all(
+              ch.imageUris.map((uri) => uploadTeamImage(uri, ""))
+            );
+          } catch {
+            imageUrls = undefined;
+          }
+        }
+        return {
+          id: ch.id,
+          number: ch.number,
+          title: ch.title,
+          imageCount: ch.imageUris?.length ?? 0,
+          ...(imageUrls ? { imageUrls } : {}),
+        };
+      }));
+      return {
+        id: m.id,
+        title: m.title,
+        coverUrl: m.coverUrl,
+        description: m.description,
+        chapters,
+      };
+    }));
+    await publishTeam({
+      id: team.name + "_" + team.createdAt,
+      name: team.name,
+      description: team.description ?? "",
+      emoji: team.emoji,
+      manga: publicManga,
+    });
+    setIsPublished(true);
+  };
+
+  const handleRefreshManga = async (manga: TeamManga) => {
+    setRefreshingMangaId(manga.id);
+    try {
+      await publishCurrentTeam();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("تم التحديث", `تم تحديث فصول ${manga.title} لزوار فريق الترجمة.`);
+    } catch {
+      Alert.alert("تعذّر التحديث", "تحقق من اتصالك ثم حاول مرة أخرى.");
+    } finally {
+      setRefreshingMangaId(null);
+    }
+  };
+
   const handlePublishToggle = async () => {
     if (!team) return;
     setPublishing(true);
@@ -549,44 +630,7 @@ export default function TeamScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert("تم إلغاء النشر", "لم يعد فريقك مرئياً للآخرين.");
       } else {
-        // Upload chapter images to server before publishing
-        const publicManga = await Promise.all(team.manga.map(async (m) => {
-          const chapters = await Promise.all((m.chapters ?? []).map(async (ch) => {
-            let imageUrls: string[] | undefined;
-            if (ch.imageUris && ch.imageUris.length > 0) {
-              try {
-                imageUrls = await Promise.all(
-                  ch.imageUris.map((uri) => uploadTeamImage(uri, ""))
-                );
-              } catch {
-                // Upload failed — publish without hosted images, local-only
-                imageUrls = undefined;
-              }
-            }
-            return {
-              id: ch.id,
-              number: ch.number,
-              title: ch.title,
-              imageCount: ch.imageUris?.length ?? 0,
-              ...(imageUrls ? { imageUrls } : {}),
-            };
-          }));
-          return {
-            id: m.id,
-            title: m.title,
-            coverUrl: m.coverUrl,
-            description: m.description,
-            chapters,
-          };
-        }));
-        await publishTeam({
-          id: team.name + "_" + team.createdAt,
-          name: team.name,
-          description: team.description ?? "",
-          emoji: team.emoji,
-          manga: publicManga,
-        });
-        setIsPublished(true);
+        await publishCurrentTeam();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert("تم النشر! 🎉", "فريقك الآن مرئي لجميع المستخدمين.");
       }
@@ -609,10 +653,6 @@ export default function TeamScreen() {
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>فريق الترجمة</Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-          {/* Upload to Rory M */}
-          <Pressable onPress={() => router.push("/rorym/upload" as any)} hitSlop={8}>
-            <Feather name="upload-cloud" size={20} color="#e11d48" />
-          </Pressable>
           {/* Discover teams */}
           <Pressable onPress={() => router.push("/teams" as any)} hitSlop={8}>
             <Feather name="compass" size={20} color={colors.mutedForeground} />
@@ -829,7 +869,14 @@ export default function TeamScreen() {
                   </View>
                 );
               }
-              return filtered.map((m) => <MangaCard key={m.id} manga={m} />);
+              return filtered.map((m) => (
+                <MangaCard
+                  key={m.id}
+                  manga={m}
+                  refreshing={refreshingMangaId === m.id}
+                  onRefresh={() => void handleRefreshManga(m)}
+                />
+              ));
             })()}
           </View>
         )}
@@ -980,7 +1027,15 @@ const styles = StyleSheet.create({
   mangaCover: { width: 52, height: 72, borderRadius: 8 },
   mangaCoverPlaceholder: { width: 52, height: 72, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   mangaInfo: { flex: 1, gap: 4 },
-  mangaTitle: { fontSize: 14, fontWeight: "700", lineHeight: 20 },
+  mangaTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  mangaTitle: { flex: 1, fontSize: 14, fontWeight: "700", lineHeight: 20 },
+  refreshMangaButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   mangaDesc: { fontSize: 12, lineHeight: 17 },
   chapterCountRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   chapterCount: { fontSize: 11, fontWeight: "600" },
