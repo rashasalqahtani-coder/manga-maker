@@ -20,6 +20,7 @@ import { CommentsSheet } from "@/components/CommentsSheet";
 import { useColors } from "@/hooks/useColors";
 import { getLocalPages } from "@/lib/download";
 import { getChapterPages, getMangaChapters, type Chapter, type ChapterPages } from "@/lib/mangadex";
+import { getReaderHref } from "@/lib/readerNavigation";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -70,62 +71,30 @@ export default function ReaderScreen() {
     : null;
 
   const goToChapter = (ch: Chapter) => {
-    router.replace({
-      pathname: "/reader/[chapterId]" as any,
-      params: {
+    router.replace(
+      getReaderHref({
         chapterId: ch.id,
-        mangaId: mangaId ?? "",
-        mangaTitle: mangaTitle ?? "",
-        coverUrl: coverUrl ?? "",
+        mangaId,
+        mangaTitle,
+        coverUrl,
         chapterNum: ch.attributes.chapter ?? "",
-      },
-    });
+      }),
+    );
   };
 
-  useEffect(() => {
+  const loadChapter = useCallback(async () => {
     if (!chapterId) return;
     setLoading(true);
     setError(false);
     setIsEmpty(false);
 
-    const load = async () => {
-      // Try local pages first (wrapped in try-catch for native safety)
-      try {
-        const localPages = await getLocalPages(chapterId);
-        if (localPages.length > 0) {
-          setIsOffline(true);
-          setPages(localPages.map((uri, i) => ({ uri, index: i })));
-          setLoading(false);
-          if (mangaId && mangaTitle) {
-            addToHistory({
-              mangaId,
-              mangaTitle,
-              coverUrl: coverUrl || null,
-              chapterId,
-              chapterNum: chapterNum || null,
-              readAt: Date.now(),
-            });
-          }
-          return;
-        }
-      } catch {
-        // Local pages unavailable — fall through to network
-      }
-
-      // Fetch from network
-      try {
-        const info: ChapterPages = await getChapterPages(chapterId);
-        if (!info.data || info.data.length === 0) {
-          setIsEmpty(true);
-          setLoading(false);
-          return;
-        }
-        setPages(
-          info.data.map((filename, i) => ({
-            uri: `${info.baseUrl}/data/${info.hash}/${filename}`,
-            index: i,
-          }))
-        );
+    // Try local pages first (wrapped in try-catch for native safety)
+    try {
+      const localPages = await getLocalPages(chapterId);
+      if (localPages.length > 0) {
+        setIsOffline(true);
+        setPages(localPages.map((uri, i) => ({ uri, index: i })));
+        setLoading(false);
         if (mangaId && mangaTitle) {
           addToHistory({
             mangaId,
@@ -136,15 +105,47 @@ export default function ReaderScreen() {
             readAt: Date.now(),
           });
         }
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
+    } catch {
+      // Local pages unavailable — fall through to network
+    }
 
-    load();
-  }, [chapterId]);
+    // Fetch from network
+    try {
+      const info: ChapterPages = await getChapterPages(chapterId);
+      if (!info.data || info.data.length === 0) {
+        setIsEmpty(true);
+        setLoading(false);
+        return;
+      }
+      setIsOffline(false);
+      setPages(
+        info.data.map((filename, i) => ({
+          uri: `${info.baseUrl}/data/${info.hash}/${filename}`,
+          index: i,
+        }))
+      );
+      if (mangaId && mangaTitle) {
+        addToHistory({
+          mangaId,
+          mangaTitle,
+          coverUrl: coverUrl || null,
+          chapterId,
+          chapterNum: chapterNum || null,
+          readAt: Date.now(),
+        });
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [chapterId, chapterNum, coverUrl, mangaId, mangaTitle]);
+
+  useEffect(() => {
+    void loadChapter();
+  }, [loadChapter]);
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: Array<{ item: unknown }> }) => {
@@ -213,10 +214,7 @@ export default function ReaderScreen() {
         <View style={styles.btnRow}>
           <Pressable
             style={[styles.retryBtn, { backgroundColor: colors.primary }]}
-            onPress={() => {
-              setError(false);
-              setLoading(true);
-            }}
+            onPress={() => void loadChapter()}
           >
             <Text style={styles.retryText}>إعادة المحاولة</Text>
           </Pressable>

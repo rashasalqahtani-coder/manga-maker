@@ -21,6 +21,7 @@ import { ChapterItem } from "@/components/ChapterItem";
 import { getLastReadChapter, type HistoryEntry } from "@/app/(tabs)/history";
 import { useLibrary } from "@/context/LibraryContext";
 import { useColors } from "@/hooks/useColors";
+import { getReaderHref } from "@/lib/readerNavigation";
 import {
   extractGroups,
   getChapterGroup,
@@ -171,34 +172,32 @@ export default function MangaDetailScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 if (lastRead) {
-                  router.push({
-                    pathname: "/reader/[chapterId]" as any,
-                    params: {
+                  router.push(
+                    getReaderHref({
                       chapterId: lastRead.chapterId,
                       mangaId: id,
                       mangaTitle: title,
                       coverUrl: coverUrl ?? "",
                       chapterNum: lastRead.chapterNum ?? "",
-                    },
-                  });
+                    }),
+                  );
                   return;
                 }
                 const first = filteredChapters[filteredChapters.length - 1];
                 if (!first) return;
                 const isExternal = first.attributes.pages === 0 && !!first.attributes.externalUrl;
                 if (isExternal && first.attributes.externalUrl) {
-                  Linking.openURL(first.attributes.externalUrl);
+                  void Linking.openURL(first.attributes.externalUrl);
                 } else {
-                  router.push({
-                    pathname: "/reader/[chapterId]" as any,
-                    params: {
+                  router.push(
+                    getReaderHref({
                       chapterId: first.id,
                       mangaId: id,
                       mangaTitle: title,
                       coverUrl: coverUrl ?? "",
                       chapterNum: first.attributes.chapter ?? "",
-                    },
-                  });
+                    }),
+                  );
                 }
               }}
             >

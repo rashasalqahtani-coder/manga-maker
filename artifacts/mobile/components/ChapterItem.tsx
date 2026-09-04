@@ -14,6 +14,7 @@ import {
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import { getCoverUrl, getMangaTitle, type Chapter, type Manga } from "@/lib/mangadex";
+import { getReaderHref } from "@/lib/readerNavigation";
 
 interface ChapterItemProps {
   chapter: Chapter;
@@ -61,18 +62,17 @@ export function ChapterItem({ chapter, manga, isRead }: ChapterItemProps) {
   const handlePress = () => {
     Haptics.selectionAsync();
     if (isExternal && chapter.attributes.externalUrl) {
-      Linking.openURL(chapter.attributes.externalUrl);
+      void Linking.openURL(chapter.attributes.externalUrl);
     } else {
-      router.push({
-        pathname: "/reader/[chapterId]" as any,
-        params: {
+      router.push(
+        getReaderHref({
           chapterId: chapter.id,
-          mangaId: manga?.id ?? "",
+          mangaId: manga?.id,
           mangaTitle: manga ? getMangaTitle(manga) : "",
           coverUrl: manga ? (getCoverUrl(manga, "256") ?? "") : "",
           chapterNum: chapter.attributes.chapter ?? "",
-        },
-      });
+        }),
+      );
     }
   };
 

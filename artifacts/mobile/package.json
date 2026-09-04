@@ -8,6 +8,7 @@
     "build": "node scripts/build.js",
     "test:build": "node --test scripts/*.test.js",
     "test:post-deploy-sign-up": "node scripts/post-deploy-sign-up.js",
+    "test:device-sign-up": "node scripts/device-sign-up.js",
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

@@ -1,0 +1,24 @@
+appId: host.exp.Exponent
+---
+- launchApp:
+    clearState: false
+- openLink: ${EXPO_GO_SIGN_UP_URL}
+- extendedWaitUntil:
+    visible:
+      id: sign-up-email
+    timeout: 120000
+- tapOn:
+    id: sign-up-email
+- inputText: ${SIGN_UP_EMAIL}
+- tapOn:
+    id: sign-up-password
+- inputText: ${SIGN_UP_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: sign-up-submit
+- extendedWaitUntil:
+    visible:
+      id: sign-up-verification-screen
+    timeout: 60000
+- assertVisible:
+    id: sign-up-verification-code

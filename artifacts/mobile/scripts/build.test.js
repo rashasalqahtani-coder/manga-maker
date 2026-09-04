@@ -79,6 +79,9 @@ test("sign-up route renders email and password fields", () => {
   assert.match(signUpScreen, /testID="sign-up-email"/);
   assert.match(signUpScreen, /testID="sign-up-password"/);
   assert.match(signUpScreen, /testID="sign-up-submit"/);
+  assert.match(signUpScreen, /testID="sign-up-verification-screen"/);
+  assert.match(signUpScreen, /testID="sign-up-verification-code"/);
+  assert.match(signUpScreen, /testID="sign-up-verify"/);
 });
 
 test("package exposes the production sign-up smoke check", () => {
@@ -88,6 +91,10 @@ test("package exposes the production sign-up smoke check", () => {
   assert.equal(
     packageJson.scripts["test:post-deploy-sign-up"],
     "node scripts/post-deploy-sign-up.js",
+  );
+  assert.equal(
+    packageJson.scripts["test:device-sign-up"],
+    "node scripts/device-sign-up.js",
   );
   assert.equal(packageJson.scripts["test:build"], "node --test scripts/*.test.js");
 

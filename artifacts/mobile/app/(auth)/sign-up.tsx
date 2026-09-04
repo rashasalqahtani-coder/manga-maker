@@ -102,7 +102,10 @@ export default function SignUpScreen() {
   // Verification step
   if (needsVerify) {
     return (
-      <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <View
+        testID="sign-up-verification-screen"
+        style={[styles.root, { backgroundColor: colors.background }]}
+      >
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
             <Feather name="x" size={22} color={colors.foreground} />
@@ -119,6 +122,7 @@ export default function SignUpScreen() {
           </Text>
 
           <TextInput
+            testID="sign-up-verification-code"
             style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
             value={code}
             onChangeText={setCode}
@@ -134,6 +138,7 @@ export default function SignUpScreen() {
           {!!flowError && <Text style={styles.errorText}>{flowError}</Text>}
 
           <Pressable
+            testID="sign-up-verify"
             style={[styles.btn, { backgroundColor: colors.primary, opacity: isLoading || code.length !== 6 ? 0.6 : 1 }]}
             onPress={handleVerify}
             disabled={isLoading || code.length !== 6}
@@ -142,6 +147,7 @@ export default function SignUpScreen() {
           </Pressable>
 
           <Pressable
+            testID="sign-up-resend"
             onPress={handleResendCode}
             disabled={isLoading}
             style={[styles.linkBtn, { opacity: isLoading ? 0.6 : 1 }]}
