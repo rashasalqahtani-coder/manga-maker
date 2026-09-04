@@ -53,6 +53,7 @@ export default function ReaderScreen() {
   const [showControls, setShowControls] = useState(true);
   const [showComments, setShowComments] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const flatListRef = useRef<FlatList<PageItem>>(null);
 
   // Fetch sibling chapters for next/prev navigation
   useEffect(() => {
@@ -159,6 +160,12 @@ export default function ReaderScreen() {
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
 
+  const goToPage = (page: number) => {
+    const targetIndex = Math.max(0, Math.min(pages.length - 1, page - 1));
+    flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true });
+    setCurrentPage(targetIndex + 1);
+  };
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: "#000" }]}>
@@ -232,6 +239,7 @@ export default function ReaderScreen() {
   return (
     <View style={[styles.root, { backgroundColor: "#000" }]}>
       <FlatList
+        ref={flatListRef}
         data={pages}
         keyExtractor={(item) => String(item.index)}
         renderItem={({ item }) => (
@@ -242,6 +250,12 @@ export default function ReaderScreen() {
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig.current}
+        onScrollToIndexFailed={({ index, averageItemLength }) => {
+          flatListRef.current?.scrollToOffset({
+            offset: Math.max(0, index * averageItemLength),
+            animated: true,
+          });
+        }}
       />
 
       {showControls && (
@@ -272,6 +286,33 @@ export default function ReaderScreen() {
               style={styles.commentBtn}
             >
               <Feather name="message-circle" size={22} color="#fff" />
+            </Pressable>
+          </View>
+
+          <View pointerEvents="box-none" style={styles.pageNavigation}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الصفحة السابقة"
+              disabled={currentPage <= 1}
+              onPress={() => goToPage(currentPage - 1)}
+              style={({ pressed }) => [
+                styles.pageNavButton,
+                { opacity: currentPage <= 1 ? 0.25 : pressed ? 0.65 : 1 },
+              ]}
+            >
+              <Feather name="chevron-left" size={30} color="#fff" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الصفحة التالية"
+              disabled={currentPage >= pages.length}
+              onPress={() => goToPage(currentPage + 1)}
+              style={({ pressed }) => [
+                styles.pageNavButton,
+                { opacity: currentPage >= pages.length ? 0.25 : pressed ? 0.65 : 1 },
+              ]}
+            >
+              <Feather name="chevron-right" size={30} color="#fff" />
             </Pressable>
           </View>
 
@@ -417,6 +458,22 @@ const styles = StyleSheet.create({
   },
   bottomText: { color: "rgba(255,255,255,0.5)", fontSize: 12 },
   commentBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  pageNavigation: {
+    position: "absolute",
+    top: "46%",
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  pageNavButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
   navRow: {
     flexDirection: "row",
     alignItems: "center",

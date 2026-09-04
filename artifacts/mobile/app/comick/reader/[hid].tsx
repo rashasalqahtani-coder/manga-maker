@@ -48,6 +48,13 @@ export default function ComickReaderScreen() {
     uiTimer.current = setTimeout(() => setShowUI(false), 3000);
   };
 
+  const goToPage = (index: number) => {
+    const targetIndex = Math.max(0, Math.min(pages.length - 1, index));
+    flatRef.current?.scrollToIndex({ index: targetIndex, animated: true });
+    setCurrentPage(targetIndex);
+    showUITemporarily();
+  };
+
   if (loading) {
     return (
       <View style={[styles.root, styles.center, { backgroundColor: "#000" }]}>
@@ -111,17 +118,45 @@ export default function ComickReaderScreen() {
 
       {/* Top bar */}
       {showUI && (
-        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <Pressable onPress={() => router.back()} style={styles.uiBtn} hitSlop={8}>
-            <Feather name="arrow-right" size={20} color="#fff" />
-          </Pressable>
-          <Text style={styles.pageIndicator}>
-            {currentPage + 1} / {pages.length}
-          </Text>
-          <View style={[styles.sourcePill, { backgroundColor: "#0EA5E9" + "33" }]}>
-            <Text style={[styles.sourcePillText, { color: "#0EA5E9" }]}>ComicK</Text>
+        <>
+          <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+            <Pressable onPress={() => router.back()} style={styles.uiBtn} hitSlop={8}>
+              <Feather name="arrow-right" size={20} color="#fff" />
+            </Pressable>
+            <Text style={styles.pageIndicator}>
+              {currentPage + 1} / {pages.length}
+            </Text>
+            <View style={[styles.sourcePill, { backgroundColor: "#0EA5E9" + "33" }]}>
+              <Text style={[styles.sourcePillText, { color: "#0EA5E9" }]}>ComicK</Text>
+            </View>
           </View>
-        </View>
+          <View pointerEvents="box-none" style={styles.pageNavigation}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الصفحة السابقة"
+              disabled={currentPage === 0}
+              onPress={() => goToPage(currentPage - 1)}
+              style={({ pressed }) => [
+                styles.pageNavButton,
+                { opacity: currentPage === 0 ? 0.25 : pressed ? 0.65 : 1 },
+              ]}
+            >
+              <Feather name="chevron-left" size={30} color="#fff" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الصفحة التالية"
+              disabled={currentPage >= pages.length - 1}
+              onPress={() => goToPage(currentPage + 1)}
+              style={({ pressed }) => [
+                styles.pageNavButton,
+                { opacity: currentPage >= pages.length - 1 ? 0.25 : pressed ? 0.65 : 1 },
+              ]}
+            >
+              <Feather name="chevron-right" size={30} color="#fff" />
+            </Pressable>
+          </View>
+        </>
       )}
 
       {/* Bottom page indicator */}
@@ -160,6 +195,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   uiBtn: {},
+  pageNavigation: {
+    position: "absolute", top: "46%", left: 12, right: 12,
+    flexDirection: "row", justifyContent: "space-between",
+  },
+  pageNavButton: {
+    width: 48, height: 48, borderRadius: 24,
+    alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
   pageIndicator: { flex: 1, color: "#fff", fontSize: 14, fontWeight: "600", textAlign: "center" },
   sourcePill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
   sourcePillText: { fontSize: 11, fontWeight: "700" },

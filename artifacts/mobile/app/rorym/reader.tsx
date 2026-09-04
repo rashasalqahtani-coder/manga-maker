@@ -80,6 +80,12 @@ export default function RorymReaderScreen() {
     []
   );
 
+  const goToPage = (page: number) => {
+    const targetIndex = Math.max(0, Math.min(pages.length - 1, page - 1));
+    flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true });
+    setCurrentPage(targetIndex + 1);
+  };
+
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
@@ -127,18 +133,46 @@ export default function RorymReaderScreen() {
 
       {/* Top bar */}
       {barsVisible && (
-        <View style={[styles.topBar, { paddingTop: insets.top + 8, backgroundColor: "rgba(0,0,0,0.75)" }]}>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backIconBtn}>
-            <Feather name="arrow-right" size={22} color="#fff" />
-          </Pressable>
-          <View style={styles.topBarCenter}>
-            {mangaTitle ? (
-              <Text style={styles.topTitle} numberOfLines={1}>{mangaTitle}</Text>
-            ) : null}
-            <Text style={styles.topChapter}>فصل {chapterNum}</Text>
+        <>
+          <View style={[styles.topBar, { paddingTop: insets.top + 8, backgroundColor: "rgba(0,0,0,0.75)" }]}>
+            <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backIconBtn}>
+              <Feather name="arrow-right" size={22} color="#fff" />
+            </Pressable>
+            <View style={styles.topBarCenter}>
+              {mangaTitle ? (
+                <Text style={styles.topTitle} numberOfLines={1}>{mangaTitle}</Text>
+              ) : null}
+              <Text style={styles.topChapter}>فصل {chapterNum}</Text>
+            </View>
+            <View style={{ width: 36 }} />
           </View>
-          <View style={{ width: 36 }} />
-        </View>
+          <View pointerEvents="box-none" style={styles.pageNavigation}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الصفحة السابقة"
+              disabled={currentPage <= 1}
+              onPress={() => goToPage(currentPage - 1)}
+              style={({ pressed }) => [
+                styles.pageNavButton,
+                { opacity: currentPage <= 1 ? 0.25 : pressed ? 0.65 : 1 },
+              ]}
+            >
+              <Feather name="chevron-left" size={30} color="#fff" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الصفحة التالية"
+              disabled={currentPage >= pages.length}
+              onPress={() => goToPage(currentPage + 1)}
+              style={({ pressed }) => [
+                styles.pageNavButton,
+                { opacity: currentPage >= pages.length ? 0.25 : pressed ? 0.65 : 1 },
+              ]}
+            >
+              <Feather name="chevron-right" size={30} color="#fff" />
+            </Pressable>
+          </View>
+        </>
       )}
 
       {/* Page counter */}
@@ -169,6 +203,22 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   backIconBtn: { width: 36, height: 36, justifyContent: "center", alignItems: "center" },
+  pageNavigation: {
+    position: "absolute",
+    top: "46%",
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  pageNavButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
   topBarCenter: { flex: 1, alignItems: "center" },
   topTitle: { color: "#fff", fontSize: 13, opacity: 0.8 },
   topChapter: { color: "#fff", fontSize: 15, fontWeight: "600" },
