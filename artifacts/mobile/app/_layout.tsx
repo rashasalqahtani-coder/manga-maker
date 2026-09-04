@@ -18,6 +18,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AppResumeInterstitial } from "@/components/AppResumeInterstitial";
 import { DownloadProvider } from "@/context/DownloadContext";
 import { LibraryProvider } from "@/context/LibraryContext";
 import { ReaderSettingsProvider } from "@/context/ReaderSettingsContext";
@@ -85,6 +86,7 @@ export default function RootLayout() {
                   <GestureHandlerRootView>
                     <KeyboardProvider>
                       <RootLayoutNav />
+                      <AppResumeInterstitial />
                     </KeyboardProvider>
                   </GestureHandlerRootView>
                 </DownloadProvider>
