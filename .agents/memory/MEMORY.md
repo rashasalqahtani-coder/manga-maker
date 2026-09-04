@@ -1,0 +1,1 @@
+- [API test runner](api-test-runner.md) — API TypeScript tests use the existing esbuild dependency and Node test runner rather than assuming tsx is installed.
