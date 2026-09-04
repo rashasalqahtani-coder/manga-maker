@@ -29,24 +29,36 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState("");
   const [flowError, setFlowError] = useState("");
+  const [verificationRequested, setVerificationRequested] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
   const finalizingRef = useRef(false);
 
   const isLoading = fetchStatus === "fetching";
   const needsVerify =
+    verificationRequested &&
     signUp.status === "missing_requirements" &&
     signUp.unverifiedFields.includes("email_address") &&
     signUp.missingFields.length === 0;
 
   const handleSignUp = async () => {
     setFlowError("");
+    const normalizedEmail = email.trim();
     const { error } = await signUp.password({
-      emailAddress: email.trim(),
+      emailAddress: normalizedEmail,
       password,
     });
-    if (error) return;
+    if (error) {
+      setFlowError(error.message);
+      return;
+    }
     const { error: verificationError } =
       await signUp.verifications.sendEmailCode();
-    if (verificationError) setFlowError(verificationError.message);
+    if (verificationError) {
+      setFlowError(verificationError.message);
+      return;
+    }
+    setSubmittedEmail(normalizedEmail);
+    setVerificationRequested(true);
   };
 
   const handleVerify = async () => {
@@ -54,7 +66,13 @@ export default function SignUpScreen() {
     const { error } = await signUp.verifications.verifyEmailCode({
       code: code.trim(),
     });
-    if (error) return;
+    if (error) setFlowError(error.message);
+  };
+
+  const handleResendCode = async () => {
+    setFlowError("");
+    const { error } = await signUp.verifications.sendEmailCode();
+    if (error) setFlowError(error.message);
   };
 
   useEffect(() => {
@@ -97,7 +115,7 @@ export default function SignUpScreen() {
           <Text style={[styles.title, { color: colors.foreground }]}>تحقق من بريدك</Text>
           <Text style={[styles.sub, { color: colors.mutedForeground }]}>
             أرسلنا رمز تحقق إلى{"\n"}
-            <Text style={{ color: colors.foreground, fontWeight: "700" }}>{email}</Text>
+            <Text style={{ color: colors.foreground, fontWeight: "700" }}>{submittedEmail}</Text>
           </Text>
 
           <TextInput
@@ -123,7 +141,11 @@ export default function SignUpScreen() {
             {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>تأكيد</Text>}
           </Pressable>
 
-          <Pressable onPress={() => signUp.verifications.sendEmailCode()} style={styles.linkBtn}>
+          <Pressable
+            onPress={handleResendCode}
+            disabled={isLoading}
+            style={[styles.linkBtn, { opacity: isLoading ? 0.6 : 1 }]}
+          >
             <Text style={[styles.linkText, { color: colors.primary }]}>أعد إرسال الرمز</Text>
           </Pressable>
         </ScrollView>
