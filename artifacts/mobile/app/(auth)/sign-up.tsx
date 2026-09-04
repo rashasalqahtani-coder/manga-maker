@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useSignUp } from "@clerk/expo";
+import { useAuth, useSignUp } from "@clerk/expo";
 import { type Href, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -22,6 +22,7 @@ export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signUp, errors, fetchStatus } = useSignUp();
+  const { isSignedIn } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,13 +45,20 @@ export default function SignUpScreen() {
     await signUp.verifications.verifyEmailCode({ code });
     if (signUp.status === "complete") {
       await signUp.finalize({
-        navigate: ({ decorateUrl }) => {
+        navigate: ({ session, decorateUrl }) => {
+          if (session?.currentTask) return;
           const url = decorateUrl("/");
-          router.replace(url as Href);
+          if (url.startsWith("http") && Platform.OS === "web") {
+            window.location.href = url;
+          } else {
+            router.replace(url as Href);
+          }
         },
       });
     }
   };
+
+  if (signUp.status === "complete" || isSignedIn) return null;
 
   // Verification step
   if (needsVerify) {
