@@ -1,8 +1,9 @@
-const CACHE_NAME = 'manga-web-v1';
+const CACHE_NAME = 'manga-web-v2';
 const URLS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
+  './icon-192.png',
   './icon-512.png'
 ];
 
