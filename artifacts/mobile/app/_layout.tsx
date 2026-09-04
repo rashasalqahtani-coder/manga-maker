@@ -5,12 +5,14 @@ import {
   Inter_700Bold,
   useFonts,
 } from "@expo-google-fonts/inter";
-import { ClerkProvider, ClerkLoaded } from "@clerk/expo";
+import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
+import { Feather } from "@expo/vector-icons";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -54,6 +56,7 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    ...Feather.font,
   });
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (Platform.OS !== "web" && !fontsLoaded && !fontError) return null;
 
   return (
     <ClerkProvider
@@ -70,31 +73,29 @@ export default function RootLayout() {
       tokenCache={tokenCache}
       proxyUrl={proxyUrl}
     >
-      <ClerkLoaded>
-        <SafeAreaProvider>
-          <ThemeProvider>
-            <SourceProvider>
-            <ErrorBoundary>
-              <QueryClientProvider client={queryClient}>
-                <LibraryProvider>
-                  <TeamProvider>
-                  <ReaderSettingsProvider>
-                  <DownloadProvider>
-                    <GestureHandlerRootView>
-                      <KeyboardProvider>
-                        <RootLayoutNav />
-                      </KeyboardProvider>
-                    </GestureHandlerRootView>
-                  </DownloadProvider>
-                  </ReaderSettingsProvider>
-                  </TeamProvider>
-                </LibraryProvider>
-              </QueryClientProvider>
-            </ErrorBoundary>
-            </SourceProvider>
-          </ThemeProvider>
-        </SafeAreaProvider>
-      </ClerkLoaded>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <SourceProvider>
+          <ErrorBoundary>
+            <QueryClientProvider client={queryClient}>
+              <LibraryProvider>
+                <TeamProvider>
+                <ReaderSettingsProvider>
+                <DownloadProvider>
+                  <GestureHandlerRootView>
+                    <KeyboardProvider>
+                      <RootLayoutNav />
+                    </KeyboardProvider>
+                  </GestureHandlerRootView>
+                </DownloadProvider>
+                </ReaderSettingsProvider>
+                </TeamProvider>
+              </LibraryProvider>
+            </QueryClientProvider>
+          </ErrorBoundary>
+          </SourceProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
     </ClerkProvider>
   );
 }
