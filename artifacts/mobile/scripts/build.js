@@ -21,6 +21,7 @@ function findWorkspaceRoot(startDir) {
 
 const workspaceRoot = findWorkspaceRoot(projectRoot);
 const basePath = (process.env.BASE_PATH || "/").replace(/\/+$/, "");
+const CLERK_PROXY_PATH = "/api/__clerk";
 
 function exitWithError(message) {
   console.error(message);
@@ -127,7 +128,68 @@ function getExpoPublicReplId() {
   return process.env.REPL_ID || process.env.EXPO_PUBLIC_REPL_ID;
 }
 
-async function startMetro(expoPublicDomain, expoPublicReplId) {
+function getProductionClerkConfig(expoPublicDomain, env = process.env) {
+  const publishableKey = env.CLERK_PUBLISHABLE_KEY?.trim();
+  const configuredProxyPath = env.CLERK_PROXY_URL?.trim();
+
+  if (!publishableKey) {
+    throw new Error(
+      "Missing Clerk publishable key required for the production Expo bundle",
+    );
+  }
+
+  if (configuredProxyPath && configuredProxyPath !== CLERK_PROXY_PATH) {
+    throw new Error(
+      `Invalid Clerk proxy URL: expected the production proxy path ${CLERK_PROXY_PATH}`,
+    );
+  }
+
+  return {
+    publishableKey,
+    proxyUrl: `https://${expoPublicDomain}${CLERK_PROXY_PATH}`,
+  };
+}
+
+function verifyClerkConfigInBundle(bundlePath, clerkConfig, platform) {
+  const bundle = fs.readFileSync(bundlePath, "utf-8");
+  const missing = [];
+
+  if (!bundle.includes(clerkConfig.publishableKey)) {
+    missing.push("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
+  }
+  if (!bundle.includes(clerkConfig.proxyUrl)) {
+    missing.push("EXPO_PUBLIC_CLERK_PROXY_URL");
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `${platform} production bundle is missing required Clerk configuration: ${missing.join(", ")}`,
+    );
+  }
+
+  console.log(`${platform} Clerk configuration verified`);
+}
+
+function verifyClerkConfigInBundles(timestamp, clerkConfig) {
+  for (const platform of ["ios", "android"]) {
+    verifyClerkConfigInBundle(
+      path.join(
+        projectRoot,
+        "static-build",
+        timestamp,
+        "_expo",
+        "static",
+        "js",
+        platform,
+        "bundle.js",
+      ),
+      clerkConfig,
+      platform,
+    );
+  }
+}
+
+async function startMetro(expoPublicDomain, expoPublicReplId, clerkConfig) {
   const isRunning = await checkMetroHealth();
   if (isRunning) {
     console.log("Metro already running");
@@ -136,16 +198,12 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
 
   console.log("Starting Metro...");
   console.log(`Setting EXPO_PUBLIC_DOMAIN=${expoPublicDomain}`);
-  const clerkProxyUrl = process.env.CLERK_PROXY_URL
-    ? `https://${expoPublicDomain}${process.env.CLERK_PROXY_URL}`
-    : "";
   const env = {
     ...process.env,
     EXPO_PUBLIC_DOMAIN: expoPublicDomain,
     EXPO_PUBLIC_REPL_ID: expoPublicReplId,
-    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
-      process.env.CLERK_PUBLISHABLE_KEY || "",
-    EXPO_PUBLIC_CLERK_PROXY_URL: clerkProxyUrl,
+    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkConfig.publishableKey,
+    EXPO_PUBLIC_CLERK_PROXY_URL: clerkConfig.proxyUrl,
   };
 
   if (expoPublicReplId) {
@@ -518,13 +576,14 @@ async function main() {
 
   const domain = getDeploymentDomain();
   const expoPublicReplId = getExpoPublicReplId();
+  const clerkConfig = getProductionClerkConfig(domain);
   const baseUrl = `https://${domain}`;
   const timestamp = `${Date.now()}-${process.pid}`;
 
   prepareDirectories(timestamp);
   clearMetroCache();
 
-  await startMetro(domain, expoPublicReplId);
+  await startMetro(domain, expoPublicReplId, clerkConfig);
 
   const downloadTimeout = 600000;
   const downloadPromise = downloadBundlesAndManifests(timestamp);
@@ -540,6 +599,7 @@ async function main() {
   });
 
   const manifests = await Promise.race([downloadPromise, timeoutPromise]);
+  verifyClerkConfigInBundles(timestamp, clerkConfig);
 
   console.log("Processing assets...");
   const assets = extractAssets(timestamp);
@@ -570,10 +630,18 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((error) => {
-  console.error("Build failed:", error.message);
-  if (metroProcess) {
-    metroProcess.kill();
-  }
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error("Build failed:", error.message);
+    if (metroProcess) {
+      metroProcess.kill();
+    }
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  CLERK_PROXY_PATH,
+  getProductionClerkConfig,
+  verifyClerkConfigInBundle,
+};

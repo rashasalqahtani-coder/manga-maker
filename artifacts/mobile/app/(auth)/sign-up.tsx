@@ -159,6 +159,7 @@ export default function SignUpScreen() {
         {/* Email */}
         <Text style={[styles.label, { color: colors.mutedForeground }]}>البريد الإلكتروني</Text>
         <TextInput
+          testID="sign-up-email"
           style={[styles.input, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
           value={email}
           onChangeText={setEmail}
@@ -179,6 +180,7 @@ export default function SignUpScreen() {
             <Feather name={showPassword ? "eye-off" : "eye"} size={18} color={colors.mutedForeground} />
           </Pressable>
           <TextInput
+            testID="sign-up-password"
             style={[styles.inputInner, { color: colors.foreground }]}
             value={password}
             onChangeText={setPassword}
@@ -194,6 +196,7 @@ export default function SignUpScreen() {
         {!!flowError && <Text style={styles.errorText}>{flowError}</Text>}
 
         <Pressable
+          testID="sign-up-submit"
           style={[styles.btn, { backgroundColor: colors.primary, opacity: isLoading || !email || !password ? 0.6 : 1 }]}
           onPress={handleSignUp}
           disabled={isLoading || !email || !password}
