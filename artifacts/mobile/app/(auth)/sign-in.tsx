@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
-import { useSignIn } from "@clerk/expo";
+import { useAuth, useSignIn } from "@clerk/expo";
 import { type Href, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,46 +22,84 @@ export default function SignInScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signIn, errors, fetchStatus } = useSignIn();
+  const { isSignedIn } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState("");
+  const [flowError, setFlowError] = useState("");
+  const finalizingRef = useRef(false);
+  const verificationSentRef = useRef(false);
 
   const isLoading = fetchStatus === "fetching";
 
-  const handleSignIn = async () => {
-    const { error } = await signIn.password({ emailAddress: email, password });
-    if (error) return;
+  const finalizeSignIn = async () => {
+    if (finalizingRef.current) return;
+    finalizingRef.current = true;
 
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ decorateUrl }) => {
-          const url = decorateUrl("/");
-          if (url.startsWith("http")) {
-            // web fallback
-          } else {
-            router.replace(url as Href);
-          }
-        },
+    const { error } = await signIn.finalize({
+      navigate: ({ session, decorateUrl }) => {
+        if (session?.currentTask) return;
+        const url = decorateUrl("/");
+        if (url.startsWith("http") && Platform.OS === "web") {
+          window.location.href = url;
+        } else {
+          router.replace(url as Href);
+        }
+      },
+    });
+
+    if (error) {
+      finalizingRef.current = false;
+      setFlowError(error.message);
+    }
+  };
+
+  useEffect(() => {
+    if (signIn.status === "complete" && !isSignedIn) {
+      void finalizeSignIn();
+      return;
+    }
+
+    const needsEmailVerification =
+      signIn.status === "needs_client_trust" ||
+      signIn.status === "needs_second_factor";
+
+    if (needsEmailVerification && !verificationSentRef.current) {
+      verificationSentRef.current = true;
+      void signIn.mfa.sendEmailCode().then(({ error }) => {
+        if (error) {
+          verificationSentRef.current = false;
+          setFlowError(error.message);
+        }
       });
     }
+  }, [isSignedIn, signIn.status]);
+
+  const handleSignIn = async () => {
+    setFlowError("");
+    verificationSentRef.current = false;
+    const { error } = await signIn.password({
+      emailAddress: email.trim(),
+      password,
+    });
+    if (error) return;
   };
 
   const handleVerify = async () => {
-    await signIn.mfa.verifyEmailCode({ code });
-    if (signIn.status === "complete") {
-      await signIn.finalize({
-        navigate: ({ decorateUrl }) => {
-          const url = decorateUrl("/");
-          router.replace(url as Href);
-        },
-      });
-    }
+    setFlowError("");
+    const { error } = await signIn.mfa.verifyEmailCode({ code: code.trim() });
+    if (error) return;
   };
 
-  // MFA / client trust step
-  if (signIn.status === "needs_client_trust") {
+  if (signIn.status === "complete" || isSignedIn) return null;
+
+  // Email verification, MFA, or client-trust step
+  if (
+    signIn.status === "needs_client_trust" ||
+    signIn.status === "needs_second_factor"
+  ) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
@@ -85,14 +123,16 @@ export default function SignInScreen() {
             placeholderTextColor={colors.mutedForeground}
             keyboardType="numeric"
             textAlign="right"
+            maxLength={6}
           />
           {errors?.fields?.code && (
             <Text style={styles.errorText}>{errors.fields.code.message}</Text>
           )}
+          {!!flowError && <Text style={styles.errorText}>{flowError}</Text>}
           <Pressable
-            style={[styles.btn, { backgroundColor: colors.primary, opacity: isLoading || !code ? 0.6 : 1 }]}
+            style={[styles.btn, { backgroundColor: colors.primary, opacity: isLoading || code.length !== 6 ? 0.6 : 1 }]}
             onPress={handleVerify}
-            disabled={isLoading || !code}
+            disabled={isLoading || code.length !== 6}
           >
             {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>تحقق</Text>}
           </Pressable>
@@ -164,6 +204,10 @@ export default function SignInScreen() {
         {errors?.fields?.password && (
           <Text style={styles.errorText}>{errors.fields.password.message}</Text>
         )}
+        {!!flowError && <Text style={styles.errorText}>{flowError}</Text>}
+
+        {/* Required when Clerk requests bot protection during sign-in */}
+        <View nativeID="clerk-captcha" />
 
         <Pressable
           style={[styles.btn, { backgroundColor: colors.primary, opacity: isLoading || !email || !password ? 0.6 : 1 }]}

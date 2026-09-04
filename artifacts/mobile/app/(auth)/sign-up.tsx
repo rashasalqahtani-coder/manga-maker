@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useAuth, useSignUp } from "@clerk/expo";
 import { type Href, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -28,6 +28,8 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState("");
+  const [flowError, setFlowError] = useState("");
+  const finalizingRef = useRef(false);
 
   const isLoading = fetchStatus === "fetching";
   const needsVerify =
@@ -36,15 +38,29 @@ export default function SignUpScreen() {
     signUp.missingFields.length === 0;
 
   const handleSignUp = async () => {
-    const { error } = await signUp.password({ emailAddress: email, password });
+    setFlowError("");
+    const { error } = await signUp.password({
+      emailAddress: email.trim(),
+      password,
+    });
     if (error) return;
-    await signUp.verifications.sendEmailCode();
+    const { error: verificationError } =
+      await signUp.verifications.sendEmailCode();
+    if (verificationError) setFlowError(verificationError.message);
   };
 
   const handleVerify = async () => {
-    await signUp.verifications.verifyEmailCode({ code });
-    if (signUp.status === "complete") {
-      await signUp.finalize({
+    setFlowError("");
+    const { error } = await signUp.verifications.verifyEmailCode({
+      code: code.trim(),
+    });
+    if (error) return;
+  };
+
+  useEffect(() => {
+    if (signUp.status === "complete" && !isSignedIn && !finalizingRef.current) {
+      finalizingRef.current = true;
+      void signUp.finalize({
         navigate: ({ session, decorateUrl }) => {
           if (session?.currentTask) return;
           const url = decorateUrl("/");
@@ -54,9 +70,14 @@ export default function SignUpScreen() {
             router.replace(url as Href);
           }
         },
+      }).then(({ error }) => {
+        if (error) {
+          finalizingRef.current = false;
+          setFlowError(error.message);
+        }
       });
     }
-  };
+  }, [isSignedIn, signUp.status]);
 
   if (signUp.status === "complete" || isSignedIn) return null;
 
@@ -92,11 +113,12 @@ export default function SignUpScreen() {
           {errors?.fields?.code && (
             <Text style={styles.errorText}>{errors.fields.code.message}</Text>
           )}
+          {!!flowError && <Text style={styles.errorText}>{flowError}</Text>}
 
           <Pressable
-            style={[styles.btn, { backgroundColor: colors.primary, opacity: isLoading || !code ? 0.6 : 1 }]}
+            style={[styles.btn, { backgroundColor: colors.primary, opacity: isLoading || code.length !== 6 ? 0.6 : 1 }]}
             onPress={handleVerify}
-            disabled={isLoading || !code}
+            disabled={isLoading || code.length !== 6}
           >
             {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>تأكيد</Text>}
           </Pressable>
@@ -169,6 +191,7 @@ export default function SignUpScreen() {
         {errors?.fields?.password && (
           <Text style={styles.errorText}>{errors.fields.password.message}</Text>
         )}
+        {!!flowError && <Text style={styles.errorText}>{flowError}</Text>}
 
         <Pressable
           style={[styles.btn, { backgroundColor: colors.primary, opacity: isLoading || !email || !password ? 0.6 : 1 }]}
