@@ -201,9 +201,11 @@ async function startMetro(expoPublicDomain, expoPublicReplId, clerkConfig) {
   const env = {
     ...process.env,
     EXPO_PUBLIC_DOMAIN: expoPublicDomain,
-    EXPO_PUBLIC_REPL_ID: expoPublicReplId,
     EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: clerkConfig.publishableKey,
     EXPO_PUBLIC_CLERK_PROXY_URL: clerkConfig.proxyUrl,
+    ...(expoPublicReplId
+      ? { EXPO_PUBLIC_REPL_ID: expoPublicReplId }
+      : {}),
   };
 
   if (expoPublicReplId) {
@@ -211,7 +213,7 @@ async function startMetro(expoPublicDomain, expoPublicReplId, clerkConfig) {
   }
 
   metroProcess = spawn(
-    "pnpm",
+    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     [
       "exec",
       "expo",
@@ -225,6 +227,7 @@ async function startMetro(expoPublicDomain, expoPublicReplId, clerkConfig) {
       detached: false,
       cwd: projectRoot,
       env,
+      shell: process.platform === "win32",
     },
   );
 
