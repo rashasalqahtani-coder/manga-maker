@@ -23,7 +23,6 @@ import {
   useTheme,
 } from "@/context/ThemeContext";
 import { useReaderSettings } from "@/context/ReaderSettingsContext";
-import { SOURCES, useSource } from "@/context/SourceContext";
 import { useTeam } from "@/context/TeamContext";
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
@@ -91,7 +90,6 @@ export default function SettingsScreen() {
   const { accentId, bgId, radiusId, setAccent, setBg, setRadius } = useTheme();
 
   const { team } = useTeam();
-  const { source, setSource } = useSource();
   const {
     direction, mode, highQuality, keepScreenOn,
     setDirection, setMode, setHighQuality, setKeepScreenOn,
@@ -189,54 +187,6 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + (selecting && selected.size > 0 ? 100 : 32) }}
       >
-        {/* ── SOURCES SECTION ── */}
-        <SectionHeader title="مصادر المانجا" />
-        <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
-          {SOURCES.map((src, i) => {
-            const selected = src.id === source;
-            return (
-              <React.Fragment key={src.id}>
-                {i > 0 && <Divider marginLeft={0} />}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.row,
-                    {
-                      backgroundColor: pressed
-                        ? colors.secondary
-                        : selected
-                        ? colors.primary + "10"
-                        : "transparent",
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setSource(src.id);
-                  }}
-                >
-                  <View style={[styles.iconBox, { backgroundColor: colors.primary + "22", borderRadius: 8 }]}>
-                    <Text style={{ fontSize: 17 }}>{src.flag}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.rowLabel, { color: selected ? colors.primary : colors.foreground, fontWeight: selected ? "700" : "500" }]}>
-                      {src.nameAr}
-                    </Text>
-                    <Text style={[{ fontSize: 11, color: colors.mutedForeground, marginTop: 2 }]} numberOfLines={1}>
-                      {src.description}
-                    </Text>
-                  </View>
-                  {selected ? (
-                    <View style={[{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: colors.primary }]}>
-                      <Text style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}>مفعّل</Text>
-                    </View>
-                  ) : (
-                    <View style={[{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border }]} />
-                  )}
-                </Pressable>
-              </React.Fragment>
-            );
-          })}
-        </View>
-
         {/* ── ACCOUNT SECTION ── */}
         <SectionHeader title="الحساب" />
         <View style={[styles.card, { backgroundColor: colors.card, borderRadius: colors.radius }]}>
