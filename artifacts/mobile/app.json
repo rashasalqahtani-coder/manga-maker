@@ -10,15 +10,15 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#0F0F0F"
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.nebola.app"
     },
     "android": {
-      "backgroundColor": "#0F0F0F",
+      "backgroundColor": "#000000",
       "package": "com.nebola.app"
     },
     "web": {
