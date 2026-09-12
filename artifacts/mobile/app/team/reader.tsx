@@ -58,6 +58,7 @@ export default function TeamReaderScreen() {
   const [pages, setPages] = useState<PageItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [showControls, setShowControls] = useState(true);
+  const flatListRef = useRef<FlatList<PageItem>>(null);
 
   const manga = team?.manga.find((m) => m.id === mangaId);
   const chapter = manga?.chapters.find((c) => c.id === chapterId);
@@ -84,6 +85,12 @@ export default function TeamReaderScreen() {
   );
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
+
+  const goToPage = (page: number) => {
+    const targetIndex = Math.max(0, Math.min(pages.length - 1, page - 1));
+    flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true });
+    setCurrentPage(targetIndex + 1);
+  };
 
   if (!chapter && !remoteUrls) {
     return (
@@ -125,6 +132,7 @@ export default function TeamReaderScreen() {
   return (
     <View style={[styles.root, { backgroundColor: "#000" }]}>
       <FlatList
+        ref={flatListRef}
         data={pages}
         keyExtractor={(item) => String(item.index)}
         renderItem={({ item }) => (
@@ -135,6 +143,12 @@ export default function TeamReaderScreen() {
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig.current}
+        onScrollToIndexFailed={({ index, averageItemLength }) => {
+          flatListRef.current?.scrollToOffset({
+            offset: Math.max(0, index * averageItemLength),
+            animated: true,
+          });
+        }}
       />
 
       {showControls && (
@@ -161,6 +175,33 @@ export default function TeamReaderScreen() {
               </View>
             </View>
             <View style={{ width: 40 }} />
+          </View>
+
+          <View pointerEvents="box-none" style={styles.pageNavigation}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الصفحة السابقة"
+              disabled={currentPage <= 1}
+              onPress={() => goToPage(currentPage - 1)}
+              style={({ pressed }) => [
+                styles.pageNavButton,
+                { opacity: currentPage <= 1 ? 0.25 : pressed ? 0.65 : 1 },
+              ]}
+            >
+              <Feather name="chevron-left" size={30} color="#fff" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="الصفحة التالية"
+              disabled={currentPage >= pages.length}
+              onPress={() => goToPage(currentPage + 1)}
+              style={({ pressed }) => [
+                styles.pageNavButton,
+                { opacity: currentPage >= pages.length ? 0.25 : pressed ? 0.65 : 1 },
+              ]}
+            >
+              <Feather name="chevron-right" size={30} color="#fff" />
+            </Pressable>
           </View>
 
           <View
@@ -207,6 +248,22 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   backBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  pageNavigation: {
+    position: "absolute",
+    top: "46%",
+    left: 12,
+    right: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  pageNavButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.65)",
+  },
   centerInfo: { alignItems: "center", gap: 3, flex: 1 },
   chapterLabel: { color: "#fff", fontSize: 12, fontWeight: "600", opacity: 0.85 },
   pageCount: { color: "#fff", fontSize: 15, fontWeight: "700" },
