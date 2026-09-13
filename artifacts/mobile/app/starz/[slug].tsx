@@ -27,6 +27,7 @@ const API_BASE =
     : "/api";
 
 type SrcParam = "linkmanga" | "kenmanga" | "asq" | "rorym";
+type DownloadableChapter = StarzChapter & { pages?: string[] };
 
 // JS injected into hidden WebView to extract chapter image URLs
 const EXTRACT_IMAGES_JS = `
@@ -109,7 +110,7 @@ function getSourceLabel(src: SrcParam): string {
 }
 
 interface ScrapeJob {
-  chapter: StarzChapter;
+  chapter: DownloadableChapter;
   url: string;
   chapterId: string;
 }
@@ -131,8 +132,12 @@ export default function StarzMangaDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { startSourceDownload, cancelDownload, downloads } = useDownloads();
+  const title = params.title
+    ? decodeURIComponent(params.title)
+    : slug.replace(/-/g, " ");
+  const coverUrl = params.coverUrl ? decodeURIComponent(params.coverUrl) : "";
 
-  const [chapters, setChapters] = useState<StarzChapter[]>([]);
+  const [chapters, setChapters] = useState<DownloadableChapter[]>([]);
   const [chaptersLoading, setChaptersLoading] = useState(true);
   const [chaptersError, setChaptersError] = useState(false);
   const [showAllChapters, setShowAllChapters] = useState(false);
@@ -188,26 +193,40 @@ export default function StarzMangaDetailScreen() {
   }, []);
 
   const onDownloadRequest = useCallback(
-    (chapter: StarzChapter, chapterUrl: string, chapterId: string) => {
+    (chapter: DownloadableChapter, chapterUrl: string, chapterId: string) => {
       const dl = downloads[chapterId];
       if (dl?.status === "downloading") {
         cancelDownload(chapterId);
         return;
       }
       if (dl?.status === "done") return;
+      if (src === "rorym") {
+        if (!chapter.pages?.length) return;
+        startSourceDownload(chapterId, chapter.pages, {
+          mangaTitle: title,
+          chapterNum: chapter.number,
+          coverUrl,
+        });
+        return;
+      }
       const alreadyQueued = scrapeQueue.some((j) => j.chapterId === chapterId);
       const isActive = activeScrape?.chapterId === chapterId;
       if (alreadyQueued || isActive) return;
       setScrapeQueue((prev) => [...prev, { chapter, url: chapterUrl, chapterId }]);
     },
-    [downloads, cancelDownload, scrapeQueue, activeScrape]
+    [
+      downloads,
+      cancelDownload,
+      src,
+      startSourceDownload,
+      title,
+      coverUrl,
+      scrapeQueue,
+      activeScrape,
+    ]
   );
   // ────────────────────────────────────────────────────────────────────────────
 
-  const title = params.title
-    ? decodeURIComponent(params.title)
-    : slug.replace(/-/g, " ");
-  const coverUrl = params.coverUrl ? decodeURIComponent(params.coverUrl) : "";
   const rating = params.rating ? decodeURIComponent(params.rating) : "";
   const genreList: string[] = params.genres
     ? decodeURIComponent(params.genres).split(",").filter(Boolean)
@@ -223,7 +242,7 @@ export default function StarzMangaDetailScreen() {
     fetch(getChapterFetchApi(src, slug, latestChapter))
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status}`);
-        return r.json() as Promise<{ chapters: StarzChapter[] }>;
+        return r.json() as Promise<{ chapters: DownloadableChapter[] }>;
       })
       .then((d) => {
         setChapters(d.chapters ?? []);
@@ -509,13 +528,13 @@ function StarzChapterItem({
   latestChapterNum,
   onDownloadRequest,
 }: {
-  chapter: StarzChapter;
+  chapter: DownloadableChapter;
   slug: string;
   src: SrcParam;
   mangaTitle: string;
   coverUrl: string;
   latestChapterNum: string;
-  onDownloadRequest: (chapter: StarzChapter, url: string, chapterId: string) => void;
+  onDownloadRequest: (chapter: DownloadableChapter, url: string, chapterId: string) => void;
 }) {
   "use no memo";
   const colors = useColors();
@@ -557,7 +576,6 @@ function StarzChapterItem({
 
   const handleDownload = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (src === "rorym") return;
     const url = chapter.url || buildChapterUrl(src, slug, chapter.number);
     onDownloadRequest(chapter, url, chapterId);
   };
