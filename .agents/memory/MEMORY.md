@@ -1,4 +1,5 @@
 - [API test runner](api-test-runner.md) — API TypeScript tests use the existing esbuild dependency and Node test runner rather than assuming tsx is installed.
+- [API declaration rebuilds](api-declaration-rebuilds.md) — standalone API typechecks must force library declaration emit; tsbuildinfo can outlive deleted dist outputs.
 - [AdMob in Expo Go](admob-expo-go.md) — native mobile-ads modules must be lazy-loaded outside Expo Go so previews remain usable.
 - [Android native build limits](android-native-build-limits.md) — local APK assembly needs an Android SDK and more disk quota than this workspace provides.
 - [Clerk Core status transitions](clerk-core-status-transitions.md) — custom auth flows must react to hook status changes instead of checking immediately after requests.

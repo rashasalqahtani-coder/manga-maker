@@ -8,6 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test": "mkdir -p .test && pnpm exec esbuild src/routes/suggestions.test.ts --bundle --platform=node --format=cjs --outfile=.test/suggestions.test.cjs && node --test .test/suggestions.test.cjs",
+    "pretypecheck": "pnpm --workspace-root exec tsc --build --force",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
