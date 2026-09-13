@@ -223,6 +223,17 @@ export default function SignUpScreen() {
         )}
         {!!flowError && <Text style={styles.errorText}>{flowError}</Text>}
 
+        {/* Clerk mounts Cloudflare verification here when bot protection is required. */}
+        <View
+          nativeID="clerk-captcha"
+          style={[styles.captchaContainer, isLoading && styles.captchaContainerActive]}
+        />
+        {isLoading && (
+          <Text style={[styles.captchaHint, { color: colors.mutedForeground }]}>
+            أكمل التحقق من أنك إنسان للمتابعة
+          </Text>
+        )}
+
         <Pressable
           testID="sign-up-submit"
           style={[styles.btn, { backgroundColor: colors.primary, opacity: isLoading || !email || !password ? 0.6 : 1 }]}
@@ -235,9 +246,6 @@ export default function SignUpScreen() {
             <Text style={styles.btnText}>إنشاء الحساب</Text>
           )}
         </Pressable>
-
-        {/* Required for Clerk bot protection */}
-        <View nativeID="clerk-captcha" />
 
         <View style={styles.switchRow}>
           <Text style={[styles.switchText, { color: colors.mutedForeground }]}>لديك حساب بالفعل؟ </Text>
@@ -285,6 +293,9 @@ const styles = StyleSheet.create({
   },
   inputInner: { flex: 1, fontSize: 15 },
   errorText: { color: "#EF4444", fontSize: 12, textAlign: "right" },
+  captchaContainer: { alignItems: "center", justifyContent: "center" },
+  captchaContainerActive: { minHeight: 70 },
+  captchaHint: { fontSize: 12, textAlign: "center", marginTop: -6 },
   btn: {
     height: 52,
     borderRadius: 14,
