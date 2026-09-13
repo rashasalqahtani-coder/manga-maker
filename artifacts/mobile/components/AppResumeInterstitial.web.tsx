@@ -5,6 +5,8 @@ import { isAdBlockedPath } from "./appResumeInterstitialPolicy";
 
 const ADSENSE_SCRIPT_ID = "nebola-adsense-script";
 const ADSENSE_CONTAINER_ID = "nebola-adsense-banner";
+const DEFAULT_ADSENSE_CLIENT_ID = "ca-pub-4550237288397411";
+const DEFAULT_ADSENSE_SLOT_ID = "2101725128";
 const CONSENT_KEY = "nebola_privacy_consent_v1";
 const CONSENT_EVENT = "nebola:privacy-consent-changed";
 
@@ -22,8 +24,12 @@ function removeAdContainer() {
 export function AppResumeInterstitial() {
   const pathname = usePathname();
   const [hasConsent, setHasConsent] = useState(hasAdvertisingConsent);
-  const clientId = process.env.EXPO_PUBLIC_ADSENSE_CLIENT_ID?.trim();
-  const slotId = process.env.EXPO_PUBLIC_ADSENSE_SLOT_ID?.trim();
+  const clientId =
+    process.env.EXPO_PUBLIC_ADSENSE_CLIENT_ID?.trim() ||
+    DEFAULT_ADSENSE_CLIENT_ID;
+  const slotId =
+    process.env.EXPO_PUBLIC_ADSENSE_SLOT_ID?.trim() ||
+    DEFAULT_ADSENSE_SLOT_ID;
 
   useEffect(() => {
     const syncConsent = () => setHasConsent(hasAdvertisingConsent());
@@ -42,7 +48,6 @@ export function AppResumeInterstitial() {
     if (
       !hasConsent ||
       !clientId ||
-      !slotId ||
       isAdBlockedPath(pathname)
     ) {
       return;
@@ -57,6 +62,8 @@ export function AppResumeInterstitial() {
         `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(clientId)}`;
       document.head.appendChild(script);
     }
+
+    if (!slotId) return;
 
     const container = document.createElement("aside");
     container.id = ADSENSE_CONTAINER_ID;
