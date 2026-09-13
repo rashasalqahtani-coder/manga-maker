@@ -137,6 +137,10 @@ await copyFile(
   path.resolve(webRoot, "public/sw.js"),
   path.resolve(outputDir, "sw.js"),
 );
+await copyFile(
+  path.resolve(webRoot, "public/ads.txt"),
+  path.resolve(outputDir, "ads.txt"),
+);
 
 console.log(
   `Expo Web exported for ${publicDomain} (${proxyUrl ? "production proxy" : "direct development auth"})`,
