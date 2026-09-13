@@ -238,6 +238,11 @@ export default function ReaderScreen() {
         ref={flatListRef}
         data={pages}
         keyExtractor={(item) => String(item.index)}
+        scrollEnabled
+        nestedScrollEnabled
+        removeClippedSubviews={false}
+        initialNumToRender={3}
+        windowSize={7}
         renderItem={({ item }) => (
           <Pressable onPress={() => setShowControls((v) => !v)}>
             <PageImage uri={item.uri} />

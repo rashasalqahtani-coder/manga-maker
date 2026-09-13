@@ -124,7 +124,6 @@ export default function HomeScreen() {
 
   const featured = manga.slice(0, 10);
   const trending = manga.slice(0, 12);
-  const recent = manga.slice(manga.length > 12 ? 12 : 0);
   const teamUpdates = publishedTeams.flatMap((team) =>
     team.manga.map((item) => ({
       id: `team:${team.id}:${item.id}`,
@@ -142,7 +141,7 @@ export default function HomeScreen() {
   );
   const latestUpdates = [
     ...teamUpdates,
-    ...recent.map((item) => ({ ...toStarzMangaShape(item), teamId: "", mangaId: "" })),
+    ...manga.map((item) => ({ ...toStarzMangaShape(item), teamId: "", mangaId: "" })),
   ].slice(0, 12);
 
   return (
@@ -209,6 +208,18 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {sourceError && !loading && (
+          <Pressable
+            style={[styles.errorBanner, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => void loadData()}
+          >
+            <Feather name="alert-circle" size={16} color={colors.primary} />
+            <Text style={[styles.errorBannerText, { color: colors.foreground }]}>
+              تعذّر تحميل بعض بيانات الصفحة الرئيسية — اضغط للمحاولة مجدداً
+            </Text>
+            <Feather name="refresh-cw" size={14} color={colors.primary} />
+          </Pressable>
+        )}
         {/* ── Genres shortcut ── */}
         <Pressable
           style={({ pressed }) => [
@@ -226,18 +237,6 @@ export default function HomeScreen() {
             router.push("/genres" as any);
           }}
         >
-        {sourceError && !loading && (
-          <Pressable
-            style={[styles.errorBanner, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={() => void loadData()}
-          >
-            <Feather name="alert-circle" size={16} color={colors.primary} />
-            <Text style={[styles.errorBannerText, { color: colors.foreground }]}>
-              تعذّر تحميل بعض بيانات الصفحة الرئيسية — اضغط للمحاولة مجدداً
-            </Text>
-            <Feather name="refresh-cw" size={14} color={colors.primary} />
-          </Pressable>
-        )}
           <Feather name="grid" size={16} color={colors.primary} />
           <Text style={[styles.sourceBannerText, { color: colors.mutedForeground }]}>
             {"تصفّح المانجا حسب "}

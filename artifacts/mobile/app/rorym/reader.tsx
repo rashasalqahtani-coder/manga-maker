@@ -142,6 +142,11 @@ export default function RorymReaderScreen() {
         ref={flatListRef}
         data={pages}
         keyExtractor={(_, i) => String(i)}
+        scrollEnabled
+        nestedScrollEnabled
+        removeClippedSubviews={false}
+        initialNumToRender={3}
+        windowSize={7}
         renderItem={({ item }) => (
           <Pressable onPress={() => setBarsVisible((v) => !v)}>
             <Image
@@ -154,6 +159,12 @@ export default function RorymReaderScreen() {
         )}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig.current}
+        onScrollToIndexFailed={({ index, averageItemLength }) => {
+          flatListRef.current?.scrollToOffset({
+            offset: Math.max(0, index * averageItemLength),
+            animated: true,
+          });
+        }}
         showsVerticalScrollIndicator={false}
       />
 
