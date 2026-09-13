@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readdir, rm, unlink } from "node:fs/promises";
+import { copyFile, readdir, rm, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -133,6 +133,10 @@ await run(
 );
 
 await pruneUnusedWebFonts(outputDir);
+await copyFile(
+  path.resolve(webRoot, "public/sw.js"),
+  path.resolve(outputDir, "sw.js"),
+);
 
 console.log(
   `Expo Web exported for ${publicDomain} (${proxyUrl ? "production proxy" : "direct development auth"})`,
