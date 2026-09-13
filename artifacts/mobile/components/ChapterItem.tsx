@@ -135,6 +135,11 @@ export function ChapterItem({ chapter, manga, isRead }: ChapterItemProps) {
             />
           </View>
         )}
+        {dl?.status === "error" && (
+          <Text style={styles.downloadError}>
+            تعذّر التنزيل — اضغط للمحاولة مجددًا
+          </Text>
+        )}
       </View>
 
       <View style={styles.actions}>
@@ -255,6 +260,11 @@ const styles = StyleSheet.create({
   progressFill: {
     height: "100%",
     borderRadius: 2,
+  },
+  downloadError: {
+    color: "#EF4444",
+    fontSize: 10,
+    fontWeight: "600",
   },
   actions: {
     flexDirection: "row",

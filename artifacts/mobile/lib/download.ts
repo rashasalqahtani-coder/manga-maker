@@ -82,6 +82,9 @@ async function saveWebChapter(
   if (!canUseWebCache()) {
     throw new Error("التنزيل غير مدعوم في هذا المتصفح");
   }
+  if (imageUrls.length === 0) {
+    throw new Error("لا توجد صفحات قابلة للتنزيل");
+  }
 
   const cache = await window.caches.open(WEB_CACHE_NAME);
   for (let i = 0; i < imageUrls.length; i++) {
