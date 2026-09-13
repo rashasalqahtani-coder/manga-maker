@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { rm } from "node:fs/promises";
+import { readdir, rm, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -49,6 +49,34 @@ function run(command, args, options = {}) {
   });
 }
 
+async function pruneUnusedWebFonts(directory) {
+  const usedFontPrefixes = [
+    "Inter_400Regular.",
+    "Inter_500Medium.",
+    "Inter_600SemiBold.",
+    "Inter_700Bold.",
+    "Feather.",
+  ];
+  const entries = await readdir(directory, { withFileTypes: true });
+
+  await Promise.all(
+    entries.map(async (entry) => {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await pruneUnusedWebFonts(entryPath);
+        return;
+      }
+
+      if (
+        entry.name.endsWith(".ttf") &&
+        !usedFontPrefixes.some((prefix) => entry.name.startsWith(prefix))
+      ) {
+        await unlink(entryPath);
+      }
+    }),
+  );
+}
+
 const publicDomain = getPublicDomain();
 const publishableKey = process.env.CLERK_PUBLISHABLE_KEY?.trim();
 const configuredProxyPath = process.env.CLERK_PROXY_URL?.trim();
@@ -96,6 +124,8 @@ await run(
     },
   },
 );
+
+await pruneUnusedWebFonts(outputDir);
 
 console.log(
   `Expo Web exported for ${publicDomain} (${proxyUrl ? "production proxy" : "direct development auth"})`,
