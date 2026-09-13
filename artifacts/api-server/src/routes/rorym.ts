@@ -19,6 +19,7 @@ interface RorymManga {
   is_most_read: boolean;
   genres: string[];
   created_at: string;
+  reader_count?: number | string;
 }
 
 interface RorymChapter {
@@ -43,6 +44,7 @@ function toUnified(row: RorymManga, latestChapter?: RorymChapter) {
     teamName: row.team_name,
     isMostRead: row.is_most_read,
     genres: Array.isArray(row.genres) ? row.genres : [],
+    readerCount: Number(row.reader_count ?? 0),
     latestChapters: latestChapter
       ? [{ number: latestChapter.chapter_num, url: "" }]
       : [],
@@ -125,12 +127,73 @@ router.get("/rorym/most-read", async (req: Request, res: Response) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query<RorymManga>(
-      `SELECT * FROM rorym_manga WHERE is_most_read=TRUE ORDER BY created_at DESC LIMIT 20`
+      `SELECT manga.*, COUNT(reads.reader_key)::int AS reader_count
+       FROM rorym_manga AS manga
+       INNER JOIN manga_reads AS reads
+         ON reads.source = 'rorym' AND reads.manga_key = manga.slug
+       GROUP BY manga.id
+       HAVING COUNT(reads.reader_key) > 100
+       ORDER BY reader_count DESC, manga.created_at DESC
+       LIMIT 20`
     );
     res.json({ manga: rows.map((row) => toUnified(row)) });
   } catch (err) {
     req.log.error(err, "rorym: most-read error");
     res.status(500).json({ error: "most-read error" });
+  }
+});
+
+router.get("/rorym/trending", async (req: Request, res: Response) => {
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query<RorymManga>(
+      `SELECT manga.*, COUNT(reads.reader_key)::int AS reader_count
+       FROM rorym_manga AS manga
+       LEFT JOIN manga_reads AS reads
+         ON reads.source = 'rorym' AND reads.manga_key = manga.slug
+       WHERE manga.created_at >= NOW() - INTERVAL '14 days'
+       GROUP BY manga.id
+       ORDER BY manga.created_at DESC, reader_count DESC
+       LIMIT 20`
+    );
+    res.json({ manga: rows.map((row) => toUnified(row)) });
+  } catch (err) {
+    req.log.error(err, "rorym: trending error");
+    res.status(500).json({ error: "trending error" });
+  }
+});
+
+router.post("/rorym/manga/:slug/read", async (req: Request, res: Response) => {
+  const readerKey = String(req.body?.readerKey ?? "").trim();
+  if (!readerKey || readerKey.length > 160) {
+    res.status(400).json({ error: "valid readerKey required" });
+    return;
+  }
+
+  try {
+    const pool = getPool();
+    const result = await pool.query(
+      `INSERT INTO manga_reads (source, manga_key, reader_key)
+       SELECT 'rorym', manga.slug, $2
+       FROM rorym_manga AS manga
+       WHERE manga.slug = $1
+       ON CONFLICT (source, manga_key, reader_key) DO NOTHING`,
+      [req.params["slug"], readerKey],
+    );
+    if (!result.rowCount) {
+      const exists = await pool.query(
+        `SELECT 1 FROM rorym_manga WHERE slug = $1`,
+        [req.params["slug"]],
+      );
+      if (!exists.rowCount) {
+        res.status(404).json({ error: "not found" });
+        return;
+      }
+    }
+    res.status(204).end();
+  } catch (err) {
+    req.log.error(err, "rorym: read tracking error");
+    res.status(500).json({ error: "read tracking error" });
   }
 });
 

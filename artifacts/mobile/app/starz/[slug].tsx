@@ -20,6 +20,7 @@ import { WebView } from "react-native-webview";
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import { type StarzChapter } from "@/lib/mangastarz";
+import { recordRorymMangaRead } from "@/lib/sources";
 
 const API_BASE =
   typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
@@ -347,6 +348,7 @@ export default function StarzMangaDetailScreen() {
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 if (chapters.length > 0) {
+                  if (src === "rorym") void recordRorymMangaRead(slug);
                   const first = chapters[chapters.length - 1];
                   if (src === "rorym") {
                     router.push({
@@ -550,6 +552,7 @@ function StarzChapterItem({
   const handlePress = () => {
     Haptics.selectionAsync();
     if (src === "rorym") {
+      void recordRorymMangaRead(slug);
       router.push({
         pathname: "/rorym/reader" as any,
         params: {

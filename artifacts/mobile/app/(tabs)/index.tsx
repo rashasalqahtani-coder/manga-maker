@@ -20,7 +20,12 @@ import { StarzFeaturedBanner } from "@/components/StarzFeaturedBanner";
 import { StarzMangaRow } from "@/components/StarzMangaRow";
 import { useSource } from "@/context/SourceContext";
 import { useColors } from "@/hooks/useColors";
-import { fetchHomeMangas, fetchMostReadMangas, type UnifiedManga } from "@/lib/sources";
+import {
+  fetchHomeMangas,
+  fetchMostReadMangas,
+  fetchTrendingMangas,
+  type UnifiedManga,
+} from "@/lib/sources";
 import { searchPublicTeams, type PublicTeam } from "@/lib/teams";
 
 function navigateToManga(
@@ -71,6 +76,7 @@ export default function HomeScreen() {
 
   const [manga, setManga] = useState<UnifiedManga[]>([]);
   const [mostRead, setMostRead] = useState<UnifiedManga[]>([]);
+  const [trending, setTrending] = useState<UnifiedManga[]>([]);
   const [publishedTeams, setPublishedTeams] = useState<PublicTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [sourceError, setSourceError] = useState(false);
@@ -83,17 +89,20 @@ export default function HomeScreen() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setSourceError(false);
-    const [homeResult, mostReadResult, teamsResult] = await Promise.allSettled([
+    const [homeResult, mostReadResult, trendingResult, teamsResult] = await Promise.allSettled([
       fetchHomeMangas(currentSource.current),
       fetchMostReadMangas(),
+      fetchTrendingMangas(),
       searchPublicTeams(""),
     ]);
     setManga(homeResult.status === "fulfilled" ? homeResult.value : []);
     setMostRead(mostReadResult.status === "fulfilled" ? mostReadResult.value : []);
+    setTrending(trendingResult.status === "fulfilled" ? trendingResult.value : []);
     setPublishedTeams(teamsResult.status === "fulfilled" ? teamsResult.value : []);
     setSourceError(
       homeResult.status === "rejected" ||
       mostReadResult.status === "rejected" ||
+      trendingResult.status === "rejected" ||
       teamsResult.status === "rejected",
     );
     setLoading(false);
@@ -123,7 +132,6 @@ export default function HomeScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top + 12;
 
   const featured = manga.slice(0, 10);
-  const trending = manga.slice(0, 12);
   const teamUpdates = publishedTeams.flatMap((team) =>
     team.manga.map((item) => ({
       id: `team:${team.id}:${item.id}`,

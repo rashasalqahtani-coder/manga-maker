@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SourceId } from "@/context/SourceContext";
 
 const apiDomain =
@@ -5,6 +6,7 @@ const apiDomain =
     ? process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"]
     : "";
 const API_BASE = apiDomain ? `https://${apiDomain}/api` : "/api";
+const READER_KEY_STORAGE = "@nebola_reader_key";
 
 export interface UnifiedManga {
   id: string;
@@ -52,6 +54,31 @@ export async function fetchMostReadMangas(): Promise<UnifiedManga[]> {
   if (!res.ok) throw new Error(`most-read fetch failed: ${res.status}`);
   const data = (await res.json()) as { manga: Record<string, unknown>[] };
   return (data.manga ?? []).map(mapRorymItem);
+}
+
+export async function fetchTrendingMangas(): Promise<UnifiedManga[]> {
+  const res = await fetch(`${API_BASE}/rorym/trending`);
+  if (!res.ok) throw new Error(`trending fetch failed: ${res.status}`);
+  const data = (await res.json()) as { manga: Record<string, unknown>[] };
+  return (data.manga ?? []).map(mapRorymItem);
+}
+
+async function getReaderKey(): Promise<string> {
+  const existing = await AsyncStorage.getItem(READER_KEY_STORAGE);
+  if (existing) return existing;
+  const created = `device:${Date.now().toString(36)}:${Math.random().toString(36).slice(2)}`;
+  await AsyncStorage.setItem(READER_KEY_STORAGE, created);
+  return created;
+}
+
+export async function recordRorymMangaRead(slug: string): Promise<void> {
+  if (!slug) return;
+  const readerKey = await getReaderKey();
+  await fetch(`${API_BASE}/rorym/manga/${encodeURIComponent(slug)}/read`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ readerKey }),
+  });
 }
 
 export async function fetchHomeMangas(sourceId: SourceId): Promise<UnifiedManga[]> {
