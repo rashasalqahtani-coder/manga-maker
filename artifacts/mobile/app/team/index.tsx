@@ -23,6 +23,7 @@ import { useLibrary } from "@/context/LibraryContext";
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import { downloadTeamChapter, isChapterDownloaded, deleteTeamData } from "@/lib/download";
+import { recordCompletedChapterDownload } from "@/lib/adScheduleEvents";
 import { MANGA_GENRES } from "@/lib/genres";
 import { getPublicTeam, publishTeam, unpublishTeam, uploadTeamImage } from "@/lib/teams";
 
@@ -76,6 +77,7 @@ function MangaCard({
         manga,
         () => {}
       );
+      recordCompletedChapterDownload();
       await refreshMeta();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert("تم التنزيل", `فصل ${ch.number} جاهز للقراءة بدون إنترنت.`);

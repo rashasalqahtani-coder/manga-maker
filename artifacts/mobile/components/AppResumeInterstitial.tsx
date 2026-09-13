@@ -6,14 +6,19 @@ import { AppState, Platform } from "react-native";
 import type { InterstitialAd } from "react-native-google-mobile-ads";
 import {
   advanceChapterCount,
+  advanceDownloadCount,
+  isAdBlockedPath,
   selectAdUnitId,
 } from "./appResumeInterstitialPolicy";
+import { subscribeToCompletedChapterDownloads } from "@/lib/adScheduleEvents";
 
 const AD_UNIT_ID = "ca-app-pub-9653661950159959/4261913243";
 const STORAGE_PREFIX = "admob_interstitial_v1";
 const COUNT_KEY = `${STORAGE_PREFIX}:chapter_count`;
 const PENDING_KEY = `${STORAGE_PREFIX}:pending`;
 const LAST_CHAPTER_KEY = `${STORAGE_PREFIX}:last_chapter`;
+const QUEUE_KEY = `${STORAGE_PREFIX}:queued_ads`;
+const DOWNLOAD_COUNT_KEY = `${STORAGE_PREFIX}:download_count`;
 
 function getChapterKey(
   pathname: string,
@@ -35,12 +40,67 @@ export function AppResumeInterstitial() {
   const params = useGlobalSearchParams();
   const [storageReady, setStorageReady] = useState(false);
   const appStateRef = useRef(AppState.currentState);
+  const pathnameRef = useRef(pathname);
   const chapterCountRef = useRef(0);
-  const pendingRef = useRef(false);
+  const downloadCountRef = useRef(0);
+  const queuedAdsRef = useRef(0);
   const lastChapterRef = useRef<string | null>(null);
   const interstitialRef = useRef<InterstitialAd | null>(null);
   const adLoadedRef = useRef(false);
   const showingRef = useRef(false);
+  const showOpportunityRef = useRef(false);
+
+  pathnameRef.current = pathname;
+
+  const attemptToShowRef = useRef<() => void>(() => {});
+  attemptToShowRef.current = () => {
+    if (
+      isAdBlockedPath(pathnameRef.current) ||
+      appStateRef.current !== "active" ||
+      queuedAdsRef.current < 1 ||
+      !showOpportunityRef.current ||
+      !adLoadedRef.current ||
+      showingRef.current ||
+      !interstitialRef.current
+    ) {
+      return;
+    }
+
+    showingRef.current = true;
+    showOpportunityRef.current = false;
+    adLoadedRef.current = false;
+    queuedAdsRef.current -= 1;
+    void AsyncStorage.setItem(QUEUE_KEY, String(queuedAdsRef.current));
+
+    void interstitialRef.current.show()
+      .catch(() => {
+        queuedAdsRef.current += 1;
+        showOpportunityRef.current = true;
+        void AsyncStorage.setItem(QUEUE_KEY, String(queuedAdsRef.current));
+      })
+      .finally(() => {
+        showingRef.current = false;
+      });
+  };
+
+  const queueAdsRef = useRef<(count: number) => void>(() => {});
+  queueAdsRef.current = (count: number) => {
+    if (count < 1) return;
+    queuedAdsRef.current += count;
+    if (!showingRef.current) showOpportunityRef.current = true;
+    void AsyncStorage.setItem(QUEUE_KEY, String(queuedAdsRef.current));
+    attemptToShowRef.current();
+  };
+
+  const queueLaunchAdRef = useRef<() => void>(() => {});
+  queueLaunchAdRef.current = () => {
+    if (queuedAdsRef.current < 1) {
+      queuedAdsRef.current = 1;
+      void AsyncStorage.setItem(QUEUE_KEY, "1");
+    }
+    if (!showingRef.current) showOpportunityRef.current = true;
+    attemptToShowRef.current();
+  };
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -49,11 +109,19 @@ export function AppResumeInterstitial() {
       AsyncStorage.getItem(COUNT_KEY),
       AsyncStorage.getItem(PENDING_KEY),
       AsyncStorage.getItem(LAST_CHAPTER_KEY),
-    ]).then(([count, pending, lastChapter]) => {
+      AsyncStorage.getItem(QUEUE_KEY),
+      AsyncStorage.getItem(DOWNLOAD_COUNT_KEY),
+    ]).then(([count, pending, lastChapter, queuedAds, downloadCount]) => {
       chapterCountRef.current = Number.parseInt(count ?? "0", 10) || 0;
-      pendingRef.current = pending === "true";
+      downloadCountRef.current = Number.parseInt(downloadCount ?? "0", 10) || 0;
+      queuedAdsRef.current = Math.max(
+        Number.parseInt(queuedAds ?? "0", 10) || 0,
+        pending === "true" ? 1 : 0,
+      );
       lastChapterRef.current = lastChapter;
+      void AsyncStorage.setItem(PENDING_KEY, "false");
       setStorageReady(true);
+      queueLaunchAdRef.current();
     });
   }, []);
 
@@ -83,6 +151,7 @@ export function AppResumeInterstitial() {
       interstitialRef.current = interstitial;
       unsubscribeLoaded = interstitial.addAdEventListener(ads.AdEventType.LOADED, () => {
         adLoadedRef.current = true;
+        attemptToShowRef.current();
       });
       unsubscribeClosed = interstitial.addAdEventListener(ads.AdEventType.CLOSED, () => {
         adLoadedRef.current = false;
@@ -117,17 +186,27 @@ export function AppResumeInterstitial() {
     lastChapterRef.current = chapterKey;
     void AsyncStorage.setItem(LAST_CHAPTER_KEY, chapterKey);
 
-    const next = advanceChapterCount(
-      chapterCountRef.current,
-      pendingRef.current,
-    );
+    const next = advanceChapterCount(chapterCountRef.current);
     chapterCountRef.current = next.chapterCount;
-    pendingRef.current = next.pending;
-    void AsyncStorage.multiSet([
-      [COUNT_KEY, String(next.chapterCount)],
-      [PENDING_KEY, String(next.pending)],
-    ]);
+    void AsyncStorage.setItem(COUNT_KEY, String(next.chapterCount));
+    queueAdsRef.current(next.adsToQueue);
   }, [pathname, params, storageReady]);
+
+  useEffect(() => {
+    if (!storageReady || Platform.OS !== "android") return;
+
+    return subscribeToCompletedChapterDownloads(() => {
+      const next = advanceDownloadCount(downloadCountRef.current);
+      downloadCountRef.current = next.downloadCount;
+      void AsyncStorage.setItem(DOWNLOAD_COUNT_KEY, String(next.downloadCount));
+      queueAdsRef.current(next.adsToQueue);
+    });
+  }, [storageReady]);
+
+  useEffect(() => {
+    if (!storageReady || Platform.OS !== "android") return;
+    attemptToShowRef.current();
+  }, [pathname, storageReady]);
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -137,28 +216,8 @@ export function AppResumeInterstitial() {
         appStateRef.current !== "active" && nextState === "active";
       appStateRef.current = nextState;
 
-      if (
-        !returnedToForeground ||
-        !pendingRef.current ||
-        !adLoadedRef.current ||
-        showingRef.current ||
-        !interstitialRef.current
-      ) {
-        return;
-      }
-
-      showingRef.current = true;
-      pendingRef.current = false;
-      void AsyncStorage.setItem(PENDING_KEY, "false");
-
-      void interstitialRef.current.show()
-        .catch(() => {
-          pendingRef.current = true;
-          void AsyncStorage.setItem(PENDING_KEY, "true");
-        })
-        .finally(() => {
-          showingRef.current = false;
-        });
+      if (!returnedToForeground) return;
+      queueLaunchAdRef.current();
     });
 
     return () => subscription.remove();

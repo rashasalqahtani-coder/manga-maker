@@ -16,6 +16,7 @@ import {
   type DownloadedChapterMeta,
 } from "@/lib/download";
 import type { Manga } from "@/lib/mangadex";
+import { recordCompletedChapterDownload } from "@/lib/adScheduleEvents";
 
 type DownloadStatus = "idle" | "downloading" | "done" | "error";
 
@@ -104,6 +105,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
         signal
       )
         .then(() => {
+          recordCompletedChapterDownload();
           setDownloads((prev) => ({
             ...prev,
             [chapterId]: { status: "done", progress: 1 },
@@ -155,6 +157,7 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
         signal
       )
         .then(() => {
+          recordCompletedChapterDownload();
           setDownloads((prev) => ({
             ...prev,
             [chapterId]: { status: "done", progress: 1 },

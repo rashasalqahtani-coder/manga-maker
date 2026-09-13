@@ -22,6 +22,7 @@ import { useTeam } from "@/context/TeamContext";
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import { downloadPublishedTeamChapter, isChapterDownloaded } from "@/lib/download";
+import { recordCompletedChapterDownload } from "@/lib/adScheduleEvents";
 import { getPublicTeam, type PublicTeam, type PublicTeamChapter, type PublicTeamManga } from "@/lib/teams";
 
 const MANGADEX_ID_RE = /^[0-9a-f-]{36}$/;
@@ -178,6 +179,7 @@ export default function TeamMangaScreen() {
         manga.coverUrl ?? "",
         () => {}
       );
+      recordCompletedChapterDownload();
       await refreshMeta();
       setDownloadedIds((prev) => new Set([...prev, ch.id]));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
