@@ -31,6 +31,10 @@ externalPort = 8081
 localPort = 18115
 externalPort = 3000
 
+[[ports]]
+localPort = 22333
+externalPort = 3001
+
 [nix]
 channel = "stable-25_05"
 packages = ["freetype", "gumbo", "harfbuzz", "jbig2dec", "lcms2", "libimagequant", "libjpeg", "libjpeg_turbo", "libtiff", "libwebp", "libxcrypt", "mupdf", "openjpeg", "swig", "tcl", "tk", "xcbuild", "zlib"]
