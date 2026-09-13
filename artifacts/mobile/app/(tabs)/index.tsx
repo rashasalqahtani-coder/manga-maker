@@ -242,7 +242,7 @@ export default function HomeScreen() {
         {/* ── Recently updated ── */}
         {recent.length > 0 && (
           <StarzMangaRow
-            title="محدّثة مؤخراً"
+            title="آخر التحديثات"
             manga={recent.map(toStarzMangaShape) as any}
             loading={loading}
             onPressManga={(m) => {
