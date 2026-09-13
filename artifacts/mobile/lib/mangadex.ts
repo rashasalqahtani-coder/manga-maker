@@ -1,10 +1,12 @@
 import { setBaseUrl } from "@workspace/api-client-react";
 
 // Set base URL for API calls from the Expo client.
-// In web preview this is the shared proxy domain; on native it uses EXPO_PUBLIC_DOMAIN.
+// Prefer the independently deployed API so static web builds keep working
+// after the Replit workspace is closed.
 const domain =
-  typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
-    ? process.env["EXPO_PUBLIC_DOMAIN"]
+  typeof process !== "undefined" &&
+  (process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"])
+    ? process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"]
     : "";
 
 if (domain) {

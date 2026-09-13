@@ -17,8 +17,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 
 const API_BASE =
-  typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
-    ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
+  typeof process !== "undefined" &&
+  (process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"])
+    ? `https://${process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"]}/api`
     : "/api";
 
 const { width: SCREEN_W } = Dimensions.get("window");

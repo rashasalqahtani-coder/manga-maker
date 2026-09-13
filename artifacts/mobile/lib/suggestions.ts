@@ -1,8 +1,9 @@
 import type { UnifiedManga } from "@/lib/sources";
 
 const domain =
-  typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
-    ? process.env["EXPO_PUBLIC_DOMAIN"]
+  typeof process !== "undefined" &&
+  (process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"])
+    ? process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"]
     : "";
 const API_BASE = domain ? `https://${domain}/api` : "/api";
 

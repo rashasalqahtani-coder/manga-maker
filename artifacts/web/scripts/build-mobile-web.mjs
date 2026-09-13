@@ -8,6 +8,7 @@ const workspaceRoot = path.resolve(webRoot, "../..");
 const mobileRoot = path.resolve(workspaceRoot, "artifacts/mobile");
 const outputDir = path.resolve(webRoot, "dist/public");
 const clerkProxyPath = "/api/__clerk";
+const productionApiDomain = "manga-maker.replit.app";
 
 function normalizeDomain(value) {
   if (!value?.trim()) return "";
@@ -79,7 +80,8 @@ async function pruneUnusedWebFonts(directory) {
 
 const publicDomain = getPublicDomain();
 const apiDomain =
-  normalizeDomain(process.env.EXPO_PUBLIC_API_DOMAIN) || publicDomain;
+  normalizeDomain(process.env.EXPO_PUBLIC_API_DOMAIN) ||
+  (process.argv.includes("--serve") ? publicDomain : productionApiDomain);
 const publishableKey = process.env.CLERK_PUBLISHABLE_KEY?.trim();
 const configuredProxyPath = process.env.CLERK_PROXY_URL?.trim();
 

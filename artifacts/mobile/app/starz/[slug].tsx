@@ -23,8 +23,9 @@ import { type StarzChapter } from "@/lib/mangastarz";
 import { recordRorymMangaRead } from "@/lib/sources";
 
 const API_BASE =
-  typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
-    ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
+  typeof process !== "undefined" &&
+  (process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"])
+    ? `https://${process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"]}/api`
     : "/api";
 
 type SrcParam = "linkmanga" | "kenmanga" | "asq" | "rorym";
