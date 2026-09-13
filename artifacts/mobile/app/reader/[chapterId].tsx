@@ -20,7 +20,7 @@ import { CommentsSheet } from "@/components/CommentsSheet";
 import { useColors } from "@/hooks/useColors";
 import { getLocalPages } from "@/lib/download";
 import { getChapterPages, getMangaChapters, type Chapter, type ChapterPages } from "@/lib/mangadex";
-import { getAdjacentChapters, getReaderHref } from "@/lib/readerNavigation";
+import { getAdjacentChapters } from "@/lib/readerNavigation";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -81,15 +81,16 @@ export default function ReaderScreen() {
   );
 
   const goToChapter = (ch: Chapter) => {
-    router.replace(
-      getReaderHref({
+    router.replace({
+      pathname: "/reader/[chapterId]" as any,
+      params: {
         chapterId: ch.id,
-        mangaId,
-        mangaTitle,
-        coverUrl,
+        mangaId: mangaId ?? "",
+        mangaTitle: mangaTitle ?? "",
+        coverUrl: coverUrl ?? "",
         chapterNum: ch.attributes.chapter ?? "",
-      }),
-    );
+      },
+    });
   };
 
   const loadChapter = useCallback(async () => {

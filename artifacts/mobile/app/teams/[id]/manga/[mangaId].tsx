@@ -157,12 +157,17 @@ export default function TeamMangaScreen() {
           mangaId: mangaId ?? "",
           chapterId: ch.id,
           imageUrlsJson: JSON.stringify(ch.imageUrls),
+          chaptersJson: JSON.stringify(manga.chapters),
         },
       });
     } else {
       router.push({
         pathname: "/team/reader" as any,
-        params: { mangaId: localManga?.id ?? mangaId ?? "", chapterId: ch.id },
+        params: {
+          mangaId: localManga?.id ?? mangaId ?? "",
+          chapterId: ch.id,
+          chaptersJson: JSON.stringify(manga.chapters),
+        },
       });
     }
   };

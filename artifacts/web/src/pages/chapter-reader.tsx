@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowRight, Images, RefreshCw, WifiOff } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Images, RefreshCw, WifiOff } from 'lucide-react';
 import { useManga, useMangaChapters } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 
@@ -27,6 +27,19 @@ export default function ChapterReader({ params }: { params: { id: string; chapte
   const chaptersQuery = useMangaChapters(slug);
   const [currentPage, setCurrentPage] = useState(1);
   const chapter = chaptersQuery.data?.find((item) => item.number === chapterNumber);
+  const orderedChapters = [...(chaptersQuery.data ?? [])].sort(
+    (a, b) => Number.parseFloat(b.number) - Number.parseFloat(a.number),
+  );
+  const currentChapterIndex = orderedChapters.findIndex((item) => item.number === chapterNumber);
+  const nextChapter =
+    currentChapterIndex > 0 ? orderedChapters[currentChapterIndex - 1] : null;
+  const previousChapter =
+    currentChapterIndex >= 0 && currentChapterIndex < orderedChapters.length - 1
+      ? orderedChapters[currentChapterIndex + 1]
+      : null;
+
+  const chapterHref = (number: string) =>
+    `/manga/${encodeURIComponent(slug)}/chapter/${encodeURIComponent(number)}`;
 
   useEffect(() => {
     const title = mangaQuery.data?.title;
@@ -69,7 +82,43 @@ export default function ChapterReader({ params }: { params: { id: string; chapte
           <ReaderPage key={`${page}-${index}`} src={page} index={index} chapterNumber={chapterNumber} />
         ))}
       </div>
-      <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-full bg-black/75 px-4 py-2 text-sm shadow-xl ring-1 ring-white/15 backdrop-blur" data-testid="text-page-counter">{currentPage} / {chapter.pages.length}</div>
+      <nav
+        className="fixed bottom-4 left-1/2 z-40 flex w-[min(94vw,34rem)] -translate-x-1/2 items-center justify-between gap-2 rounded-2xl bg-black/85 p-2 shadow-xl ring-1 ring-white/15 backdrop-blur"
+        aria-label="التنقل بين الفصول"
+      >
+        {nextChapter ? (
+          <Link
+            href={chapterHref(nextChapter.number)}
+            className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
+            data-testid="link-next-chapter"
+          >
+            <ChevronRight className="h-4 w-4 shrink-0" />
+            <span className="truncate">الفصل التالي {nextChapter.number}</span>
+          </Link>
+        ) : (
+          <span className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm text-white/35">
+            <ChevronRight className="h-4 w-4 shrink-0" />
+            <span>الفصل التالي</span>
+          </span>
+        )}
+        <span className="text-white/20">|</span>
+        {previousChapter ? (
+          <Link
+            href={chapterHref(previousChapter.number)}
+            className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
+            data-testid="link-previous-chapter"
+          >
+            <span className="truncate">الفصل السابق {previousChapter.number}</span>
+            <ChevronLeft className="h-4 w-4 shrink-0" />
+          </Link>
+        ) : (
+          <span className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm text-white/35">
+            <span>الفصل السابق</span>
+            <ChevronLeft className="h-4 w-4 shrink-0" />
+          </span>
+        )}
+      </nav>
+      <div className="fixed bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-full bg-black/75 px-4 py-2 text-sm shadow-xl ring-1 ring-white/15 backdrop-blur" data-testid="text-page-counter">{currentPage} / {chapter.pages.length}</div>
     </main>
   );
 }

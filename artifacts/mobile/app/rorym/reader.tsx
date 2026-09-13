@@ -104,9 +104,9 @@ export default function RorymReaderScreen() {
     router.replace({
       pathname: "/rorym/reader",
       params: {
-        slug: encodeURIComponent(slug),
-        chapterNum: encodeURIComponent(targetChapter.number),
-        title: encodeURIComponent(mangaTitle),
+        slug,
+        chapterNum: targetChapter.number,
+        title: mangaTitle,
       },
     } as never);
   };

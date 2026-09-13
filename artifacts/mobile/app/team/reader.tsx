@@ -23,6 +23,13 @@ interface PageItem {
   index: number;
 }
 
+interface ReaderChapter {
+  id: string;
+  number: string;
+  imageUrls?: string[];
+  imageUris?: string[];
+}
+
 function PageImage({ uri }: { uri: string }) {
   const [height, setHeight] = useState(SCREEN_WIDTH * 1.45);
 
@@ -45,10 +52,11 @@ function PageImage({ uri }: { uri: string }) {
 
 export default function TeamReaderScreen() {
   "use no memo";
-  const { mangaId, chapterId, imageUrlsJson } = useLocalSearchParams<{
+  const { mangaId, chapterId, imageUrlsJson, chaptersJson } = useLocalSearchParams<{
     mangaId: string;
     chapterId: string;
     imageUrlsJson?: string;
+    chaptersJson?: string;
   }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -61,8 +69,18 @@ export default function TeamReaderScreen() {
   const flatListRef = useRef<FlatList<PageItem>>(null);
 
   const manga = team?.manga.find((m) => m.id === mangaId);
-  const chapter = manga?.chapters.find((c) => c.id === chapterId);
-  const orderedChapters = [...(manga?.chapters ?? [])].sort((a, b) =>
+  const routeChapters: ReaderChapter[] = chaptersJson
+    ? (() => {
+        try {
+          return JSON.parse(chaptersJson) as ReaderChapter[];
+        } catch {
+          return [];
+        }
+      })()
+    : [];
+  const chaptersForReader = (manga?.chapters ?? routeChapters) as ReaderChapter[];
+  const chapter = chaptersForReader.find((c) => c.id === chapterId);
+  const orderedChapters = [...chaptersForReader].sort((a, b) =>
     b.number.localeCompare(a.number, undefined, { numeric: true }),
   );
   const currentChapterIndex = orderedChapters.findIndex((c) => c.id === chapterId);
@@ -77,7 +95,7 @@ export default function TeamReaderScreen() {
   const remoteUrls: string[] | null = imageUrlsJson
     ? (() => { try { return JSON.parse(imageUrlsJson) as string[]; } catch { return null; } })()
     : null;
-  const resolvedUris = chapter?.imageUris ?? remoteUrls;
+  const resolvedUris = chapter?.imageUris ?? chapter?.imageUrls ?? remoteUrls;
 
   useEffect(() => {
     if (!resolvedUris || resolvedUris.length === 0) return;
@@ -97,10 +115,16 @@ export default function TeamReaderScreen() {
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
 
-  const goToChapter = (targetChapterId: string) => {
+  const goToChapter = (targetChapter: ReaderChapter) => {
+    const imageUrls = targetChapter.imageUris ?? targetChapter.imageUrls;
     router.replace({
       pathname: "/team/reader",
-      params: { mangaId, chapterId: targetChapterId },
+      params: {
+        mangaId,
+        chapterId: targetChapter.id,
+        imageUrlsJson: imageUrls?.length ? JSON.stringify(imageUrls) : undefined,
+        chaptersJson: JSON.stringify(chaptersForReader),
+      },
     } as never);
   };
 
@@ -200,7 +224,7 @@ export default function TeamReaderScreen() {
               accessibilityRole="button"
               accessibilityLabel="الفصل السابق"
               disabled={!previousChapter}
-              onPress={() => previousChapter && goToChapter(previousChapter.id)}
+              onPress={() => previousChapter && goToChapter(previousChapter)}
               style={({ pressed }) => [
                 styles.pageNavButton,
                 { opacity: !previousChapter ? 0.25 : pressed ? 0.65 : 1 },
@@ -212,7 +236,7 @@ export default function TeamReaderScreen() {
               accessibilityRole="button"
               accessibilityLabel="الفصل التالي"
               disabled={!nextChapter}
-              onPress={() => nextChapter && goToChapter(nextChapter.id)}
+              onPress={() => nextChapter && goToChapter(nextChapter)}
               style={({ pressed }) => [
                 styles.pageNavButton,
                 { opacity: !nextChapter ? 0.25 : pressed ? 0.65 : 1 },
