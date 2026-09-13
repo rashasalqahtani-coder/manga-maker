@@ -263,6 +263,14 @@ function MangaCard({
                           size={13}
                           color={hasImages ? colors.primary : colors.mutedForeground}
                         />
+                        <Text
+                          style={[
+                            styles.chapterActionText,
+                            { color: hasImages ? colors.primary : colors.mutedForeground },
+                          ]}
+                        >
+                          قراءة
+                        </Text>
                       </Pressable>
 
                       {/* Download */}
@@ -277,6 +285,9 @@ function MangaCard({
                         ) : (
                           <Feather name="download" size={13} color={colors.mutedForeground} />
                         )}
+                        <Text style={[styles.chapterActionText, { color: colors.mutedForeground }]}>
+                          تنزيل
+                        </Text>
                       </Pressable>
 
                       {/* Delete */}
@@ -1217,7 +1228,17 @@ const styles = StyleSheet.create({
   chapterTitleText: { fontSize: 13, lineHeight: 18 },
   chapterImageCount: { fontSize: 10, marginTop: 1 },
   chapterActions: { flexDirection: "row", gap: 4, alignItems: "center" },
-  chapterActionBtn: { width: 30, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  chapterActionBtn: {
+    minWidth: 30,
+    height: 30,
+    paddingHorizontal: 7,
+    borderRadius: 8,
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chapterActionText: { fontSize: 10, fontWeight: "700" },
 
   addChapterBtn: {
     flexDirection: "row",

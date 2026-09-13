@@ -137,28 +137,54 @@ export function ChapterItem({ chapter, manga, isRead }: ChapterItemProps) {
         )}
       </View>
 
-      {manga && !isExternal && (
+      <View style={styles.actions}>
         <Pressable
-          onPress={handleDownload}
-          hitSlop={10}
-          style={styles.dlBtn}
-          disabled={isDone}
+          onPress={(event) => {
+            event.stopPropagation();
+            handlePress();
+          }}
+          style={({ pressed }) => [
+            styles.readBtn,
+            { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+          ]}
         >
-          {isDownloading ? (
-            <ActivityIndicator size={16} color={colors.primary} />
-          ) : isDone ? (
-            <Feather name="check-circle" size={18} color={colors.primary} />
-          ) : (
-            <Feather name="download" size={18} color={colors.mutedForeground} />
-          )}
+          <Feather
+            name={isExternal ? "external-link" : "book-open"}
+            size={12}
+            color="#fff"
+          />
+          <Text style={styles.readBtnText}>قراءة</Text>
         </Pressable>
-      )}
 
-      <Feather
-        name={isExternal ? "external-link" : "chevron-right"}
-        size={18}
-        color={colors.mutedForeground}
-      />
+        {manga && !isExternal && (
+          <Pressable
+            onPress={(event) => {
+              event.stopPropagation();
+              handleDownload();
+            }}
+            style={({ pressed }) => [
+              styles.dlBtn,
+              {
+                backgroundColor: isDone ? colors.primary + "20" : colors.secondary,
+                borderColor: isDone ? colors.primary + "55" : colors.border,
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
+            disabled={isDone}
+          >
+            {isDownloading ? (
+              <ActivityIndicator size={12} color={colors.primary} />
+            ) : isDone ? (
+              <Feather name="check-circle" size={12} color={colors.primary} />
+            ) : (
+              <Feather name="download" size={12} color={colors.foreground} />
+            )}
+            <Text style={[styles.dlBtnText, { color: isDone ? colors.primary : colors.foreground }]}>
+              {isDone ? "محمّل" : "تنزيل"}
+            </Text>
+          </Pressable>
+        )}
+      </View>
     </Pressable>
   );
 }
@@ -174,6 +200,7 @@ const styles = StyleSheet.create({
   },
   left: {
     flex: 1,
+    minWidth: 0,
     gap: 4,
   },
   titleRow: {
@@ -229,9 +256,37 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 2,
   },
-  dlBtn: {
-    width: 30,
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  readBtn: {
+    minHeight: 32,
+    paddingHorizontal: 9,
+    borderRadius: 7,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
+  },
+  readBtnText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  dlBtn: {
+    minHeight: 32,
+    paddingHorizontal: 8,
+    borderRadius: 7,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  dlBtnText: {
+    fontSize: 10,
+    fontWeight: "700",
   },
 });
