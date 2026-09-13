@@ -20,6 +20,7 @@ export interface TeamManga {
   coverUrl?: string;
   localCoverUri?: string;
   description?: string;
+  genres?: string[];
   chapters: TeamChapter[];
 }
 

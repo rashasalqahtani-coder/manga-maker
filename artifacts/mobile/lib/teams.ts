@@ -19,6 +19,7 @@ export interface PublicTeamManga {
   title: string;
   coverUrl?: string;
   description?: string;
+  genres?: string[];
   chapters: PublicTeamChapter[];
 }
 

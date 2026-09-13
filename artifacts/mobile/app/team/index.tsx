@@ -23,6 +23,7 @@ import { useLibrary } from "@/context/LibraryContext";
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import { downloadTeamChapter, isChapterDownloaded, deleteTeamData } from "@/lib/download";
+import { MANGA_GENRES } from "@/lib/genres";
 import { getPublicTeam, publishTeam, unpublishTeam, uploadTeamImage } from "@/lib/teams";
 
 type Tab = "manga" | "members";
@@ -439,6 +440,7 @@ export default function TeamScreen() {
   // Manual add
   const [manualTitle, setManualTitle] = useState("");
   const [manualDesc, setManualDesc] = useState("");
+  const [manualGenres, setManualGenres] = useState<string[]>([]);
   const [manualCoverUri, setManualCoverUri] = useState<string | null>(null);
   const [pickingImage, setPickingImage] = useState(false);
 
@@ -480,6 +482,7 @@ export default function TeamScreen() {
     setShowAddPanel(false);
     setManualTitle("");
     setManualDesc("");
+    setManualGenres([]);
     setManualCoverUri(null);
   };
 
@@ -553,6 +556,7 @@ export default function TeamScreen() {
       id: `manual_${Date.now()}`,
       title: manualTitle.trim(),
       description: manualDesc.trim() || undefined,
+      genres: manualGenres,
       localCoverUri: manualCoverUri ?? undefined,
     });
     resetAddPanel();
@@ -615,6 +619,7 @@ export default function TeamScreen() {
         title: m.title,
         coverUrl: m.coverUrl,
         description: m.description,
+        genres: m.genres,
         chapters,
       };
     }));
@@ -893,6 +898,45 @@ export default function TeamScreen() {
                       <Text style={[styles.charCount, { color: colors.mutedForeground }]}>{manualDesc.length} / 500</Text>
                     </View>
 
+                    {/* Genres */}
+                    <View style={{ gap: 7 }}>
+                      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                        تصنيفات المانجا
+                      </Text>
+                      <Text style={[styles.genreHint, { color: colors.mutedForeground }]}>
+                        اختر تصنيفاً واحداً أو أكثر
+                      </Text>
+                      <View style={styles.genreGrid}>
+                        {MANGA_GENRES.map((genre) => {
+                          const selected = manualGenres.includes(genre);
+                          return (
+                            <Pressable
+                              key={genre}
+                              style={[
+                                styles.genreButton,
+                                {
+                                  backgroundColor: selected ? colors.primary : colors.secondary,
+                                  borderColor: selected ? colors.primary : colors.border,
+                                },
+                              ]}
+                              onPress={() =>
+                                setManualGenres((current) =>
+                                  current.includes(genre)
+                                    ? current.filter((item) => item !== genre)
+                                    : [...current, genre],
+                                )
+                              }
+                            >
+                              {selected && <Feather name="check" size={12} color="#fff" />}
+                              <Text style={[styles.genreButtonText, { color: selected ? "#fff" : colors.foreground }]}>
+                                {genre}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+
                     <Pressable
                       style={[styles.manualAddBtn, { backgroundColor: colors.primary, borderRadius: 10, opacity: manualTitle.trim() ? 1 : 0.45 }]}
                       onPress={handleAddManual}
@@ -1123,6 +1167,19 @@ const styles = StyleSheet.create({
   fieldInput: { height: 46, paddingHorizontal: 12, fontSize: 14 },
   fieldInputMulti: { minHeight: 100, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
   charCount: { fontSize: 11, textAlign: "left" },
+  genreHint: { fontSize: 11, textAlign: "right" },
+  genreGrid: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  genreButton: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+  },
+  genreButtonText: { fontSize: 12, fontWeight: "600" },
   manualAddBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12 },
   manualAddBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
 

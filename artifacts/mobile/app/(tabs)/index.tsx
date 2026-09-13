@@ -73,25 +73,30 @@ export default function HomeScreen() {
   const [mostRead, setMostRead] = useState<UnifiedManga[]>([]);
   const [publishedTeams, setPublishedTeams] = useState<PublicTeam[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sourceError, setSourceError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [spinning, setSpinning] = useState(false);
 
   const currentSource = useRef(source);
   currentSource.current = source;
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    Promise.all([
-      fetchHomeMangas(currentSource.current).catch(() => []),
-      fetchMostReadMangas().catch(() => []),
-      searchPublicTeams("").catch(() => []),
-    ])
-      .then(([homeItems, mostReadItems, teamItems]) => {
-        setManga(homeItems);
-        setMostRead(mostReadItems);
-        setPublishedTeams(teamItems);
-      })
-      .finally(() => setLoading(false));
+    setSourceError(false);
+    const [homeResult, mostReadResult, teamsResult] = await Promise.allSettled([
+      fetchHomeMangas(currentSource.current),
+      fetchMostReadMangas(),
+      searchPublicTeams(""),
+    ]);
+    setManga(homeResult.status === "fulfilled" ? homeResult.value : []);
+    setMostRead(mostReadResult.status === "fulfilled" ? mostReadResult.value : []);
+    setPublishedTeams(teamsResult.status === "fulfilled" ? teamsResult.value : []);
+    setSourceError(
+      homeResult.status === "rejected" ||
+      mostReadResult.status === "rejected" ||
+      teamsResult.status === "rejected",
+    );
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -101,8 +106,11 @@ export default function HomeScreen() {
 
   async function onRefresh() {
     setRefreshing(true);
-    loadData();
-    setRefreshing(false);
+    try {
+      await loadData();
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   function handleRefreshBtn() {
@@ -218,6 +226,18 @@ export default function HomeScreen() {
             router.push("/genres" as any);
           }}
         >
+        {sourceError && !loading && (
+          <Pressable
+            style={[styles.errorBanner, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => void loadData()}
+          >
+            <Feather name="alert-circle" size={16} color={colors.primary} />
+            <Text style={[styles.errorBannerText, { color: colors.foreground }]}>
+              تعذّر تحميل بعض بيانات الصفحة الرئيسية — اضغط للمحاولة مجدداً
+            </Text>
+            <Feather name="refresh-cw" size={14} color={colors.primary} />
+          </Pressable>
+        )}
           <Feather name="grid" size={16} color={colors.primary} />
           <Text style={[styles.sourceBannerText, { color: colors.mutedForeground }]}>
             {"تصفّح المانجا حسب "}
@@ -246,6 +266,7 @@ export default function HomeScreen() {
           title="الرائج الآن"
           manga={trending.map(toStarzMangaShape) as any}
           loading={loading}
+          error={sourceError && !loading && trending.length === 0}
           onPressManga={(m) => {
             const u = manga.find((x) => x.id === m.id || x.slug === m.slug);
             if (u) navigateToManga(router, u);
@@ -256,6 +277,7 @@ export default function HomeScreen() {
           title="الأكثر قراءة"
           manga={mostRead.map(toStarzMangaShape) as any}
           loading={loading}
+          error={sourceError && !loading && mostRead.length === 0}
           onPressManga={(m) => {
             const u = mostRead.find((x) => x.id === m.id || x.slug === m.slug);
             if (u) navigateToManga(router, u);
@@ -288,6 +310,18 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  errorBanner: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  errorBannerText: { flex: 1, fontSize: 12, textAlign: "right", lineHeight: 18 },
   header: { paddingHorizontal: 16, marginBottom: 12 },
   titleRow: {
     flexDirection: "row",
