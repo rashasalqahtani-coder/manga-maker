@@ -15,6 +15,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { fetchMangasByGenre, type UnifiedManga } from "@/lib/sources";
+import { fetchTeamMangasByGenre, type TeamMangaResult } from "@/lib/teams";
+
+type GenreResult =
+  | { source: "rorym"; manga: UnifiedManga }
+  | { source: "team"; manga: TeamMangaResult };
 
 export default function GenreMangaScreen() {
   const params = useLocalSearchParams<{ name: string }>();
@@ -23,7 +28,7 @@ export default function GenreMangaScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const [manga, setManga] = useState<UnifiedManga[]>([]);
+  const [manga, setManga] = useState<GenreResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -31,8 +36,13 @@ export default function GenreMangaScreen() {
     if (!genre) return;
     setLoading(true);
     setError(false);
-    fetchMangasByGenre(genre)
-      .then(setManga)
+    Promise.all([fetchMangasByGenre(genre), fetchTeamMangasByGenre(genre)])
+      .then(([rorymManga, teamManga]) =>
+        setManga([
+          ...rorymManga.map((item) => ({ source: "rorym" as const, manga: item })),
+          ...teamManga.map((item) => ({ source: "team" as const, manga: item })),
+        ])
+      )
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [genre]);
@@ -80,7 +90,11 @@ export default function GenreMangaScreen() {
       ) : (
         <FlatList
           data={manga}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) =>
+            item.source === "rorym"
+              ? `rorym:${item.manga.id}`
+              : `team:${item.manga.teamId}:${item.manga.mangaId}`
+          }
           numColumns={3}
           contentContainerStyle={[
             styles.grid,
@@ -96,29 +110,38 @@ export default function GenreMangaScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
+          renderItem={({ item }) => {
+            const coverUrl = item.manga.coverUrl ?? "";
+            const title = item.manga.title;
+            const isTeamManga = item.source === "team";
+
+            return (
             <Pressable
               style={({ pressed }) => [
                 styles.card,
                 { width: cardWidth, opacity: pressed ? 0.75 : 1 },
               ]}
-              onPress={() =>
+              onPress={() => {
+                if (isTeamManga) {
+                  router.push(`/teams/${item.manga.teamId}/manga/${item.manga.mangaId}` as any);
+                  return;
+                }
                 router.push({
                   pathname: "/starz/[slug]" as any,
                   params: {
-                    slug: item.slug,
-                    title: encodeURIComponent(item.title),
-                    coverUrl: encodeURIComponent(item.coverUrl),
-                    genres: encodeURIComponent(item.genres.join(",")),
-                    latestChapter: encodeURIComponent(item.latestChapterNum ?? ""),
+                    slug: item.manga.slug,
+                    title: encodeURIComponent(item.manga.title),
+                    coverUrl: encodeURIComponent(item.manga.coverUrl),
+                    genres: encodeURIComponent(item.manga.genres.join(",")),
+                    latestChapter: encodeURIComponent(item.manga.latestChapterNum ?? ""),
                     src: "rorym",
                   },
-                })
-              }
+                });
+              }}
             >
-              {item.coverUrl ? (
+              {coverUrl ? (
                 <Image
-                  source={{ uri: item.coverUrl }}
+                  source={{ uri: coverUrl }}
                   style={[styles.cover, { backgroundColor: colors.card }]}
                   contentFit="cover"
                 />
@@ -128,10 +151,11 @@ export default function GenreMangaScreen() {
                 </View>
               )}
               <Text style={[styles.cardTitle, { color: colors.foreground }]} numberOfLines={2}>
-                {item.title}
+                {title}
               </Text>
             </Pressable>
-          )}
+            );
+          }}
         />
       )}
     </View>

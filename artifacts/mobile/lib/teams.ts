@@ -75,6 +75,7 @@ export interface TeamMangaResult {
   mangaId: string;
   title: string;
   coverUrl: string | null;
+  genres?: string[];
   chaptersCount: number;
   chapters: PublicTeamChapter[];
   teamName: string;
@@ -119,4 +120,11 @@ export async function searchTeamManga(q: string): Promise<TeamMangaResult[]> {
   const res = await fetch(`${API_BASE}/teams/manga?q=${encodeURIComponent(q.trim())}`);
   if (!res.ok) return [];
   return res.json() as Promise<TeamMangaResult[]>;
+}
+
+export async function fetchTeamMangasByGenre(genre: string): Promise<TeamMangaResult[]> {
+  const res = await fetch(`${API_BASE}/teams/genres/${encodeURIComponent(genre)}`);
+  if (!res.ok) throw new Error(`team genre fetch failed: ${res.status}`);
+  const data = (await res.json()) as { manga?: TeamMangaResult[] };
+  return data.manga ?? [];
 }

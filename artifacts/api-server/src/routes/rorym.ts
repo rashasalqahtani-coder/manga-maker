@@ -205,7 +205,13 @@ router.get("/rorym/genres/:genre", async (req: Request, res: Response) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query<RorymManga>(
-      `SELECT * FROM rorym_manga WHERE $1 = ANY(genres) ORDER BY created_at DESC LIMIT 40`,
+      `SELECT * FROM rorym_manga
+       WHERE EXISTS (
+         SELECT 1
+         FROM unnest(COALESCE(genres, ARRAY[]::text[])) AS genre_value
+         WHERE lower(btrim(genre_value)) = lower(btrim($1))
+       )
+       ORDER BY created_at DESC`,
       [genre]
     );
     res.json({ genre, manga: rows.map((row) => toUnified(row)) });
