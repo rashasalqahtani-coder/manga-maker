@@ -245,7 +245,10 @@ export default function TeamMangaScreen() {
               {isDownloading ? (
                 <ActivityIndicator size={12} color={colors.primary} />
               ) : (
-                <Feather name="download" size={12} color={colors.mutedForeground} />
+                <>
+                  <Feather name="download" size={12} color={colors.foreground} />
+                  <Text style={[styles.downloadBtnText, { color: colors.foreground }]}>تنزيل</Text>
+                </>
               )}
             </Pressable>
           )}
@@ -253,6 +256,7 @@ export default function TeamMangaScreen() {
           {alreadyDownloaded && (
             <View style={[styles.downloadBtn, { backgroundColor: colors.primary + "20" }]}>
               <Feather name="check" size={12} color={colors.primary} />
+              <Text style={[styles.downloadBtnText, { color: colors.primary }]}>محمّل</Text>
             </View>
           )}
 
@@ -548,7 +552,16 @@ const styles = StyleSheet.create({
   readPillText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   localPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5 },
   localPillText: { fontSize: 11, fontWeight: "600" },
-  downloadBtn: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  downloadBtn: {
+    minHeight: 30,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+  },
+  downloadBtnText: { fontSize: 10, fontWeight: "700" },
 
   emptyChapters: { alignItems: "center", gap: 10, paddingVertical: 40 },
   emptyText: { fontSize: 14, textAlign: "center" },

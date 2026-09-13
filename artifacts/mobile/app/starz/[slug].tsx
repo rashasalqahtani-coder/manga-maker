@@ -616,23 +616,49 @@ function StarzChapterItem({
         )}
       </View>
 
-      {/* Download button */}
-      <Pressable
-        onPress={handleDownload}
-        hitSlop={10}
-        style={chStyles.dlBtn}
-        disabled={isDone}
-      >
-        {isDownloading ? (
-          <ActivityIndicator size={16} color={colors.primary} />
-        ) : isDone ? (
-          <Feather name="check-circle" size={18} color={colors.primary} />
-        ) : (
-          <Feather name="download" size={18} color={colors.mutedForeground} />
-        )}
-      </Pressable>
+      <View style={chStyles.actions}>
+        <Pressable
+          onPress={(event) => {
+            event.stopPropagation();
+            handlePress();
+          }}
+          style={({ pressed }) => [
+            chStyles.readBtn,
+            { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+          ]}
+        >
+          <Feather name="book-open" size={13} color="#fff" />
+          <Text style={chStyles.readBtnText}>قراءة</Text>
+        </Pressable>
 
-      <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+        <Pressable
+          onPress={(event) => {
+            event.stopPropagation();
+            handleDownload();
+          }}
+          hitSlop={6}
+          style={({ pressed }) => [
+            chStyles.dlBtn,
+            {
+              backgroundColor: isDone ? colors.primary + "20" : colors.secondary,
+              borderColor: isDone ? colors.primary + "55" : colors.border,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+          disabled={isDone}
+        >
+          {isDownloading ? (
+            <ActivityIndicator size={13} color={colors.primary} />
+          ) : isDone ? (
+            <Feather name="check-circle" size={13} color={colors.primary} />
+          ) : (
+            <Feather name="download" size={13} color={colors.foreground} />
+          )}
+          <Text style={[chStyles.dlBtnText, { color: isDone ? colors.primary : colors.foreground }]}>
+            {isDone ? "محمّل" : "تنزيل"}
+          </Text>
+        </Pressable>
+      </View>
     </Pressable>
   );
 }
@@ -660,7 +686,28 @@ const chStyles = StyleSheet.create({
   offlineText: { fontSize: 10, fontWeight: "700" },
   progressBar: { height: 3, borderRadius: 2, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 2 },
-  dlBtn: { width: 30, alignItems: "center", justifyContent: "center" },
+  actions: { flexDirection: "row", alignItems: "center", gap: 6 },
+  readBtn: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  readBtnText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  dlBtn: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  dlBtnText: { fontSize: 11, fontWeight: "700" },
 });
 
 const styles = StyleSheet.create({

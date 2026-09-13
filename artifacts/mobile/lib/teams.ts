@@ -92,11 +92,21 @@ export async function uploadTeamImage(
 ): Promise<string> {
   const formData = new FormData();
   const filename = imageUri.split("/").pop() ?? "image.jpg";
-  formData.append("image", { uri: imageUri, name: filename, type: "image/jpeg" } as unknown as Blob);
+  if (typeof window !== "undefined") {
+    const imageResponse = await fetch(imageUri);
+    if (!imageResponse.ok) throw new Error("فشل تجهيز الصورة للرفع");
+    const imageBlob = await imageResponse.blob();
+    formData.append("image", imageBlob, filename);
+  } else {
+    formData.append(
+      "image",
+      { uri: imageUri, name: filename, type: "image/jpeg" } as unknown as Blob,
+    );
+  }
 
   const res = await fetch(`${API_BASE}/teams/images`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     body: formData,
   });
   if (!res.ok) throw new Error("فشل رفع الصورة");

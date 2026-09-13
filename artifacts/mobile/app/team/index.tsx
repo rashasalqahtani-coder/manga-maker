@@ -598,13 +598,9 @@ export default function TeamScreen() {
       const chapters = await Promise.all((m.chapters ?? []).map(async (ch) => {
         let imageUrls: string[] | undefined;
         if (ch.imageUris && ch.imageUris.length > 0) {
-          try {
-            imageUrls = await Promise.all(
-              ch.imageUris.map((uri) => uploadTeamImage(uri, ""))
-            );
-          } catch {
-            imageUrls = undefined;
-          }
+          imageUrls = await Promise.all(
+            ch.imageUris.map((uri) => uploadTeamImage(uri, ""))
+          );
         }
         return {
           id: ch.id,
