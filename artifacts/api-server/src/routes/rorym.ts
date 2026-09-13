@@ -92,7 +92,18 @@ router.get("/rorym/home", async (req: Request, res: Response) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query<RorymManga>(
-      `SELECT * FROM rorym_manga ORDER BY created_at DESC LIMIT 40`
+      `SELECT manga.*
+       FROM rorym_manga AS manga
+       LEFT JOIN (
+         SELECT manga_id, MAX(created_at) AS latest_chapter_at
+         FROM rorym_chapter
+         GROUP BY manga_id
+       ) AS chapter_activity ON chapter_activity.manga_id = manga.id
+       ORDER BY GREATEST(
+         manga.created_at,
+         COALESCE(chapter_activity.latest_chapter_at, manga.created_at)
+       ) DESC
+       LIMIT 40`
     );
     const mangaList = await Promise.all(
       rows.map(async (row) => {
@@ -274,7 +285,10 @@ router.post("/rorym/manga/:slug/chapters", async (req: Request, res: Response) =
     const { rows } = await pool.query<RorymChapter>(
       `INSERT INTO rorym_chapter (manga_id, chapter_num, title, pages)
        VALUES ($1,$2,$3,$4)
-       ON CONFLICT (manga_id, chapter_num) DO UPDATE SET pages=EXCLUDED.pages, title=EXCLUDED.title
+       ON CONFLICT (manga_id, chapter_num) DO UPDATE SET
+         pages=EXCLUDED.pages,
+         title=EXCLUDED.title,
+         created_at=NOW()
        RETURNING *`,
       [mangaRes.rows[0].id, chapterNum.trim(), title ?? "", JSON.stringify(pages)]
     );
