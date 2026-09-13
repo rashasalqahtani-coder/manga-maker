@@ -64,7 +64,6 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
-    "react-native-google-mobile-ads": "^16.0.3",
     "react-native-webview": "^13.15.0"
   }
 }

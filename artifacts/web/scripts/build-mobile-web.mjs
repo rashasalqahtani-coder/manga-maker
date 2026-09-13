@@ -124,6 +124,10 @@ await run(
       EXPO_PUBLIC_REPL_ID: process.env.REPL_ID || "",
       EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
       EXPO_PUBLIC_CLERK_PROXY_URL: proxyUrl,
+      EXPO_PUBLIC_ADSENSE_CLIENT_ID:
+        process.env.EXPO_PUBLIC_ADSENSE_CLIENT_ID || "",
+      EXPO_PUBLIC_ADSENSE_SLOT_ID:
+        process.env.EXPO_PUBLIC_ADSENSE_SLOT_ID || "",
     },
   },
 );
