@@ -20,7 +20,7 @@ import { CommentsSheet } from "@/components/CommentsSheet";
 import { useColors } from "@/hooks/useColors";
 import { getLocalPages } from "@/lib/download";
 import { getChapterPages, getMangaChapters, type Chapter, type ChapterPages } from "@/lib/mangadex";
-import { getReaderHref } from "@/lib/readerNavigation";
+import { getAdjacentChapters, getReaderHref } from "@/lib/readerNavigation";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -57,19 +57,28 @@ export default function ReaderScreen() {
 
   // Fetch sibling chapters for next/prev navigation
   useEffect(() => {
-    if (!mangaId) return;
-    getMangaChapters(mangaId).then((list) => {
-      // Keep only readable chapters (have pages and no external redirect)
-      setChapters(list.filter((c) => c.attributes.pages > 0 && !c.attributes.externalUrl));
-    }).catch(() => { /* navigation optional */ });
+    if (!mangaId) {
+      setChapters([]);
+      return;
+    }
+    let cancelled = false;
+    getMangaChapters(mangaId)
+      .then((list) => {
+        if (!cancelled) setChapters(list);
+      })
+      .catch(() => {
+        if (!cancelled) setChapters([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [mangaId]);
 
-  // Chapters arrive sorted desc (highest first). Find neighbours.
-  const currentIdx = chapters.findIndex((c) => c.id === chapterId);
-  const nextChapter  = currentIdx > 0 ? chapters[currentIdx - 1] : null;   // higher number
-  const prevChapter  = currentIdx >= 0 && currentIdx < chapters.length - 1
-    ? chapters[currentIdx + 1]   // lower number
-    : null;
+  const { nextChapter, previousChapter: prevChapter } = getAdjacentChapters(
+    chapters,
+    chapterId,
+    chapterNum,
+  );
 
   const goToChapter = (ch: Chapter) => {
     router.replace(
