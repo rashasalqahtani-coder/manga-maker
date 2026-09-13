@@ -3,7 +3,7 @@ import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,7 +23,7 @@ import { useLibrary } from "@/context/LibraryContext";
 import { useDownloads } from "@/context/DownloadContext";
 import { useColors } from "@/hooks/useColors";
 import { downloadTeamChapter, isChapterDownloaded, deleteTeamData } from "@/lib/download";
-import { publishTeam, unpublishTeam, uploadTeamImage } from "@/lib/teams";
+import { getPublicTeam, publishTeam, unpublishTeam, uploadTeamImage } from "@/lib/teams";
 
 type Tab = "manga" | "members";
 // ─── MangaCard ──────────────────────────────────────────────────────────────
@@ -454,6 +454,27 @@ export default function TeamScreen() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [memberName, setMemberName] = useState("");
   const [memberRole, setMemberRole] = useState("");
+  const publicTeamId = team ? `${team.name}_${team.createdAt}` : "";
+
+  useEffect(() => {
+    if (!publicTeamId) {
+      setIsPublished(false);
+      return;
+    }
+
+    let active = true;
+    getPublicTeam(publicTeamId)
+      .then(() => {
+        if (active) setIsPublished(true);
+      })
+      .catch(() => {
+        if (active) setIsPublished(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [publicTeamId]);
 
   const resetAddPanel = () => {
     setShowAddPanel(false);
@@ -622,6 +643,10 @@ export default function TeamScreen() {
 
   const handlePublishToggle = async () => {
     if (!team) return;
+    if (!isPublished && team.manga.length === 0) {
+      Alert.alert("أضف مانجا أولاً", "يجب إضافة مانجا واحدة على الأقل قبل نشر الفريق.");
+      return;
+    }
     setPublishing(true);
     try {
       if (isPublished) {
@@ -639,6 +664,11 @@ export default function TeamScreen() {
     } finally {
       setPublishing(false);
     }
+  };
+
+  const handleViewPublishedTeam = () => {
+    if (!publicTeamId) return;
+    router.push(`/teams/${encodeURIComponent(publicTeamId)}` as any);
   };
 
   return (
@@ -709,6 +739,54 @@ export default function TeamScreen() {
               <Feather name="trash-2" size={16} color="#EF4444" />
               <Text style={[styles.statLabel, { color: "#EF4444" }]}>حذف</Text>
             </Pressable>
+          </View>
+          <View style={[styles.publishActions, { borderTopColor: colors.border }]}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.publishBtn,
+                {
+                  backgroundColor: isPublished ? colors.secondary : colors.primary,
+                  borderColor: isPublished ? colors.border : colors.primary,
+                  opacity: pressed || publishing ? 0.75 : 1,
+                },
+              ]}
+              onPress={handlePublishToggle}
+              disabled={publishing}
+            >
+              {publishing ? (
+                <ActivityIndicator size={16} color={isPublished ? colors.primary : "#fff"} />
+              ) : (
+                <Feather
+                  name={isPublished ? "refresh-cw" : "upload-cloud"}
+                  size={17}
+                  color={isPublished ? colors.primary : "#fff"}
+                />
+              )}
+              <Text
+                style={[
+                  styles.publishBtnText,
+                  { color: isPublished ? colors.primary : "#fff" },
+                ]}
+              >
+                {publishing
+                  ? "جارٍ النشر..."
+                  : isPublished
+                    ? "تحديث المانجا المنشورة"
+                    : "نشر المانجا في التطبيق"}
+              </Text>
+            </Pressable>
+
+            {isPublished && (
+              <Pressable
+                style={[styles.viewPublishedBtn, { borderColor: colors.border }]}
+                onPress={handleViewPublishedTeam}
+              >
+                <Feather name="eye" size={16} color={colors.foreground} />
+                <Text style={[styles.viewPublishedText, { color: colors.foreground }]}>
+                  عرض للقراء
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
@@ -983,6 +1061,33 @@ const styles = StyleSheet.create({
   teamName: { fontSize: 18, fontWeight: "700" },
   teamDesc: { fontSize: 13, lineHeight: 18 },
   teamStats: { flexDirection: "row", borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
+  publishActions: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    padding: 12,
+    gap: 8,
+  },
+  publishBtn: {
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+  },
+  publishBtnText: { fontSize: 14, fontWeight: "700" },
+  viewPublishedBtn: {
+    minHeight: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    paddingHorizontal: 14,
+  },
+  viewPublishedText: { fontSize: 13, fontWeight: "600" },
   statItem: { flex: 1, alignItems: "center", gap: 4 },
   statNum: { fontSize: 18, fontWeight: "700" },
   statLabel: { fontSize: 11, fontWeight: "500" },
