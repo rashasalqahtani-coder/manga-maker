@@ -21,6 +21,7 @@ import { StarzMangaRow } from "@/components/StarzMangaRow";
 import { useSource } from "@/context/SourceContext";
 import { useColors } from "@/hooks/useColors";
 import { fetchHomeMangas, fetchMostReadMangas, type UnifiedManga } from "@/lib/sources";
+import { searchPublicTeams, type PublicTeam } from "@/lib/teams";
 
 function navigateToManga(
   router: ReturnType<typeof useRouter>,
@@ -70,6 +71,7 @@ export default function HomeScreen() {
 
   const [manga, setManga] = useState<UnifiedManga[]>([]);
   const [mostRead, setMostRead] = useState<UnifiedManga[]>([]);
+  const [publishedTeams, setPublishedTeams] = useState<PublicTeam[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -82,10 +84,12 @@ export default function HomeScreen() {
     Promise.all([
       fetchHomeMangas(currentSource.current).catch(() => []),
       fetchMostReadMangas().catch(() => []),
+      searchPublicTeams("").catch(() => []),
     ])
-      .then(([homeItems, mostReadItems]) => {
+      .then(([homeItems, mostReadItems, teamItems]) => {
         setManga(homeItems);
         setMostRead(mostReadItems);
+        setPublishedTeams(teamItems);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -113,6 +117,25 @@ export default function HomeScreen() {
   const featured = manga.slice(0, 10);
   const trending = manga.slice(0, 12);
   const recent = manga.slice(manga.length > 12 ? 12 : 0);
+  const teamUpdates = publishedTeams.flatMap((team) =>
+    team.manga.map((item) => ({
+      id: `team:${team.id}:${item.id}`,
+      slug: item.id,
+      title: item.title,
+      coverUrl: item.coverUrl ?? "",
+      url: "",
+      latestChapters: item.chapters.length
+        ? [{ number: item.chapters[0]?.number ?? "", url: "" }]
+        : [],
+      genres: [],
+      teamId: team.id,
+      mangaId: item.id,
+    })),
+  );
+  const latestUpdates = [
+    ...teamUpdates,
+    ...recent.map((item) => ({ ...toStarzMangaShape(item), teamId: "", mangaId: "" })),
+  ].slice(0, 12);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -240,12 +263,19 @@ export default function HomeScreen() {
         />
 
         {/* ── Recently updated ── */}
-        {recent.length > 0 && (
+        {latestUpdates.length > 0 && (
           <StarzMangaRow
             title="آخر التحديثات"
-            manga={recent.map(toStarzMangaShape) as any}
+            manga={latestUpdates as any}
             loading={loading}
             onPressManga={(m) => {
+              const teamItem = latestUpdates.find((item) => item.id === m.id);
+              if (teamItem?.teamId) {
+                router.push(
+                  `/teams/${encodeURIComponent(teamItem.teamId)}/manga/${encodeURIComponent(teamItem.mangaId)}` as any,
+                );
+                return;
+              }
               const u = manga.find((x) => x.id === m.id || x.slug === m.slug);
               if (u) navigateToManga(router, u);
             }}

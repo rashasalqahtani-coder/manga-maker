@@ -78,6 +78,8 @@ async function pruneUnusedWebFonts(directory) {
 }
 
 const publicDomain = getPublicDomain();
+const apiDomain =
+  normalizeDomain(process.env.EXPO_PUBLIC_API_DOMAIN) || publicDomain;
 const publishableKey = process.env.CLERK_PUBLISHABLE_KEY?.trim();
 const configuredProxyPath = process.env.CLERK_PROXY_URL?.trim();
 
@@ -118,6 +120,7 @@ await run(
     env: {
       ...process.env,
       EXPO_PUBLIC_DOMAIN: publicDomain,
+      EXPO_PUBLIC_API_DOMAIN: apiDomain,
       EXPO_PUBLIC_REPL_ID: process.env.REPL_ID || "",
       EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: publishableKey,
       EXPO_PUBLIC_CLERK_PROXY_URL: proxyUrl,

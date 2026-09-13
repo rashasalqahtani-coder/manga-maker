@@ -1,9 +1,10 @@
 import type { SourceId } from "@/context/SourceContext";
 
-const API_BASE =
-  typeof process !== "undefined" && process.env["EXPO_PUBLIC_DOMAIN"]
-    ? `https://${process.env["EXPO_PUBLIC_DOMAIN"]}/api`
-    : "/api";
+const apiDomain =
+  typeof process !== "undefined"
+    ? process.env["EXPO_PUBLIC_API_DOMAIN"] || process.env["EXPO_PUBLIC_DOMAIN"]
+    : "";
+const API_BASE = apiDomain ? `https://${apiDomain}/api` : "/api";
 
 export interface UnifiedManga {
   id: string;
