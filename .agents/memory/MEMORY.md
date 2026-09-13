@@ -4,3 +4,4 @@
 - [Clerk Core status transitions](clerk-core-status-transitions.md) — custom auth flows must react to hook status changes instead of checking immediately after requests.
 - [Legacy MangaDex access](legacy-mangadex-access.md) — hide MangaDex discovery and branding while preserving access to previously saved content.
 - [Production Clerk smoke tests](production-clerk-smoke-tests.md) — testing tokens must come from the same Clerk environment as the deployed client; Expo Go links need native device automation.
+- [Vercel prebuilt uploads](vercel-prebuilt-uploads.md) — inline static bundles must honor the project root and explicitly override inherited build commands.
