@@ -142,7 +142,7 @@ export default function HomeScreen() {
       <StatusBar barStyle="light-content" />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingTop: topPad, paddingBottom: insets.bottom + 20 }}
+        contentContainerStyle={{ paddingTop: topPad, paddingBottom: insets.bottom + 120 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

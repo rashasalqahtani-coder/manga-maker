@@ -210,7 +210,7 @@ export default function HistoryScreen() {
         <FlatList
           data={history}
           keyExtractor={(item) => item.chapterId}
-          contentContainerStyle={{ paddingBottom: insets.bottom + (selecting ? 90 : 20) }}
+          contentContainerStyle={{ paddingBottom: insets.bottom + (selecting ? 170 : 104) }}
           ItemSeparatorComponent={() => (
             <View style={[styles.separator, { backgroundColor: colors.border }]} />
           )}

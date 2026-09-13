@@ -185,7 +185,7 @@ export default function SettingsScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + (selecting && selected.size > 0 ? 100 : 32) }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + (selecting && selected.size > 0 ? 180 : 104) }}
       >
         {/* ── ACCOUNT SECTION ── */}
         <SectionHeader title="الحساب" />

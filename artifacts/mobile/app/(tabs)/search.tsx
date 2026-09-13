@@ -434,7 +434,7 @@ export default function SearchScreen() {
           data={[]}
           renderItem={null}
           keyExtractor={() => ""}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 104 }]}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={sourceHeader}
           ListEmptyComponent={null}

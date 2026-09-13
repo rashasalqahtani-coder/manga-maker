@@ -75,7 +75,7 @@ export default function LibraryScreen() {
     <ScrollView
       style={[styles.root, { backgroundColor: colors.background }]}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 104 }}
     >
       <View style={[styles.header, { paddingTop: topPad }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>مكتبتي</Text>
