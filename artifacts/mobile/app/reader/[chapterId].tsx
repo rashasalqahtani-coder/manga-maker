@@ -88,6 +88,7 @@ export default function ReaderScreen() {
     setLoading(true);
     setError(false);
     setIsEmpty(false);
+    setCurrentPage(1);
 
     // Try local pages first (wrapped in try-catch for native safety)
     try {
@@ -159,12 +160,6 @@ export default function ReaderScreen() {
   );
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
-
-  const goToPage = (page: number) => {
-    const targetIndex = Math.max(0, Math.min(pages.length - 1, page - 1));
-    flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true });
-    setCurrentPage(targetIndex + 1);
-  };
 
   if (loading) {
     return (
@@ -239,6 +234,7 @@ export default function ReaderScreen() {
   return (
     <View style={[styles.root, { backgroundColor: "#000" }]}>
       <FlatList
+        key={chapterId}
         ref={flatListRef}
         data={pages}
         keyExtractor={(item) => String(item.index)}
@@ -292,24 +288,24 @@ export default function ReaderScreen() {
           <View pointerEvents="box-none" style={styles.pageNavigation}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="الصفحة السابقة"
-              disabled={currentPage <= 1}
-              onPress={() => goToPage(currentPage - 1)}
+              accessibilityLabel="الفصل السابق"
+              disabled={!prevChapter}
+              onPress={() => prevChapter && goToChapter(prevChapter)}
               style={({ pressed }) => [
                 styles.pageNavButton,
-                { opacity: currentPage <= 1 ? 0.25 : pressed ? 0.65 : 1 },
+                { opacity: !prevChapter ? 0.25 : pressed ? 0.65 : 1 },
               ]}
             >
               <Feather name="chevron-left" size={30} color="#fff" />
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="الصفحة التالية"
-              disabled={currentPage >= pages.length}
-              onPress={() => goToPage(currentPage + 1)}
+              accessibilityLabel="الفصل التالي"
+              disabled={!nextChapter}
+              onPress={() => nextChapter && goToChapter(nextChapter)}
               style={({ pressed }) => [
                 styles.pageNavButton,
-                { opacity: currentPage >= pages.length ? 0.25 : pressed ? 0.65 : 1 },
+                { opacity: !nextChapter ? 0.25 : pressed ? 0.65 : 1 },
               ]}
             >
               <Feather name="chevron-right" size={30} color="#fff" />

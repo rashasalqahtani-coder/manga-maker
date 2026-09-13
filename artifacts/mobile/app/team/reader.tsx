@@ -62,6 +62,16 @@ export default function TeamReaderScreen() {
 
   const manga = team?.manga.find((m) => m.id === mangaId);
   const chapter = manga?.chapters.find((c) => c.id === chapterId);
+  const orderedChapters = [...(manga?.chapters ?? [])].sort((a, b) =>
+    b.number.localeCompare(a.number, undefined, { numeric: true }),
+  );
+  const currentChapterIndex = orderedChapters.findIndex((c) => c.id === chapterId);
+  const nextChapter =
+    currentChapterIndex > 0 ? orderedChapters[currentChapterIndex - 1] : null;
+  const previousChapter =
+    currentChapterIndex >= 0 && currentChapterIndex < orderedChapters.length - 1
+      ? orderedChapters[currentChapterIndex + 1]
+      : null;
 
   // Resolve image URIs: local context first, then remote URLs passed as param
   const remoteUrls: string[] | null = imageUrlsJson
@@ -72,6 +82,7 @@ export default function TeamReaderScreen() {
   useEffect(() => {
     if (!resolvedUris || resolvedUris.length === 0) return;
     setPages(resolvedUris.map((uri, i) => ({ uri, index: i })));
+    setCurrentPage(1);
   }, [JSON.stringify(resolvedUris)]);
 
   const onViewableItemsChanged = useCallback(
@@ -86,10 +97,11 @@ export default function TeamReaderScreen() {
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
 
-  const goToPage = (page: number) => {
-    const targetIndex = Math.max(0, Math.min(pages.length - 1, page - 1));
-    flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true });
-    setCurrentPage(targetIndex + 1);
+  const goToChapter = (targetChapterId: string) => {
+    router.replace({
+      pathname: "/team/reader",
+      params: { mangaId, chapterId: targetChapterId },
+    } as never);
   };
 
   if (!chapter && !remoteUrls) {
@@ -132,6 +144,7 @@ export default function TeamReaderScreen() {
   return (
     <View style={[styles.root, { backgroundColor: "#000" }]}>
       <FlatList
+        key={chapterId}
         ref={flatListRef}
         data={pages}
         keyExtractor={(item) => String(item.index)}
@@ -180,24 +193,24 @@ export default function TeamReaderScreen() {
           <View pointerEvents="box-none" style={styles.pageNavigation}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="الصفحة السابقة"
-              disabled={currentPage <= 1}
-              onPress={() => goToPage(currentPage - 1)}
+              accessibilityLabel="الفصل السابق"
+              disabled={!previousChapter}
+              onPress={() => previousChapter && goToChapter(previousChapter.id)}
               style={({ pressed }) => [
                 styles.pageNavButton,
-                { opacity: currentPage <= 1 ? 0.25 : pressed ? 0.65 : 1 },
+                { opacity: !previousChapter ? 0.25 : pressed ? 0.65 : 1 },
               ]}
             >
               <Feather name="chevron-left" size={30} color="#fff" />
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="الصفحة التالية"
-              disabled={currentPage >= pages.length}
-              onPress={() => goToPage(currentPage + 1)}
+              accessibilityLabel="الفصل التالي"
+              disabled={!nextChapter}
+              onPress={() => nextChapter && goToChapter(nextChapter.id)}
               style={({ pressed }) => [
                 styles.pageNavButton,
-                { opacity: currentPage >= pages.length ? 0.25 : pressed ? 0.65 : 1 },
+                { opacity: !nextChapter ? 0.25 : pressed ? 0.65 : 1 },
               ]}
             >
               <Feather name="chevron-right" size={30} color="#fff" />

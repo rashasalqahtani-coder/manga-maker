@@ -23,6 +23,11 @@ const API_BASE =
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
+interface RorymChapter {
+  number: string;
+  pages: string[];
+}
+
 export default function RorymReaderScreen() {
   "use no memo";
   const params = useLocalSearchParams<{
@@ -39,6 +44,7 @@ export default function RorymReaderScreen() {
   const [error, setError] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [barsVisible, setBarsVisible] = useState(true);
+  const [chapters, setChapters] = useState<RorymChapter[]>([]);
 
   const flatListRef = useRef<FlatList>(null);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
@@ -51,12 +57,15 @@ export default function RorymReaderScreen() {
     if (!slug || !chapterNum) return;
     setLoading(true);
     setError(false);
+    setCurrentPage(1);
+    setPages([]);
     fetch(`${API_BASE}/rorym/manga/${encodeURIComponent(slug)}/chapters`)
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status}`);
-        return r.json() as Promise<{ chapters: { number: string; pages: string[] }[] }>;
+        return r.json() as Promise<{ chapters: RorymChapter[] }>;
       })
       .then((d) => {
+        setChapters(d.chapters);
         const ch = d.chapters.find((c) => c.number === chapterNum);
         if (ch && ch.pages.length > 0) {
           setPages(ch.pages);
@@ -80,10 +89,26 @@ export default function RorymReaderScreen() {
     []
   );
 
-  const goToPage = (page: number) => {
-    const targetIndex = Math.max(0, Math.min(pages.length - 1, page - 1));
-    flatListRef.current?.scrollToIndex({ index: targetIndex, animated: true });
-    setCurrentPage(targetIndex + 1);
+  const orderedChapters = [...chapters].sort((a, b) =>
+    b.number.localeCompare(a.number, undefined, { numeric: true }),
+  );
+  const currentChapterIndex = orderedChapters.findIndex((c) => c.number === chapterNum);
+  const nextChapter =
+    currentChapterIndex > 0 ? orderedChapters[currentChapterIndex - 1] : null;
+  const previousChapter =
+    currentChapterIndex >= 0 && currentChapterIndex < orderedChapters.length - 1
+      ? orderedChapters[currentChapterIndex + 1]
+      : null;
+
+  const goToChapter = (targetChapter: RorymChapter) => {
+    router.replace({
+      pathname: "/rorym/reader",
+      params: {
+        slug: encodeURIComponent(slug),
+        chapterNum: encodeURIComponent(targetChapter.number),
+        title: encodeURIComponent(mangaTitle),
+      },
+    } as never);
   };
 
   if (loading) {
@@ -113,6 +138,7 @@ export default function RorymReaderScreen() {
   return (
     <View style={[styles.root, { backgroundColor: "#000" }]}>
       <FlatList
+        key={chapterNum}
         ref={flatListRef}
         data={pages}
         keyExtractor={(_, i) => String(i)}
@@ -149,24 +175,24 @@ export default function RorymReaderScreen() {
           <View pointerEvents="box-none" style={styles.pageNavigation}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="الصفحة السابقة"
-              disabled={currentPage <= 1}
-              onPress={() => goToPage(currentPage - 1)}
+              accessibilityLabel="الفصل السابق"
+              disabled={!previousChapter}
+              onPress={() => previousChapter && goToChapter(previousChapter)}
               style={({ pressed }) => [
                 styles.pageNavButton,
-                { opacity: currentPage <= 1 ? 0.25 : pressed ? 0.65 : 1 },
+                { opacity: !previousChapter ? 0.25 : pressed ? 0.65 : 1 },
               ]}
             >
               <Feather name="chevron-left" size={30} color="#fff" />
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="الصفحة التالية"
-              disabled={currentPage >= pages.length}
-              onPress={() => goToPage(currentPage + 1)}
+              accessibilityLabel="الفصل التالي"
+              disabled={!nextChapter}
+              onPress={() => nextChapter && goToChapter(nextChapter)}
               style={({ pressed }) => [
                 styles.pageNavButton,
-                { opacity: currentPage >= pages.length ? 0.25 : pressed ? 0.65 : 1 },
+                { opacity: !nextChapter ? 0.25 : pressed ? 0.65 : 1 },
               ]}
             >
               <Feather name="chevron-right" size={30} color="#fff" />
