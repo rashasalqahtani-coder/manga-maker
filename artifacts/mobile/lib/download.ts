@@ -11,6 +11,8 @@ const isNative = Platform.OS !== "web";
 const DOWNLOADS_DIR = isNative
   ? (FileSystem.documentDirectory ?? "") + "manga_downloads/"
   : "";
+const WEB_CACHE_NAME = "nebula-manga-pages-v1";
+const WEB_MANIFEST_PREFIX = "nebula-manga-manifest:";
 
 export const DOWNLOADS_META_KEY = "@manga_downloaded_chapters";
 
@@ -46,15 +48,94 @@ async function saveDownloadsMeta(list: DownloadedChapterMeta[]) {
   await AsyncStorage.setItem(DOWNLOADS_META_KEY, JSON.stringify(list));
 }
 
+function canUseWebCache(): boolean {
+  return (
+    !isNative &&
+    typeof window !== "undefined" &&
+    typeof window.localStorage !== "undefined" &&
+    typeof window.caches !== "undefined" &&
+    typeof URL !== "undefined" &&
+    typeof URL.createObjectURL === "function"
+  );
+}
+
+function getWebManifestKey(chapterId: string): string {
+  return `${WEB_MANIFEST_PREFIX}${chapterId}`;
+}
+
+function getWebManifest(chapterId: string): string[] {
+  if (!canUseWebCache()) return [];
+  try {
+    const raw = window.localStorage.getItem(getWebManifestKey(chapterId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((url): url is string => typeof url === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveWebChapter(
+  chapterId: string,
+  imageUrls: string[],
+  onProgress: (downloaded: number, total: number) => void,
+): Promise<void> {
+  if (!canUseWebCache()) {
+    throw new Error("التنزيل غير مدعوم في هذا المتصفح");
+  }
+
+  const cache = await window.caches.open(WEB_CACHE_NAME);
+  for (let i = 0; i < imageUrls.length; i++) {
+    const response = await fetch(imageUrls[i]);
+    if (!response.ok) {
+      throw new Error(`تعذّر تنزيل الصفحة ${i + 1}`);
+    }
+    await cache.put(imageUrls[i], response.clone());
+    onProgress(i + 1, imageUrls.length);
+  }
+  window.localStorage.setItem(getWebManifestKey(chapterId), JSON.stringify(imageUrls));
+}
+
+async function getWebLocalPages(chapterId: string): Promise<string[]> {
+  if (!canUseWebCache()) return [];
+  const manifest = getWebManifest(chapterId);
+  if (manifest.length === 0) return [];
+
+  const cache = await window.caches.open(WEB_CACHE_NAME);
+  const objectUrls: string[] = [];
+  for (const imageUrl of manifest) {
+    const response = await cache.match(imageUrl);
+    if (!response) {
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+      return [];
+    }
+    objectUrls.push(URL.createObjectURL(await response.blob()));
+  }
+  return objectUrls;
+}
+
+async function deleteWebChapter(chapterId: string): Promise<void> {
+  if (!canUseWebCache()) return;
+  const cache = await window.caches.open(WEB_CACHE_NAME);
+  await Promise.all(getWebManifest(chapterId).map((url) => cache.delete(url)));
+  window.localStorage.removeItem(getWebManifestKey(chapterId));
+}
+
 export async function isChapterDownloaded(chapterId: string): Promise<boolean> {
-  if (!isNative) return false;
+  if (!isNative) {
+    if (!canUseWebCache()) return false;
+    const manifest = getWebManifest(chapterId);
+    if (manifest.length === 0) return false;
+    const cache = await window.caches.open(WEB_CACHE_NAME);
+    const cached = await Promise.all(manifest.map((url) => cache.match(url)));
+    return cached.every(Boolean);
+  }
   const dir = `${DOWNLOADS_DIR}${chapterId}/`;
   const info = await FileSystem.getInfoAsync(dir);
   return info.exists;
 }
 
 export async function getLocalPages(chapterId: string): Promise<string[]> {
-  if (!isNative) return [];
+  if (!isNative) return getWebLocalPages(chapterId);
   const dir = `${DOWNLOADS_DIR}${chapterId}/`;
   const info = await FileSystem.getInfoAsync(dir);
   if (!info.exists) return [];
@@ -73,7 +154,24 @@ export async function downloadChapter(
   signal?: { cancelled: boolean }
 ): Promise<void> {
   if (!isNative) {
-    throw new Error("التنزيل غير متاح على هذه المنصة");
+    const pages = await getChapterPages(chapterId);
+    const imageUrls = pages.data.map(
+      (filename) => `${pages.baseUrl}/data/${pages.hash}/${filename}`,
+    );
+    await saveWebChapter(chapterId, imageUrls, onProgress);
+    const list = await getDownloadsMeta();
+    const filtered = list.filter((m) => m.chapterId !== chapterId);
+    filtered.unshift({
+      chapterId,
+      mangaId: manga.id,
+      mangaTitle: getMangaTitle(manga),
+      chapterNum,
+      coverUrl: getCoverUrl(manga, "256"),
+      pageCount: imageUrls.length,
+      downloadedAt: Date.now(),
+    });
+    await saveDownloadsMeta(filtered);
+    return;
   }
 
   const chapterDir = `${DOWNLOADS_DIR}${chapterId}/`;
@@ -122,7 +220,22 @@ export async function downloadPublishedTeamChapter(
   onProgress: (downloaded: number, total: number) => void,
   signal?: { cancelled: boolean }
 ): Promise<void> {
-  if (!isNative) throw new Error("التنزيل غير متاح على هذه المنصة");
+  if (!isNative) {
+    await saveWebChapter(chapter.id, chapter.imageUrls, onProgress);
+    const list = await getDownloadsMeta();
+    const filtered = list.filter((m) => m.chapterId !== chapter.id);
+    filtered.unshift({
+      chapterId: chapter.id,
+      mangaId,
+      mangaTitle,
+      chapterNum: chapter.number,
+      coverUrl,
+      pageCount: chapter.imageUrls.length,
+      downloadedAt: Date.now(),
+    });
+    await saveDownloadsMeta(filtered);
+    return;
+  }
 
   const chapterDir = `${DOWNLOADS_DIR}${chapter.id}/`;
   await ensureDir(chapterDir);
@@ -184,6 +297,8 @@ export async function deleteChapter(chapterId: string): Promise<void> {
   if (isNative) {
     const dir = `${DOWNLOADS_DIR}${chapterId}/`;
     await FileSystem.deleteAsync(dir, { idempotent: true });
+  } else {
+    await deleteWebChapter(chapterId);
   }
   const list = await getDownloadsMeta();
   await saveDownloadsMeta(list.filter((m) => m.chapterId !== chapterId));
@@ -202,7 +317,22 @@ export async function downloadSourceChapter(
   onProgress: (downloaded: number, total: number) => void,
   signal?: { cancelled: boolean }
 ): Promise<void> {
-  if (!isNative) throw new Error("التنزيل غير متاح على هذه المنصة");
+  if (!isNative) {
+    await saveWebChapter(chapterId, imageUrls, onProgress);
+    const list = await getDownloadsMeta();
+    const filtered = list.filter((m) => m.chapterId !== chapterId);
+    filtered.unshift({
+      chapterId,
+      mangaId: chapterId,
+      mangaTitle,
+      chapterNum,
+      coverUrl,
+      pageCount: imageUrls.length,
+      downloadedAt: Date.now(),
+    });
+    await saveDownloadsMeta(filtered);
+    return;
+  }
 
   const chapterDir = `${DOWNLOADS_DIR}${chapterId}/`;
   await ensureDir(chapterDir);
