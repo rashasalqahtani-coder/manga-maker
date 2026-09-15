@@ -163,7 +163,8 @@ export default function MangaDetailScreen() {
 
         <View style={styles.body}>
           {/* ── ACTIONS ── */}
-          <View style={styles.actions}>
+         
+       <View style={[styles.actions, { flexDirection: 'row', gap: 12 }]}>
             <Pressable
               style={({ pressed }) => [
                 styles.primaryBtn,

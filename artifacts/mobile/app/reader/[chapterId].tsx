@@ -54,7 +54,14 @@ export default function ReaderScreen() {
   const [showComments, setShowComments] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const flatListRef = useRef<FlatList<PageItem>>(null);
-
+ addToHistory({
+   chapterId: String(chapterId),
+   mangaTitle: typeof mangaTitle === 'string' ? mangaTitle : "مانجا",
+   coverUrl: typeof coverUrl === 'string' ? coverUrl : "",
+   mangaId: "",
+   chapterNum: null,
+   readAt: 0
+ });
   // Fetch sibling chapters for next/prev navigation
   useEffect(() => {
     if (!mangaId) {
