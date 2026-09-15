@@ -1,8 +1,6 @@
-import { useColorScheme } from "react-native";
-
+import { useColorScheme }from"react-native";
 import staticColors from "@/constants/colors";
-import { useTheme } from "@/context/ThemeContext";
-
+import {useTheme} from "@/context/ThemeContext";
 /**
  * Returns the full design-token palette.
  * Merges the static color structure with the user's chosen theme (accent, bg, radius).

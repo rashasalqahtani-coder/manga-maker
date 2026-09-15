@@ -5,6 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "dev": "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=$CLERK_PUBLISHABLE_KEY EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT",
+    "dev:local":"expo start",
     "build": "node scripts/build.js",
     "test:build": "node --test scripts/*.test.js",
     "test:post-deploy-sign-up": "node scripts/post-deploy-sign-up.js",
