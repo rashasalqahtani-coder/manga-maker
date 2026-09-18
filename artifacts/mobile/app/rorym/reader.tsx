@@ -14,7 +14,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { addToHistory } from "@/app/(tabs)/history";
 import { useColors } from "@/hooks/useColors";
+
+function safeDecode(str?: string): string {
+  if (!str) return "";
+  try {
+    return decodeURIComponent(str);
+  } catch {
+    return str;
+  }
+}
 
 const API_BASE =
   typeof process !== "undefined" &&
@@ -35,6 +45,7 @@ export default function RorymReaderScreen() {
     slug: string;
     chapterNum: string;
     title?: string;
+    coverUrl?: string;
   }>();
   const router = useRouter();
   const colors = useColors();
@@ -50,9 +61,10 @@ export default function RorymReaderScreen() {
   const flatListRef = useRef<FlatList>(null);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
 
-  const mangaTitle = params.title ? decodeURIComponent(params.title) : "";
+  const mangaTitle = params.title ? safeDecode(params.title) : "";
   const chapterNum = params.chapterNum ?? "";
   const slug = params.slug ?? "";
+  const coverUrl = params.coverUrl ? safeDecode(params.coverUrl) : null;
 
   useEffect(() => {
     if (!slug || !chapterNum) return;
@@ -70,6 +82,14 @@ export default function RorymReaderScreen() {
         const ch = d.chapters.find((c) => c.number === chapterNum);
         if (ch && ch.pages.length > 0) {
           setPages(ch.pages);
+          addToHistory({
+            mangaId: slug,
+            mangaTitle: mangaTitle || slug,
+            coverUrl: coverUrl || null,
+            chapterId: `rorym__${slug}__${chapterNum}`,
+            chapterNum: chapterNum || null,
+            readAt: Date.now(),
+          });
         } else {
           setError(true);
         }
@@ -79,7 +99,7 @@ export default function RorymReaderScreen() {
         setError(true);
         setLoading(false);
       });
-  }, [slug, chapterNum]);
+  }, [slug, chapterNum, mangaTitle, coverUrl]);
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {

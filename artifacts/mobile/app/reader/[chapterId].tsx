@@ -107,16 +107,14 @@ export default function ReaderScreen() {
         setIsOffline(true);
         setPages(localPages.map((uri, i) => ({ uri, index: i })));
         setLoading(false);
-        if (mangaId && mangaTitle) {
-          addToHistory({
-            mangaId,
-            mangaTitle,
-            coverUrl: coverUrl || null,
-            chapterId,
-            chapterNum: chapterNum || null,
-            readAt: Date.now(),
-          });
-        }
+        addToHistory({
+          mangaId: mangaId || String(chapterId),
+          mangaTitle: typeof mangaTitle === "string" && mangaTitle.trim() ? mangaTitle : "مانجا",
+          coverUrl: coverUrl || null,
+          chapterId: String(chapterId),
+          chapterNum: chapterNum || null,
+          readAt: Date.now(),
+        });
         return;
       }
     } catch {
@@ -138,16 +136,14 @@ export default function ReaderScreen() {
           index: i,
         }))
       );
-      if (mangaId && mangaTitle) {
-        addToHistory({
-          mangaId,
-          mangaTitle,
-          coverUrl: coverUrl || null,
-          chapterId,
-          chapterNum: chapterNum || null,
-          readAt: Date.now(),
-        });
-      }
+      addToHistory({
+        mangaId: mangaId || String(chapterId),
+        mangaTitle: typeof mangaTitle === "string" && mangaTitle.trim() ? mangaTitle : "مانجا",
+        coverUrl: coverUrl || null,
+        chapterId: String(chapterId),
+        chapterNum: chapterNum || null,
+        readAt: Date.now(),
+      });
     } catch {
       setError(true);
     } finally {

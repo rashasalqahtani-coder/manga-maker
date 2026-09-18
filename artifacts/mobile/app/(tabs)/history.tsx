@@ -2,8 +2,8 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -31,6 +31,7 @@ export interface HistoryEntry {
 
 export async function addToHistory(entry: HistoryEntry) {
   try {
+    if (!entry.chapterId) return;
     const raw = await AsyncStorage.getItem(HISTORY_KEY);
     const list: HistoryEntry[] = raw ? JSON.parse(raw) : [];
     const filtered = list.filter((e) => e.chapterId !== entry.chapterId);
@@ -68,11 +69,16 @@ export default function HistoryScreen() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    AsyncStorage.getItem(HISTORY_KEY).then((raw) => {
-      if (raw) setHistory(JSON.parse(raw) as HistoryEntry[]);
-    });
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem(HISTORY_KEY)
+        .then((raw) => {
+          if (raw) setHistory(JSON.parse(raw) as HistoryEntry[]);
+          else setHistory([]);
+        })
+        .catch(() => {});
+    }, [])
+  );
 
   const saveHistory = async (list: HistoryEntry[]) => {
     setHistory(list);
@@ -232,6 +238,33 @@ export default function HistoryScreen() {
                 onPress={() => {
                   if (selecting) {
                     toggleSelect(item.chapterId);
+                  } else if (item.chapterId.startsWith("rorym__")) {
+                    const parts = item.chapterId.split("__");
+                    router.push({
+                      pathname: "/rorym/reader" as any,
+                      params: {
+                        slug: parts[1] || item.mangaId,
+                        chapterNum: parts[2] || item.chapterNum || "",
+                        title: encodeURIComponent(item.mangaTitle),
+                        coverUrl: item.coverUrl ? encodeURIComponent(item.coverUrl) : "",
+                      },
+                    });
+                  } else if (item.chapterId.includes("__")) {
+                    const parts = item.chapterId.split("__");
+                    const src = parts[0];
+                    const slug = parts[1];
+                    const chNum = parts[2] || item.chapterNum || "";
+                    router.push({
+                      pathname: "/starz/reader" as any,
+                      params: {
+                        url: "",
+                        title: encodeURIComponent(item.mangaTitle),
+                        chapterNum: encodeURIComponent(chNum),
+                        slug: encodeURIComponent(slug),
+                        src,
+                        coverUrl: item.coverUrl ? encodeURIComponent(item.coverUrl) : "",
+                      },
+                    });
                   } else {
                     router.push({
                       pathname: "/reader/[chapterId]" as any,

@@ -15,8 +15,18 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 
+import { addToHistory } from "@/app/(tabs)/history";
 import { useColors } from "@/hooks/useColors";
 import { getLocalPages } from "@/lib/download";
+
+function safeDecode(str?: string): string {
+  if (!str) return "";
+  try {
+    return decodeURIComponent(str);
+  } catch {
+    return str;
+  }
+}
 
 // Injected into the WebView to strip ads/nav and focus on manga images
 const INJECTED_JS = `
@@ -144,13 +154,31 @@ export default function StarzWebViewReader() {
   const [canGoBack, setCanGoBack] = useState(false);
   const [localPages, setLocalPages] = useState<string[] | null>(null);
 
-  const url = params.url ? decodeURIComponent(params.url) : "";
-  const title = params.title ? decodeURIComponent(params.title) : "قارئ المانجا";
-  const chapterNum = params.chapterNum ? decodeURIComponent(params.chapterNum) : "";
-  const slug = params.slug ? decodeURIComponent(params.slug) : "";
+  const url = params.url ? safeDecode(params.url) : "";
+  const title = params.title ? safeDecode(params.title) : "قارئ المانجا";
+  const chapterNum = params.chapterNum ? safeDecode(params.chapterNum) : "";
+  const slug = params.slug ? safeDecode(params.slug) : "";
   const src = params.src ?? "";
+  const coverUrl = params.coverUrl ? safeDecode(params.coverUrl) : null;
   const latestNum = params.latestChapter ? parseInt(params.latestChapter, 10) : 0;
   const currentNum = chapterNum ? parseInt(chapterNum, 10) : 0;
+
+  // Add to history when reading chapter
+  useEffect(() => {
+    if (!src && !slug && !url) return;
+    const entryChapterId = src && slug && chapterNum ? `${src}__${slug}__${chapterNum}` : (url || slug);
+    const entryMangaId = slug || url;
+    const entryTitle = title || slug || "مانجا";
+
+    addToHistory({
+      mangaId: entryMangaId,
+      mangaTitle: entryTitle,
+      coverUrl: coverUrl || null,
+      chapterId: entryChapterId,
+      chapterNum: chapterNum || null,
+      readAt: Date.now(),
+    });
+  }, [src, slug, chapterNum, url, title, coverUrl]);
 
   // Check for offline-downloaded pages
   useEffect(() => {
