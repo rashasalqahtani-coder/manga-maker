@@ -16,6 +16,7 @@ interface MangaCardProps {
 export function MangaCard({ manga, width = 130, height = 185 }: MangaCardProps) {
   const colors = useColors();
   const router = useRouter();
+  const [imageError, setImageError] = React.useState(false);
   const title = getMangaTitle(manga);
   const coverUrl = getCoverUrl(manga, "256");
 
@@ -33,12 +34,13 @@ export function MangaCard({ manga, width = 130, height = 185 }: MangaCardProps) 
           { width, height, backgroundColor: colors.card, borderRadius: colors.radius },
         ]}
       >
-        {coverUrl ? (
+        {coverUrl && !imageError ? (
           <Image
             source={{ uri: coverUrl }}
             style={[styles.cover, { borderRadius: colors.radius }]}
             contentFit="cover"
             transition={200}
+            onError={() => setImageError(true)}
           />
         ) : (
           <View style={[styles.placeholder, { backgroundColor: colors.muted }]} />

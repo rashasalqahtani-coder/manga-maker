@@ -78,11 +78,51 @@ export interface ChapterPages {
   dataSaver: string[];
 }
 
+function normalizeMangaData<T>(json: any): T {
+  if (!json || !json.data) return json;
+  const included = json.included;
+  if (!included || !Array.isArray(included) || included.length === 0) return json;
+
+  const includedMap = new Map<string, MangaRelationship>();
+  for (const item of included) {
+    if (item && item.id && item.type) {
+      includedMap.set(`${item.type}:${item.id}`, item);
+    }
+  }
+
+  function attachAttributes(manga: Manga): Manga {
+    if (!manga || !manga.relationships || !Array.isArray(manga.relationships)) return manga;
+    const updatedRelationships = manga.relationships.map((rel) => {
+      if (!rel.attributes) {
+        const found = includedMap.get(`${rel.type}:${rel.id}`);
+        if (found?.attributes) {
+          return { ...rel, attributes: found.attributes };
+        }
+      }
+      return rel;
+    });
+    return { ...manga, relationships: updatedRelationships };
+  }
+
+  if (Array.isArray(json.data)) {
+    return { ...json, data: json.data.map(attachAttributes) };
+  } else if (typeof json.data === "object") {
+    return { ...json, data: attachAttributes(json.data) };
+  }
+
+  return json;
+}
+
 export function getCoverUrl(manga: Manga, size: "256" | "512" = "512"): string {
+  if (!manga || !manga.relationships) return "";
   const coverRel = manga.relationships.find((r) => r.type === "cover_art");
   const attrs = coverRel?.attributes as { fileName?: string } | undefined;
   if (!attrs?.fileName) return "";
-  return `https://uploads.mangadex.org/covers/${manga.id}/${attrs.fileName}.${size}.jpg`;
+  const fileName = attrs.fileName;
+  if (fileName.startsWith("http://") || fileName.startsWith("https://")) {
+    return fileName;
+  }
+  return `https://uploads.mangadex.org/covers/${manga.id}/${fileName}.${size}.jpg`;
 }
 
 export function getMangaTitle(manga: Manga): string {
@@ -144,7 +184,8 @@ async function apiFetch(
   const url = buildUrl(path, params);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  return normalizeMangaData(json);
 }
 
 // ── Arabic-first base params ──────────────────────────────────────────────────

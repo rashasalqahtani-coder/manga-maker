@@ -30,6 +30,7 @@ interface Props {
 function BannerCard({ manga, onPress }: { manga: StarzManga; onPress?: (m: StarzManga) => void }) {
   const colors = useColors();
   const router = useRouter();
+  const [imageError, setImageError] = useState(false);
 
   const handlePress = () => {
     if (onPress) { onPress(manga); return; }
@@ -44,12 +45,13 @@ function BannerCard({ manga, onPress }: { manga: StarzManga; onPress?: (m: Starz
       ]}
       onPress={handlePress}
     >
-      {manga.coverUrl ? (
+      {manga.coverUrl && !imageError ? (
         <Image
           source={{ uri: manga.coverUrl }}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={300}
+          onError={() => setImageError(true)}
         />
       ) : (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]} />

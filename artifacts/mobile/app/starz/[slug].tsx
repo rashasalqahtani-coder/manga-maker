@@ -117,6 +117,15 @@ interface ScrapeJob {
   chapterId: string;
 }
 
+function safeDecode(str?: string): string {
+  if (!str) return "";
+  try {
+    return decodeURIComponent(str);
+  } catch {
+    return str;
+  }
+}
+
 export default function StarzMangaDetailScreen() {
   "use no memo";
   const params = useLocalSearchParams<{
@@ -135,9 +144,9 @@ export default function StarzMangaDetailScreen() {
   const router = useRouter();
   const { startSourceDownload, cancelDownload, downloads } = useDownloads();
   const title = params.title
-    ? decodeURIComponent(params.title)
+    ? safeDecode(params.title)
     : slug.replace(/-/g, " ");
-  const coverUrl = params.coverUrl ? decodeURIComponent(params.coverUrl) : "";
+  const coverUrl = params.coverUrl ? safeDecode(params.coverUrl) : "";
 
   const [chapters, setChapters] = useState<DownloadableChapter[]>([]);
   const [chaptersLoading, setChaptersLoading] = useState(true);

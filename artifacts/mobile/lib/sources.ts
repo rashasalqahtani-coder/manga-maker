@@ -23,15 +23,34 @@ export interface UnifiedManga {
   genres: string[];
 }
 
+function resolveUrl(url: string): string {
+  if (!url) return "";
+  if (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("file://") ||
+    url.startsWith("data:")
+  ) {
+    return url;
+  }
+  if (url.startsWith("/")) {
+    if (apiDomain) {
+      return `https://${apiDomain}${url}`;
+    }
+  }
+  return url;
+}
+
 function mapRorymItem(item: Record<string, unknown>): UnifiedManga {
   const slug = String(item["slug"] ?? item["id"] ?? "");
   const latestChs = item["latestChapters"] as { number: string; url: string }[] | undefined;
   const latest = latestChs?.[0];
+  const rawCover = String(item["coverUrl"] ?? item["cover_url"] ?? item["cover"] ?? "");
   return {
     id: slug,
     slug,
     title: String(item["title"] ?? ""),
-    coverUrl: String(item["coverUrl"] ?? ""),
+    coverUrl: resolveUrl(rawCover),
     url: String(item["url"] ?? ""),
     sourceId: "rorym",
     rating: item["rating"] ? String(item["rating"]) : undefined,

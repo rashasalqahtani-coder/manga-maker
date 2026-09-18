@@ -16,6 +16,7 @@ interface Props {
 export function StarzMangaCard({ manga, width = 130, height = 185, onPress }: Props) {
   const colors = useColors();
   const router = useRouter();
+  const [imageError, setImageError] = React.useState(false);
 
   const handlePress = () => {
     if (onPress) { onPress(manga); return; }
@@ -42,12 +43,13 @@ export function StarzMangaCard({ manga, width = 130, height = 185, onPress }: Pr
           { width, height, backgroundColor: colors.card, borderRadius: colors.radius },
         ]}
       >
-        {manga.coverUrl ? (
+        {manga.coverUrl && !imageError ? (
           <Image
             source={{ uri: manga.coverUrl }}
             style={[styles.cover, { borderRadius: colors.radius }]}
             contentFit="cover"
             transition={200}
+            onError={() => setImageError(true)}
           />
         ) : (
           <View style={[styles.placeholder, { backgroundColor: colors.muted }]} />
