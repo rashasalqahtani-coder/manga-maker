@@ -1,3 +1,4 @@
+import { useUser } from "@clerk/expo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
@@ -73,21 +74,73 @@ function migrate(raw: unknown): Team {
 }
 
 export function TeamProvider({ children }: { children: React.ReactNode }) {
+  const { user, isLoaded } = useUser();
   const [team, setTeam] = useState<Team | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem(KEY).then((raw) => {
+    if (!isLoaded) return;
+    if (!user) {
+      setTeam(null);
+      return;
+    }
+
+    const userKey = `@translation_team_${user.id}`;
+    AsyncStorage.getItem(userKey).then(async (raw) => {
       if (raw) {
-        try { setTeam(migrate(JSON.parse(raw))); } catch { /* ignore */ }
+        try {
+          setTeam(migrate(JSON.parse(raw)));
+          return;
+        } catch {}
+      }
+
+      // Check legacy unscoped storage
+      const legacyRaw = await AsyncStorage.getItem(KEY);
+      if (legacyRaw) {
+        try {
+          const parsed = migrate(JSON.parse(legacyRaw));
+          setTeam(parsed);
+          await AsyncStorage.setItem(userKey, JSON.stringify(parsed));
+          return;
+        } catch {}
+      }
+
+      // Check Clerk cloud unsafeMetadata
+      const cloudTeam = user.unsafeMetadata?.team as Team | undefined;
+      if (cloudTeam) {
+        const migrated = migrate(cloudTeam);
+        setTeam(migrated);
+        await AsyncStorage.setItem(userKey, JSON.stringify(migrated));
+      } else {
+        setTeam(null);
       }
     }).catch(() => {});
-  }, []);
+  }, [user?.id, isLoaded]);
 
-  const save = useCallback((t: Team | null) => {
-    setTeam(t);
-    if (t) AsyncStorage.setItem(KEY, JSON.stringify(t)).catch(() => {});
-    else    AsyncStorage.removeItem(KEY).catch(() => {});
-  }, []);
+  const save = useCallback(
+    (t: Team | null) => {
+      setTeam(t);
+      const userKey = user?.id ? `@translation_team_${user.id}` : KEY;
+      if (t) {
+        AsyncStorage.setItem(userKey, JSON.stringify(t)).catch(() => {});
+        if (user) {
+          user.update({
+            unsafeMetadata: {
+              ...(user.unsafeMetadata || {}),
+              team: t,
+            },
+          }).catch(() => {});
+        }
+      } else {
+        AsyncStorage.removeItem(userKey).catch(() => {});
+        if (user) {
+          const newMeta = { ...(user.unsafeMetadata || {}) };
+          delete newMeta.team;
+          user.update({ unsafeMetadata: newMeta }).catch(() => {});
+        }
+      }
+    },
+    [user]
+  );
 
   const createTeam = useCallback((info: Omit<Team, "members" | "manga" | "createdAt">) => {
     save({ ...info, members: [], manga: [], createdAt: Date.now() });
