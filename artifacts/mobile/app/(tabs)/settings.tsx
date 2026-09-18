@@ -844,9 +844,11 @@ const styles = StyleSheet.create({
   radiusRow: { flexDirection: "row", gap: 10 },
   radiusChip: {
     flex: 1,
+    flexDirection: "row",
     paddingVertical: 10,
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
   },
   radiusLabel: { fontSize: 13, fontWeight: "600" },
   bottomBar: {

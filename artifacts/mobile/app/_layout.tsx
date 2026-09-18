@@ -75,24 +75,24 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <SourceProvider>
-          <ErrorBoundary>
-            <QueryClientProvider client={queryClient}>
-              <LibraryProvider>
-                <TeamProvider>
-                <ReaderSettingsProvider>
-                <DownloadProvider>
-                  <GestureHandlerRootView>
-                    <KeyboardProvider>
-                      <RootLayoutNav />
-                      <AppResumeInterstitial />
-                    </KeyboardProvider>
-                  </GestureHandlerRootView>
-                </DownloadProvider>
-                </ReaderSettingsProvider>
-                </TeamProvider>
-              </LibraryProvider>
-            </QueryClientProvider>
-          </ErrorBoundary>
+            <ErrorBoundary>
+              <QueryClientProvider client={queryClient}>
+                <LibraryProvider>
+                  <TeamProvider>
+                    <ReaderSettingsProvider>
+                      <DownloadProvider>
+                        <GestureHandlerRootView>
+                          <KeyboardProvider>
+                            <RootLayoutNav />
+                            <AppResumeInterstitial />
+                          </KeyboardProvider>
+                        </GestureHandlerRootView>
+                      </DownloadProvider>
+                    </ReaderSettingsProvider>
+                  </TeamProvider>
+                </LibraryProvider>
+              </QueryClientProvider>
+            </ErrorBoundary>
           </SourceProvider>
         </ThemeProvider>
       </SafeAreaProvider>

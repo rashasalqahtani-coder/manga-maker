@@ -338,7 +338,7 @@ export default function SuggestionsScreen() {
             />
           )}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
-          ListHeaderComponent={
+          ListHeaderComponent={() => (
             <>
             {isAdmin && (
               <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -402,7 +402,7 @@ export default function SuggestionsScreen() {
               </Pressable>
             </View>
             </>
-          }
+          )}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Feather name="message-circle" size={36} color={colors.muted} />

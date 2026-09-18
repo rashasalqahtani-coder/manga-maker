@@ -6,7 +6,6 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Platform,
   Pressable,
   ScrollView,
@@ -430,15 +429,12 @@ export default function SearchScreen() {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={[]}
-          renderItem={null}
-          keyExtractor={() => ""}
+        <ScrollView
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 104 }]}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={sourceHeader}
-          ListEmptyComponent={null}
-        />
+        >
+          {sourceHeader}
+        </ScrollView>
       )}
     </View>
   );
